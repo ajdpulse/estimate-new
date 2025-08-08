@@ -172,6 +172,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
     try {
       const { error } = await supabase
+        .schema('estimate')
         .from('subwork_items')
         .delete()
         .eq('id', item.id);
