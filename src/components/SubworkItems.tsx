@@ -9,7 +9,9 @@ import {
   Eye,
   Package,
   Calculator,
-  X
+  X,
+  Search,
+  CheckCircle
 } from 'lucide-react';
 
 interface SubworkItemsProps {
@@ -32,6 +34,10 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   const [showEditItemModal, setShowEditItemModal] = useState(false);
   const [showMeasurementsModal, setShowMeasurementsModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SubworkItem | null>(null);
+  const [ssrSuggestions, setSsrSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchingSSR, setSearchingSSR] = useState(false);
+  const [descriptionQuery, setDescriptionQuery] = useState('');
   const [newItem, setNewItem] = useState<Partial<SubworkItem>>({
     description_of_item: '',
     ssr_quantity: 0,
@@ -44,6 +50,68 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       fetchSubworkItems();
     }
   }, [isOpen, subworkId]);
+
+  const searchSSRItems = async (query: string) => {
+    if (!query || query.trim().length < 2) {
+      setSsrSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      setSearchingSSR(true);
+      
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ssr-search`;
+      const headers = {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      };
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query: query.trim() })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setSsrSuggestions(data.results || []);
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error('Error searching SSR items:', error);
+      setSsrSuggestions([]);
+      setShowSuggestions(false);
+    } finally {
+      setSearchingSSR(false);
+    }
+  };
+
+  const handleDescriptionChange = (value: string) => {
+    setDescriptionQuery(value);
+    setNewItem({...newItem, description_of_item: value});
+    
+    // Debounce search
+    const timeoutId = setTimeout(() => {
+      searchSSRItems(value);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  };
+
+  const selectSSRItem = (item: any) => {
+    setNewItem({
+      ...newItem,
+      description_of_item: item.description,
+      ssr_rate: parseFloat(item.rate_2024_25 || item.rate_2023_24 || '0'),
+      ssr_unit: item.unit || ''
+    });
+    setDescriptionQuery(item.description);
+    setShowSuggestions(false);
+    setSsrSuggestions([]);
+  };
 
   const fetchSubworkItems = async () => {
     try {
@@ -387,13 +455,79 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description of Item *
                   </label>
-                  <textarea
-                    value={newItem.description_of_item || ''}
-                    onChange={(e) => setNewItem({...newItem, description_of_item: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter item description"
-                    rows={3}
-                  />
+                  <div className="relative">
+                    <textarea
+                      value={descriptionQuery}
+                      onChange={(e) => handleDescriptionChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter item description or search SSR items..."
+                      rows={3}
+                    />
+                    {searchingSSR && (
+                      <div className="absolute right-3 top-3">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      </div>
+                    )}
+                    
+                    {/* SSR Suggestions Dropdown */}
+                    {showSuggestions && ssrSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        <div className="p-2 text-xs text-gray-500 border-b">
+                          <Search className="w-3 h-3 inline mr-1" />
+                          SSR Rate Suggestions
+                        </div>
+                        {ssrSuggestions.map((item, index) => (
+                          <div
+                            key={index}
+                            onClick={() => selectSSRItem(item)}
+                            className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {item.sr_no && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-2">
+                                      Item {item.sr_no}
+                                    </span>
+                                  )}
+                                  {item.description}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Section: {item.section} | Page: {item.page_number}
+                                </div>
+                                <div className="flex items-center mt-1 space-x-4">
+                                  {item.unit && (
+                                    <span className="text-xs text-gray-600">
+                                      Unit: <span className="font-medium">{item.unit}</span>
+                                    </span>
+                                  )}
+                                  {item.rate_2024_25 && (
+                                    <span className="text-xs text-green-600">
+                                      Rate 2024-25: <span className="font-medium">₹{item.rate_2024_25}</span>
+                                    </span>
+                                  )}
+                                  {item.rate_2023_24 && (
+                                    <span className="text-xs text-blue-600">
+                                      Rate 2023-24: <span className="font-medium">₹{item.rate_2023_24}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="ml-2">
+                                <div className="text-xs text-gray-500">
+                                  {Math.round(item.confidence * 100)}% match
+                                </div>
+                                <CheckCircle className="w-4 h-4 text-green-500 mt-1" />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="p-2 text-xs text-gray-400 text-center border-t">
+                          Click on an item to auto-fill rate and unit
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -516,13 +650,79 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description of Item *
                   </label>
-                  <textarea
-                    value={newItem.description_of_item || ''}
-                    onChange={(e) => setNewItem({...newItem, description_of_item: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter item description"
-                    rows={3}
-                  />
+                  <div className="relative">
+                    <textarea
+                      value={descriptionQuery}
+                      onChange={(e) => handleDescriptionChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter item description or search SSR items..."
+                      rows={3}
+                    />
+                    {searchingSSR && (
+                      <div className="absolute right-3 top-3">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      </div>
+                    )}
+                    
+                    {/* SSR Suggestions Dropdown */}
+                    {showSuggestions && ssrSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        <div className="p-2 text-xs text-gray-500 border-b">
+                          <Search className="w-3 h-3 inline mr-1" />
+                          SSR Rate Suggestions
+                        </div>
+                        {ssrSuggestions.map((item, index) => (
+                          <div
+                            key={index}
+                            onClick={() => selectSSRItem(item)}
+                            className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {item.sr_no && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-2">
+                                      Item {item.sr_no}
+                                    </span>
+                                  )}
+                                  {item.description}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Section: {item.section} | Page: {item.page_number}
+                                </div>
+                                <div className="flex items-center mt-1 space-x-4">
+                                  {item.unit && (
+                                    <span className="text-xs text-gray-600">
+                                      Unit: <span className="font-medium">{item.unit}</span>
+                                    </span>
+                                  )}
+                                  {item.rate_2024_25 && (
+                                    <span className="text-xs text-green-600">
+                                      Rate 2024-25: <span className="font-medium">₹{item.rate_2024_25}</span>
+                                    </span>
+                                  )}
+                                  {item.rate_2023_24 && (
+                                    <span className="text-xs text-blue-600">
+                                      Rate 2023-24: <span className="font-medium">₹{item.rate_2023_24}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="ml-2">
+                                <div className="text-xs text-gray-500">
+                                  {Math.round(item.confidence * 100)}% match
+                                </div>
+                                <CheckCircle className="w-4 h-4 text-green-500 mt-1" />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="p-2 text-xs text-gray-400 text-center border-t">
+                          Click on an item to auto-fill rate and unit
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
