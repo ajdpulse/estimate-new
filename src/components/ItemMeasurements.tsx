@@ -60,6 +60,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       
       if (activeTab === 'measurements') {
         const { data, error } = await supabase
+          .schema('estimate')
           .from('item_measurements')
           .select('*')
           .eq('subwork_item_id', item.id)
@@ -69,6 +70,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         setMeasurements(data || []);
       } else if (activeTab === 'leads') {
         const { data, error } = await supabase
+          .schema('estimate')
           .from('item_leads')
           .select('*')
           .eq('subwork_item_id', item.id)
@@ -78,6 +80,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         setLeads(data || []);
       } else if (activeTab === 'materials') {
         const { data, error } = await supabase
+          .schema('estimate')
           .from('item_materials')
           .select('*')
           .eq('subwork_item_id', item.id)
@@ -105,6 +108,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       const lineAmount = calculatedQuantity * item.ssr_rate;
 
       const { error } = await supabase
+        .schema('estimate')
         .from('item_measurements')
         .insert([{
           ...newMeasurement,
@@ -136,6 +140,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       const netLeadCharges = (newLead.lead_charges || 0) - (newLead.initial_lead_charges || 0);
 
       const { error } = await supabase
+        .schema('estimate')
         .from('item_leads')
         .insert([{
           ...newLead,
@@ -165,6 +170,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       const totalCost = (newMaterial.required_quantity || 0) * (newMaterial.rate_per_unit || 0);
 
       const { error } = await supabase
+        .schema('estimate')
         .from('item_materials')
         .insert([{
           ...newMaterial,
