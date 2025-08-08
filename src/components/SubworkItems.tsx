@@ -141,6 +141,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       const totalAmount = (newItem.ssr_quantity || 0) * (newItem.ssr_rate || 0);
 
       const { error } = await supabase
+        .schema('estimate')
         .from('subwork_items')
         .update({
           ...newItem,
