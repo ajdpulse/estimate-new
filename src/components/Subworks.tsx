@@ -121,21 +121,6 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const fetchSubworkItems = async (subworkId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('subwork_items')
-        .select('*')
-        .eq('subwork_id', subworkId)
-        .order('item_number', { ascending: true });
-
-      if (error) throw error;
-      setSubworkItems(data || []);
-    } catch (error) {
-      console.error('Error fetching subwork items:', error);
-    }
-  };
-
   const generateSubworkId = async (worksId: string): Promise<string> => {
     try {
       const { data, error } = await supabase
