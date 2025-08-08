@@ -38,6 +38,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchingSSR, setSearchingSSR] = useState(false);
   const [descriptionQuery, setDescriptionQuery] = useState('');
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [newItem, setNewItem] = useState<Partial<SubworkItem>>({
     description_of_item: '',
     ssr_quantity: 0,
@@ -93,12 +94,22 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     setDescriptionQuery(value);
     setNewItem({...newItem, description_of_item: value});
     
-    // Debounce search
-    const timeoutId = setTimeout(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // If input is empty or too short, clear suggestions
+    if (!value || value.trim().length < 2) {
+      setSsrSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    
+    // Debounce search with new timeout
+    searchTimeoutRef.current = setTimeout(() => {
       searchSSRItems(value);
     }, 500);
-
-    return () => clearTimeout(timeoutId);
   };
 
   const selectSSRItem = (item: any) => {
@@ -111,6 +122,11 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     setDescriptionQuery(item.description);
     setShowSuggestions(false);
     setSsrSuggestions([]);
+    
+    // Clear any pending search timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
   };
 
   const fetchSubworkItems = async () => {
@@ -184,6 +200,9 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
         ssr_rate: 0,
         ssr_unit: ''
       });
+      setDescriptionQuery('');
+      setSsrSuggestions([]);
+      setShowSuggestions(false);
       fetchSubworkItems();
     } catch (error) {
       console.error('Error adding item:', error);
@@ -420,6 +439,15 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                 <button
                   onClick={() => setShowAddItemModal(false)}
                   className="text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    setShowAddItemModal(false);
+                    setDescriptionQuery('');
+                    setSsrSuggestions([]);
+                    setShowSuggestions(false);
+                    if (searchTimeoutRef.current) {
+                      clearTimeout(searchTimeoutRef.current);
+                    }
+                  }}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -615,6 +643,15 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                 <button
                   onClick={() => setShowEditItemModal(false)}
                   className="text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    setShowEditItemModal(false);
+                    setDescriptionQuery('');
+                    setSsrSuggestions([]);
+                    setShowSuggestions(false);
+                    if (searchTimeoutRef.current) {
+                      clearTimeout(searchTimeoutRef.current);
+                    }
+                  }}
                 >
                   <X className="w-5 h-5" />
                 </button>
