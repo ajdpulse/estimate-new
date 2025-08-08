@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Work, SubWork } from '../types';
+import { Work, SubWork, SubworkItem } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
 import { 
   Plus, 
@@ -13,7 +13,9 @@ import {
   Eye,
   FileText,
   IndianRupee,
-  Calculator
+  Calculator,
+  ChevronRight,
+  Package
 } from 'lucide-react';
 
 const Subworks: React.FC = () => {
@@ -22,7 +24,9 @@ const Subworks: React.FC = () => {
   const location = useLocation();
   const [works, setWorks] = useState<Work[]>([]);
   const [subworks, setSubworks] = useState<SubWork[]>([]);
+  const [subworkItems, setSubworkItems] = useState<SubworkItem[]>([]);
   const [selectedWorkId, setSelectedWorkId] = useState<string>('');
+  const [selectedSubworkId, setSelectedSubworkId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -31,6 +35,12 @@ const Subworks: React.FC = () => {
   const [selectedSubwork, setSelectedSubwork] = useState<SubWork | null>(null);
   const [newSubwork, setNewSubwork] = useState<Partial<SubWork>>({
     subworks_name: ''
+  });
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [newSubworkItem, setNewSubworkItem] = useState<Partial<SubworkItem>>({
+    description_of_item: '',
+    ssr_quantity: 0,
+    ssr_rate: 0
   });
 
   useEffect(() => {
@@ -53,6 +63,12 @@ const Subworks: React.FC = () => {
       fetchSubworks(selectedWorkId);
     }
   }, [selectedWorkId]);
+
+  useEffect(() => {
+    if (selectedSubworkId) {
+      fetchSubworkItems(selectedSubworkId);
+    }
+  }, [selectedSubworkId]);
 
   const fetchWorks = async () => {
     try {
@@ -91,6 +107,21 @@ const Subworks: React.FC = () => {
       setSubworks(data || []);
     } catch (error) {
       console.error('Error fetching subworks:', error);
+    }
+  };
+
+  const fetchSubworkItems = async (subworkId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('subwork_items')
+        .select('*')
+        .eq('subwork_id', subworkId)
+        .order('item_number', { ascending: true });
+
+      if (error) throw error;
+      setSubworkItems(data || []);
+    } catch (error) {
+      console.error('Error fetching subwork items:', error);
     }
   };
 
@@ -143,6 +174,50 @@ const Subworks: React.FC = () => {
       fetchSubworks(selectedWorkId);
     } catch (error) {
       console.error('Error adding subwork:', error);
+    }
+  };
+
+  const handleAddSubworkItem = async () => {
+    if (!newSubworkItem.description_of_item || !selectedSubworkId || !user) return;
+
+    try {
+      // Generate item number
+      const { data: existingItems } = await supabase
+        .from('subwork_items')
+        .select('item_number')
+        .eq('subwork_id', selectedSubworkId)
+        .order('item_number', { ascending: false })
+        .limit(1);
+
+      let nextItemNumber = '1';
+      if (existingItems && existingItems.length > 0) {
+        const lastNumber = parseInt(existingItems[0].item_number);
+        nextItemNumber = (lastNumber + 1).toString();
+      }
+
+      const totalAmount = (newSubworkItem.ssr_quantity || 0) * (newSubworkItem.ssr_rate || 0);
+
+      const { error } = await supabase
+        .from('subwork_items')
+        .insert([{
+          ...newSubworkItem,
+          subwork_id: selectedSubworkId,
+          item_number: nextItemNumber,
+          total_item_amount: totalAmount,
+          created_by: user.id
+        }]);
+
+      if (error) throw error;
+      
+      setShowAddItemModal(false);
+      setNewSubworkItem({
+        description_of_item: '',
+        ssr_quantity: 0,
+        ssr_rate: 0
+      });
+      fetchSubworkItems(selectedSubworkId);
+    } catch (error) {
+      console.error('Error adding subwork item:', error);
     }
   };
 
@@ -199,12 +274,21 @@ const Subworks: React.FC = () => {
     }
   };
 
+  const handleSubworkClick = (subwork: SubWork) => {
+    setSelectedSubworkId(subwork.id);
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('hi-IN', {
       style: 'currency',
       currency: 'INR',
     }).format(amount);
   };
+
+  const selectedSubwork = subworks.find(sw => sw.id === selectedSubworkId);
+  const filteredSubworkItems = subworkItems.filter(item =>
+    item.description_of_item.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const selectedWork = works.find(work => work.works_id === selectedWorkId);
   
@@ -227,13 +311,20 @@ const Subworks: React.FC = () => {
             Manage detailed sub-work items and their estimates
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="mt-4 sm:mt-0 flex space-x-2">
           <button 
             onClick={() => setShowAddModal(true)}
             disabled={!selectedWorkId}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50">
             <Plus className="w-4 h-4 mr-2" />
             Add Sub Work
+          </button>
+          <button 
+            onClick={() => setShowAddItemModal(true)}
+            disabled={!selectedSubworkId}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:opacity-50">
+            <Package className="w-4 h-4 mr-2" />
+            Add Item
           </button>
         </div>
       </div>
@@ -299,94 +390,161 @@ const Subworks: React.FC = () => {
         </div>
       )}
 
-      {/* Subworks List */}
+      {/* Main Content Area */}
       {selectedWorkId ? (
-        <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-          {filteredSubworks.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sr No
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Works ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sub Works ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sub Works Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredSubworks.map((subwork) => (
-                    <tr key={subwork.sr_no} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {subwork.sr_no}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {subwork.works_id}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {subwork.subworks_id}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {subwork.subworks_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center space-x-2">
-                          <button 
-                            onClick={() => handleViewSubwork(subwork)}
-                            className="text-blue-600 hover:text-blue-900 p-1 rounded"
-                            title="View Subwork"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleEditSubwork(subwork)}
-                            className="text-green-600 hover:text-green-900 p-1 rounded"
-                            title="Edit Subwork"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteSubwork(subwork)}
-                            className="text-red-600 hover:text-red-900 p-1 rounded"
-                            title="Delete Subwork"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Panel - Subworks List */}
+          <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Sub Works</h3>
             </div>
-          ) : (
-            <div className="text-center py-12">
-              <Calculator className="mx-auto h-12 w-12 text-gray-300" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No sub works found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Add sub work items to break down the estimate.
-              </p>
-              <div className="mt-6">
-                <button 
-                  onClick={() => setShowAddModal(true)}
-                  disabled={!selectedWorkId}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Sub Work
-                </button>
+            {filteredSubworks.length > 0 ? (
+              <div className="divide-y divide-gray-200">
+                {filteredSubworks.map((subwork) => (
+                  <div
+                    key={subwork.sr_no}
+                    className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
+                      selectedSubworkId === subwork.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                    }`}
+                    onClick={() => handleSubworkClick(subwork)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-900">
+                            {subwork.subworks_id}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                          {subwork.subworks_name}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewSubwork(subwork);
+                          }}
+                          className="text-blue-600 hover:text-blue-900 p-1 rounded"
+                          title="View Subwork"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditSubwork(subwork);
+                          }}
+                          className="text-green-600 hover:text-green-900 p-1 rounded"
+                          title="Edit Subwork"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSubwork(subwork);
+                          }}
+                          className="text-red-600 hover:text-red-900 p-1 rounded"
+                          title="Delete Subwork"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Calculator className="mx-auto h-12 w-12 text-gray-300" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No sub works found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Add sub work items to break down the estimate.
+                </p>
+                <div className="mt-6">
+                  <button 
+                    onClick={() => setShowAddModal(true)}
+                    disabled={!selectedWorkId}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Sub Work
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Panel - Subwork Items */}
+          <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {selectedSubwork ? `Items - ${selectedSubwork.subworks_id}` : 'Select a Sub Work'}
+                </h3>
+                {selectedSubworkId && (
+                  <button 
+                    onClick={() => setShowAddItemModal(true)}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Item
+                  </button>
+                )}
               </div>
             </div>
-          )}
+            
+            {selectedSubworkId ? (
+              filteredSubworkItems.length > 0 ? (
+                <div className="divide-y divide-gray-200">
+                  {filteredSubworkItems.map((item) => (
+                    <div key={item.id} className="p-4 hover:bg-gray-50">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              Item {item.item_number}
+                            </span>
+                            {item.category && (
+                              <span className="text-xs text-gray-500">
+                                {item.category}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 mt-1">
+                            {item.description_of_item}
+                          </p>
+                          <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                            <span>Qty: {item.ssr_quantity} {item.ssr_unit}</span>
+                            <span>Rate: ₹{item.ssr_rate}</span>
+                            <span className="font-medium text-gray-900">
+                              Total: ₹{item.total_item_amount.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Package className="mx-auto h-12 w-12 text-gray-300" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No items found</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Add items to this sub work for detailed estimation.
+                  </p>
+                </div>
+              )
+            ) : (
+              <div className="text-center py-12">
+                <Package className="mx-auto h-12 w-12 text-gray-300" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Select a sub work</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Choose a sub work from the left panel to view its items.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
@@ -395,6 +553,136 @@ const Subworks: React.FC = () => {
           <p className="mt-1 text-sm text-gray-500">
             Choose a main work item to manage its detailed sub work breakdown.
           </p>
+        </div>
+      )}
+
+      {/* Add Subwork Item Modal */}
+      {showAddItemModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Add New Item</h3>
+                <button
+                  onClick={() => setShowAddItemModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Close</span>
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sub Work
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedSubwork?.subworks_id || ''}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category
+                  </label>
+                  <input
+                    type="text"
+                    value={newSubworkItem.category || ''}
+                    onChange={(e) => setNewSubworkItem({...newSubworkItem, category: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter category (optional)"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description of Item *
+                  </label>
+                  <textarea
+                    value={newSubworkItem.description_of_item || ''}
+                    onChange={(e) => setNewSubworkItem({...newSubworkItem, description_of_item: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter item description"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      SSR Quantity *
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={newSubworkItem.ssr_quantity || ''}
+                      onChange={(e) => setNewSubworkItem({...newSubworkItem, ssr_quantity: parseFloat(e.target.value) || 0})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="0.000"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      SSR Rate (₹) *
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newSubworkItem.ssr_rate || ''}
+                      onChange={(e) => setNewSubworkItem({...newSubworkItem, ssr_rate: parseFloat(e.target.value) || 0})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Unit
+                    </label>
+                    <input
+                      type="text"
+                      value={newSubworkItem.ssr_unit || ''}
+                      onChange={(e) => setNewSubworkItem({...newSubworkItem, ssr_unit: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g., sqm, cum, nos"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Total Amount:</span>
+                    <span className="font-medium text-gray-900">
+                      ₹{((newSubworkItem.ssr_quantity || 0) * (newSubworkItem.ssr_rate || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowAddItemModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddSubworkItem}
+                  disabled={!newSubworkItem.description_of_item}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Item
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
