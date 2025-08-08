@@ -49,6 +49,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     try {
       setLoading(true);
       const { data, error } = await supabase
+        .schema('estimate')
         .from('subwork_items')
         .select('*')
         .eq('subwork_id', subworkId)
