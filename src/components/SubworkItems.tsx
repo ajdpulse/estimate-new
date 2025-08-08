@@ -67,6 +67,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   const generateItemNumber = async (): Promise<string> => {
     try {
       const { data, error } = await supabase
+        .schema('estimate')
         .from('subwork_items')
         .select('item_number')
         .eq('subwork_id', subworkId)
