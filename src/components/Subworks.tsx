@@ -26,7 +26,7 @@ const Subworks: React.FC = () => {
   const [subworks, setSubworks] = useState<SubWork[]>([]);
   const [subworkItems, setSubworkItems] = useState<SubworkItem[]>([]);
   const [selectedWorkId, setSelectedWorkId] = useState<string>('');
-  const [selectedSubworkId, setSelectedSubworkId] = useState<string>('');
+  const [selectedSubworkIds, setSelectedSubworkIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -43,6 +43,7 @@ const Subworks: React.FC = () => {
     ssr_quantity: 0,
     ssr_rate: 0
   });
+  const [currentSubworkForItems, setCurrentSubworkForItems] = useState<string>('');
 
   useEffect(() => {
     fetchWorks();
@@ -64,12 +65,6 @@ const Subworks: React.FC = () => {
       fetchSubworks(selectedWorkId);
     }
   }, [selectedWorkId]);
-
-  useEffect(() => {
-    if (selectedSubworkId) {
-      fetchSubworkItems(selectedSubworkId);
-    }
-  }, [selectedSubworkId]);
 
   const fetchWorks = async () => {
     try {
@@ -108,6 +103,21 @@ const Subworks: React.FC = () => {
       setSubworks(data || []);
     } catch (error) {
       console.error('Error fetching subworks:', error);
+    }
+  };
+
+  const fetchSubworkItems = async (subworkId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('subwork_items')
+        .select('*')
+        .eq('subwork_id', subworkId)
+        .order('item_number', { ascending: true });
+
+      if (error) throw error;
+      setSubworkItems(data || []);
+    } catch (error) {
+      console.error('Error fetching subwork items:', error);
     }
   };
 
@@ -179,14 +189,14 @@ const Subworks: React.FC = () => {
   };
 
   const handleAddSubworkItem = async () => {
-    if (!newSubworkItem.description_of_item || !selectedSubworkId || !user) return;
+    if (!newSubworkItem.description_of_item || !currentSubworkForItems || !user) return;
 
     try {
       // Generate item number
       const { data: existingItems } = await supabase
         .from('subwork_items')
         .select('item_number')
-        .eq('subwork_id', selectedSubworkId)
+        .eq('subwork_id', currentSubworkForItems)
         .order('item_number', { ascending: false })
         .limit(1);
 
@@ -202,7 +212,7 @@ const Subworks: React.FC = () => {
         .from('subwork_items')
         .insert([{
           ...newSubworkItem,
-          subwork_id: selectedSubworkId,
+          subwork_id: currentSubworkForItems,
           item_number: nextItemNumber,
           total_item_amount: totalAmount,
           created_by: user.id
@@ -216,7 +226,7 @@ const Subworks: React.FC = () => {
         ssr_quantity: 0,
         ssr_rate: 0
       });
-      fetchSubworkItems(selectedSubworkId);
+      fetchSubworkItems(currentSubworkForItems);
     } catch (error) {
       console.error('Error adding subwork item:', error);
     }
@@ -275,8 +285,32 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const handleSubworkClick = (subwork: SubWork) => {
-    setSelectedSubworkId(subwork.id);
+  const handleSubworkCheckbox = (subworkId: string) => {
+    setSelectedSubworkIds(prev => {
+      if (prev.includes(subworkId)) {
+        return prev.filter(id => id !== subworkId);
+      } else {
+        return [...prev, subworkId];
+      }
+    });
+  };
+
+  const handleViewItems = () => {
+    if (selectedSubworkIds.length === 0) {
+      alert('Please select at least one subwork to view items');
+      return;
+    }
+    
+    // For now, show items for the first selected subwork
+    const firstSelectedId = selectedSubworkIds[0];
+    setCurrentSubworkForItems(firstSelectedId);
+    fetchSubworkItems(firstSelectedId);
+    setShowItemsModal(true);
+  };
+
+  const handleAddItemsFor = (subworkId: string) => {
+    setCurrentSubworkForItems(subworkId);
+    setShowAddItemModal(true);
   };
 
   const formatCurrency = (amount: number) => {
@@ -286,7 +320,7 @@ const Subworks: React.FC = () => {
     }).format(amount);
   };
 
-  const activeSubworkForItems = subworks.find(sw => sw.id === selectedSubworkId);
+  const activeSubworkForItems = subworks.find(sw => sw.id === currentSubworkForItems);
   const filteredSubworkItems = subworkItems.filter(item =>
     item.description_of_item.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -320,12 +354,12 @@ const Subworks: React.FC = () => {
             <Plus className="w-4 h-4 mr-2" />
             Add Sub Work
           </button>
-          <button 
-            onClick={() => setShowAddItemModal(true)}
-            disabled={!selectedSubworkId}
+          <button
+            onClick={handleViewItems}
+            disabled={selectedSubworkIds.length === 0}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:opacity-50">
-            <Package className="w-4 h-4 mr-2" />
-            Add Item
+            <Eye className="w-4 h-4 mr-2" />
+            View Items ({selectedSubworkIds.length})
           </button>
         </div>
       </div>
@@ -402,13 +436,11 @@ const Subworks: React.FC = () => {
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Sub Works</h3>
-                <button 
-                  onClick={() => setShowItemsModal(true)}
-                  disabled={!selectedSubworkId}
-                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <Package className="w-3 h-3 mr-1" />
-                  View Items
-                </button>
+                <div className="text-sm text-gray-500">
+                  {selectedSubworkIds.length > 0 && (
+                    <span>{selectedSubworkIds.length} selected</span>
+                  )}
+                </div>
               </div>
             </div>
             {filteredSubworks.length > 0 ? (
@@ -416,24 +448,35 @@ const Subworks: React.FC = () => {
                 {filteredSubworks.map((subwork) => (
                   <div
                     key={subwork.sr_no}
-                    className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
-                      selectedSubworkId === subwork.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                    className={`p-4 hover:bg-gray-50 transition-colors ${
+                      selectedSubworkIds.includes(subwork.id) ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                     }`}
-                    onClick={() => handleSubworkClick(subwork)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedSubworkIds.includes(subwork.id)}
+                            onChange={() => handleSubworkCheckbox(subwork.id)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
                           <span className="text-sm font-medium text-gray-900">
                             {subwork.subworks_id}
                           </span>
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
                         </div>
                         <p className="text-sm text-gray-600 mt-1 line-clamp-2">
                           {subwork.subworks_name}
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={() => handleAddItemsFor(subwork.id)}
+                          className="text-green-600 hover:text-green-900 p-1 rounded"
+                          title="Add Items"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -595,7 +638,7 @@ const Subworks: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    value={selectedSubwork?.subworks_id || ''}
+                    value={activeSubworkForItems?.subworks_id || ''}
                     disabled
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500"
                   />
