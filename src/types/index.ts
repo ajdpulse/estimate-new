@@ -61,11 +61,72 @@ export interface SubWork {
   works_id: string;
   subworks_id: string;
   subworks_name: string;
+  id: string;
   created_at: string;
   updated_at: string;
   created_by: string;
 }
 
+export interface SubworkItem {
+  id: string;
+  subwork_id: string;
+  item_number: string;
+  category?: string;
+  description_of_item: string;
+  ssr_quantity: number;
+  ssr_rate: number;
+  ssr_unit?: string;
+  total_item_amount: number;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+}
+
+export interface ItemMeasurement {
+  id: string;
+  subwork_item_id: string;
+  sr_no: number;
+  ssr_reference?: string;
+  works_number?: string;
+  sub_works_number?: string;
+  description_of_items?: string;
+  sub_description?: string;
+  no_of_units: number;
+  length: number;
+  width_breadth: number;
+  height_depth: number;
+  calculated_quantity: number;
+  unit?: string;
+  line_amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ItemLead {
+  id: string;
+  subwork_item_id: string;
+  sr_no: number;
+  material: string;
+  location_of_quarry?: string;
+  lead_in_km: number;
+  lead_charges: number;
+  initial_lead_charges: number;
+  net_lead_charges: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ItemMaterial {
+  id: string;
+  subwork_item_id: string;
+  material_name: string;
+  required_quantity: number;
+  unit?: string;
+  rate_per_unit: number;
+  total_material_cost: number;
+  created_at: string;
+  updated_at: string;
+}
 export interface EstimateSubWork {
   id: string;
   work_id: string;
