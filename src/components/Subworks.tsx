@@ -285,7 +285,7 @@ const Subworks: React.FC = () => {
     }).format(amount);
   };
 
-  const selectedSubwork = subworks.find(sw => sw.id === selectedSubworkId);
+  const activeSubworkForItems = subworks.find(sw => sw.id === selectedSubworkId);
   const filteredSubworkItems = subworkItems.filter(item =>
     item.description_of_item.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -481,7 +481,7 @@ const Subworks: React.FC = () => {
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {selectedSubwork ? `Items - ${selectedSubwork.subworks_id}` : 'Select a Sub Work'}
+                  {activeSubworkForItems ? `Items - ${activeSubworkForItems.subworks_id}` : 'Select a Sub Work'}
                 </h3>
                 {selectedSubworkId && (
                   <button 
