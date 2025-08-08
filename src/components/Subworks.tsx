@@ -331,61 +331,44 @@ const Subworks: React.FC = () => {
             Manage detailed sub-work items and their estimates
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex space-x-2">
-          <button 
-            onClick={() => setShowAddModal(true)}
-            disabled={!selectedWorkId}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Sub Work
-          </button>
-          <button
-            onClick={handleViewItems}
-            disabled={selectedSubworkIds.length === 0}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:opacity-50">
-            <Eye className="w-4 h-4 mr-2" />
-            View Items ({selectedSubworkIds.length})
-          </button>
-        </div>
-      </div>
-
-      {/* Work Selection and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Work Selection */}
-          <div className="sm:w-1/4">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-             Select Work ID
-            </label>
-            <select
-              value={selectedWorkId}
-              onChange={(e) => setSelectedWorkId(e.target.value)}
-              className="block w-full pl-2 pr-8 py-1.5 text-sm border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
-            >
-             <option value="">Select Work ID...</option>
-              {works.map((work) => (
-                <option key={work.works_id} value={work.works_id}>
-                 {work.works_id}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Search */}
-          <div className="sm:w-1/3 relative">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Search Sub Works
-            </label>
-            <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none" style={{top: '20px'}}>
-              <Search className="h-3 w-3 text-gray-400" />
+        <div className="mt-4 sm:mt-0">
+          {/* Work Selection and Search */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Work Selection */}
+            <div className="sm:w-48">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+               Select Work ID
+              </label>
+              <select
+                value={selectedWorkId}
+                onChange={(e) => setSelectedWorkId(e.target.value)}
+                className="block w-full pl-2 pr-6 py-1.5 text-xs border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
+              >
+               <option value="">Select Work ID...</option>
+                {works.map((work) => (
+                  <option key={work.works_id} value={work.works_id}>
+                   {work.works_id}
+                  </option>
+                ))}
+              </select>
             </div>
-            <input
-              type="text"
-              placeholder="Search sub works..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-6 pr-2 py-1.5 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-            />
+
+            {/* Search */}
+            <div className="sm:w-56 relative">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Search Sub Works
+              </label>
+              <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none" style={{top: '20px'}}>
+                <Search className="h-3 w-3 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search sub works..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-6 pr-2 py-1.5 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -421,10 +404,21 @@ const Subworks: React.FC = () => {
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Sub Works</h3>
-                <div className="text-sm text-gray-500">
-                  {selectedSubworkIds.length > 0 && (
-                    <span>{selectedSubworkIds.length} selected</span>
-                  )}
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => setShowAddModal(true)}
+                    disabled={!selectedWorkId}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50">
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Sub Work
+                  </button>
+                  <button
+                    onClick={handleViewItems}
+                    disabled={selectedSubworkIds.length === 0}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:opacity-50">
+                    <Eye className="w-3 h-3 mr-1" />
+                    View Items ({selectedSubworkIds.length})
+                  </button>
                 </div>
               </div>
             </div>
@@ -442,8 +436,8 @@ const Subworks: React.FC = () => {
                         <div className="flex items-center space-x-3">
                           <input
                             type="checkbox"
-                            checked={selectedSubworkIds.includes(subwork.id)}
-                            onChange={() => handleSubworkCheckbox(subwork.id)}
+                            checked={selectedSubworkIds.includes(subwork.subworks_id)}
+                            onChange={() => handleSubworkCheckbox(subwork.subworks_id)}
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                           />
                           <span className="text-sm font-medium text-gray-900">
@@ -456,7 +450,7 @@ const Subworks: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <button 
-                          onClick={() => handleAddItemsFor(subwork.id)}
+                          onClick={() => handleAddItemsFor(subwork.subworks_id)}
                           className="text-green-600 hover:text-green-900 p-1 rounded"
                           title="Add Items"
                         >
