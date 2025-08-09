@@ -234,7 +234,8 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
           ...newItem,
           total_item_amount: totalAmount
         })
-        .eq('id', selectedItem.id);
+        .eq('subwork_id', selectedItem.subwork_id)
+        .eq('item_number', selectedItem.item_number);
 
       if (error) throw error;
       
@@ -262,7 +263,8 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
         .schema('estimate')
         .from('subwork_items')
         .delete()
-        .eq('id', item.id);
+        .eq('subwork_id', item.subwork_id)
+        .eq('item_number', item.item_number);
 
       if (error) throw error;
       fetchSubworkItems();
