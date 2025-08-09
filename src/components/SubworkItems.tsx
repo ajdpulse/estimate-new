@@ -488,7 +488,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                       value={descriptionQuery}
                       onChange={(e) => handleDescriptionChange(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter item description or search SSR items..."
+                      placeholder="Enter item description manually or search SSR items..."
                       rows={3}
                     />
                     {searchingSSR && (
@@ -502,7 +502,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
                         <div className="p-2 text-xs text-gray-500 border-b">
                           <Search className="w-3 h-3 inline mr-1" />
-                          SSR Rate Suggestions
+                          SSR Rate Suggestions (Optional - You can also type manually)
                         </div>
                         {ssrSuggestions.map((item, index) => (
                           <div
@@ -551,7 +551,17 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           </div>
                         ))}
                         <div className="p-2 text-xs text-gray-400 text-center border-t">
-                          Click on an item to auto-fill rate and unit
+                          Click on an item to auto-fill rate and unit, or continue typing manually
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Manual Input Helper Text */}
+                    {!showSuggestions && descriptionQuery.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-gray-50 border border-gray-200 rounded-md p-2">
+                        <div className="text-xs text-gray-600 flex items-center">
+                          <span className="mr-2">✏️</span>
+                          Manual entry mode - You can continue typing or search for SSR items
                         </div>
                       </div>
                     )}
@@ -692,7 +702,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                       value={descriptionQuery}
                       onChange={(e) => handleDescriptionChange(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter item description or search SSR items..."
+                      placeholder="Enter item description manually or search SSR items..."
                       rows={3}
                     />
                     {searchingSSR && (
@@ -706,7 +716,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
                         <div className="p-2 text-xs text-gray-500 border-b">
                           <Search className="w-3 h-3 inline mr-1" />
-                          SSR Rate Suggestions
+                          SSR Rate Suggestions (Optional - You can also type manually)
                         </div>
                         {ssrSuggestions.map((item, index) => (
                           <div
@@ -755,7 +765,17 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           </div>
                         ))}
                         <div className="p-2 text-xs text-gray-400 text-center border-t">
-                          Click on an item to auto-fill rate and unit
+                          Click on an item to auto-fill rate and unit, or continue typing manually
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Manual Input Helper Text */}
+                    {!showSuggestions && descriptionQuery.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-gray-50 border border-gray-200 rounded-md p-2">
+                        <div className="text-xs text-gray-600 flex items-center">
+                          <span className="mr-2">✏️</span>
+                          Manual entry mode - You can continue typing or search for SSR items
                         </div>
                       </div>
                     )}
