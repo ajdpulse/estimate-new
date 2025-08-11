@@ -141,6 +141,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
       if (error) throw error;
       
+      // Update SSR quantity in subwork_items with total from all measurements
+      await updateItemSSRQuantity();
+      
       setShowAddModal(false);
       setNewMeasurement({
         no_of_units: 0,
@@ -151,6 +154,65 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       fetchData();
     } catch (error) {
       console.error('Error adding measurement:', error);
+    }
+  };
+
+  const updateItemSSRQuantity = async () => {
+    try {
+      // Get all measurements for this item
+      const { data: allMeasurements, error: fetchError } = await supabase
+        .schema('estimate')
+        .from('item_measurements')
+        .select('calculated_quantity')
+        .eq('subwork_item_id', item.sr_no);
+
+      if (fetchError) throw fetchError;
+
+      // Calculate total quantity from all measurements
+      const totalQuantity = (allMeasurements || []).reduce((sum, m) => sum + m.calculated_quantity, 0);
+      
+      // Update the subwork item's SSR quantity and total amount
+      const newTotalAmount = totalQuantity * item.ssr_rate;
+      
+      const { error: updateError } = await supabase
+        .schema('estimate')
+        .from('subwork_items')
+        .update({
+          ssr_quantity: totalQuantity,
+          total_item_amount: newTotalAmount
+        })
+        .eq('sr_no', item.sr_no);
+
+      if (updateError) throw updateError;
+      
+      // Update the local item object to reflect changes
+      item.ssr_quantity = totalQuantity;
+      item.total_item_amount = newTotalAmount;
+      
+    } catch (error) {
+      console.error('Error updating SSR quantity:', error);
+    }
+  };
+
+  const handleDeleteMeasurement = async (measurement: ItemMeasurement) => {
+    if (!confirm('Are you sure you want to delete this measurement?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .schema('estimate')
+        .from('item_measurements')
+        .delete()
+        .eq('id', measurement.id);
+
+      if (error) throw error;
+      
+      // Update SSR quantity after deletion
+      await updateItemSSRQuantity();
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting measurement:', error);
     }
   };
 
