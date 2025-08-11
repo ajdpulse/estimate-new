@@ -313,7 +313,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-blue-700 font-medium">SSR Quantity:</span>
-                <p className="text-blue-900">{item.ssr_quantity} {item.ssr_unit}</p>
+                <p className="text-blue-900">{item.ssr_quantity.toFixed(3)} {item.ssr_unit}</p>
+                <p className="text-xs text-blue-600">(Auto-calculated from measurements)</p>
               </div>
               <div>
                 <span className="text-blue-700 font-medium">SSR Rate:</span>
@@ -322,6 +323,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
               <div>
                 <span className="text-blue-700 font-medium">SSR Amount:</span>
                 <p className="text-blue-900">{formatCurrency(item.total_item_amount)}</p>
+                <p className="text-xs text-blue-600">(Quantity × Rate)</p>
               </div>
               <div>
                 <span className="text-blue-700 font-medium">Category:</span>
