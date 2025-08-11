@@ -62,6 +62,20 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   useEffect(() => {
     setCurrentItem(item);
   }, [item]);
+
+  const calculateQuantity = () => {
+    return (newMeasurement.no_of_units || 0) * 
+           (newMeasurement.length || 0) * 
+           (newMeasurement.width_breadth || 0) * 
+           (newMeasurement.height_depth || 0);
+  };
+
+  const calculateLineAmount = () => {
+    const quantity = calculateQuantity();
+    const amount = quantity * currentItem.ssr_rate;
+    return newMeasurement.is_deduction ? -amount : amount;
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -730,7 +744,22 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* Unit Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unit
+                  </label>
+                  <input
+                    type="text"
+                    value={newMeasurement.unit || ''}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, unit: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="sqm, cum, nos, etc."
+                  />
+                </div>
+
+                {/* Dimensions */}
+                <div className="grid grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">No of Units</label>
                     <input
@@ -777,17 +806,37 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <div className="flex items-center justify-between text-sm">
+                {/* Deduction Checkbox */}
+                <div className="flex items-start space-x-2">
+                  <input
+                    type="checkbox"
+                    id="is_deduction"
+                    checked={newMeasurement.is_deduction || false}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, is_deduction: e.target.checked})}
+                    className="mt-1 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                  />
+                  <div>
+                    <label htmlFor="is_deduction" className="text-sm font-medium text-gray-700">
+                      This is a deduction (subtract from total)
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Check this for openings, voids, or areas to be subtracted from the total quantity
+                    </p>
+                  </div>
+                </div>
+
+                {/* Preview */}
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-600">Calculated Quantity:</span>
-                    <span className="font-medium text-gray-900">
-                      {((newMeasurement.no_of_units || 0) * (newMeasurement.length || 0) * (newMeasurement.width_breadth || 0) * (newMeasurement.height_depth || 0)).toFixed(3)} {currentItem.ssr_unit}
+                    <span className={`font-medium ${newMeasurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
+                      {newMeasurement.is_deduction ? '-' : ''}{calculateQuantity().toFixed(3)} {newMeasurement.unit || currentItem.ssr_unit}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm mt-1">
+                  <div className="flex justify-between items-center text-sm mt-2">
                     <span className="text-gray-600">Line Amount:</span>
-                    <span className="font-medium text-gray-900">
-                      ₹{(((newMeasurement.no_of_units || 0) * (newMeasurement.length || 0) * (newMeasurement.width_breadth || 0) * (newMeasurement.height_depth || 0)) * currentItem.ssr_rate).toFixed(2)}
+                    <span className={`font-medium ${newMeasurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
+                      {newMeasurement.is_deduction ? '-' : ''}{formatCurrency(Math.abs(calculateLineAmount()))}
                     </span>
                   </div>
                 </div>
