@@ -129,7 +129,7 @@ export interface ItemMaterial {
 }
 
 export interface ItemRate {
-  id: string;
+  sr_no: number;
   subwork_item_id: string;
   description: string;
   rate: number;
