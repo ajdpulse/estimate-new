@@ -186,20 +186,20 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const updateItemSSRQuantity = async () => {
     try {
       // Get all measurements for this item
-      const totalQuantity = measurements.reduce((sum, measurement) => {
-        return measurement.is_deduction 
-          ? sum - measurement.calculated_quantity 
-          : sum + measurement.calculated_quantity;
-      }, 0);
+      const { data: allMeasurements, error: fetchError } = await supabase
         .schema('estimate')
         .from('item_measurements')
-        .select('calculated_quantity')
+        .select('calculated_quantity, is_deduction')
         .eq('subwork_item_id', currentItem.sr_no);
 
       if (fetchError) throw fetchError;
 
       // Calculate total quantity from all measurements
-      const totalQuantity = (allMeasurements || []).reduce((sum, m) => sum + m.calculated_quantity, 0);
+      const totalQuantity = (allMeasurements || []).reduce((sum, measurement) => {
+        return measurement.is_deduction 
+          ? sum - measurement.calculated_quantity 
+          : sum + measurement.calculated_quantity;
+      }, 0);
       
       // Update the subwork item's SSR quantity and total amount
       const newTotalAmount = totalQuantity * currentItem.ssr_rate;
@@ -388,7 +388,11 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }).format(amount);
   };
 
-  const totalMeasurementQuantity = measurements.reduce((sum, m) => sum + m.calculated_quantity, 0);
+  const totalMeasurementQuantity = measurements.reduce((sum, measurement) => {
+    return measurement.is_deduction 
+      ? sum - measurement.calculated_quantity 
+      : sum + measurement.calculated_quantity;
+  }, 0);
   const totalMeasurementAmount = measurements.reduce((sum, m) => sum + m.line_amount, 0);
   const totalLeadCharges = leads.reduce((sum, l) => sum + l.net_lead_charges, 0);
   const totalMaterialCost = materials.reduce((sum, m) => sum + m.total_material_cost, 0);
