@@ -252,7 +252,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           line_amount: lineAmount,
           unit: currentItem.ssr_unit
         })
-        .eq('id', selectedMeasurement.id);
+        .eq('subwork_item_id', selectedMeasurement.subwork_item_id)
+        .eq('measurement_sr_no', selectedMeasurement.measurement_sr_no);
 
       if (error) throw error;
       
@@ -287,7 +288,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .schema('estimate')
         .from('item_measurements')
         .delete()
-        .eq('id', measurement.id);
+        .eq('subwork_item_id', measurement.subwork_item_id)
+        .eq('measurement_sr_no', measurement.measurement_sr_no);
 
       if (error) throw error;
       
