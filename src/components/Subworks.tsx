@@ -351,6 +351,7 @@ const Subworks: React.FC = () => {
                 {filteredSubworks.map((subwork) => (
                   <div
                     key={subwork.sr_no}
+                    onClick={() => handleSubworkCheckbox(subwork.subworks_id)}
                     className={`p-4 hover:bg-gray-50 transition-colors ${
                       selectedSubworkIds.includes(subwork.id) ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                     }`}
@@ -358,12 +359,17 @@ const Subworks: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedSubworkIds.includes(subwork.subworks_id)}
-                            onChange={() => handleSubworkCheckbox(subwork.subworks_id)}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                            selectedSubworkIds.includes(subwork.subworks_id) 
+                              ? 'bg-blue-600 border-blue-600' 
+                              : 'border-gray-300'
+                          }`}>
+                            {selectedSubworkIds.includes(subwork.subworks_id) && (
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
                           <span className="text-sm font-medium text-gray-900">
                             {subwork.subworks_id}
                           </span>
@@ -375,6 +381,7 @@ const Subworks: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <button 
                           onClick={() => {
+                            e.stopPropagation();
                             setCurrentSubworkForItems({ id: subwork.subworks_id, name: subwork.subworks_name });
                             setShowItemsModal(true);
                           }}
@@ -386,6 +393,7 @@ const Subworks: React.FC = () => {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
+                            e.stopPropagation();
                             handleViewSubwork(subwork);
                           }}
                           className="text-blue-600 hover:text-blue-900 p-1 rounded"
@@ -396,6 +404,7 @@ const Subworks: React.FC = () => {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
+                            e.stopPropagation();
                             handleEditSubwork(subwork);
                           }}
                           className="text-green-600 hover:text-green-900 p-1 rounded"
@@ -405,6 +414,7 @@ const Subworks: React.FC = () => {
                         </button>
                         <button 
                           onClick={(e) => {
+                            e.stopPropagation();
                             e.stopPropagation();
                             handleDeleteSubwork(subwork);
                           }}
