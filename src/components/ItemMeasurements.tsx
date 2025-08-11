@@ -237,16 +237,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       no_of_units: measurement.no_of_units,
       length: measurement.length,
       width_breadth: measurement.width_breadth,
-      height_depth: measurement.height_depth
-    });
-    setManualQuantity(measurement.calculated_quantity);
-    // Check if this was manually entered (all dimensions are 0 but quantity > 0)
-    const wasManual = measurement.length === 0 && measurement.width_breadth === 0 && 
-                     measurement.height_depth === 0 && measurement.calculated_quantity > 0;
-    setManualQuantityMode(wasManual);
+      height_depth: measurement.height_depth,
       calculated_quantity: measurement.calculated_quantity,
       unit: measurement.unit || '',
       is_deduction: measurement.is_deduction || false
+    });
+    setShowEditModal(true);
   };
 
   const handleUpdateMeasurement = async () => {
