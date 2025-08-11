@@ -32,6 +32,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const [materials, setMaterials] = useState<ItemMaterial[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedMeasurement, setSelectedMeasurement] = useState<ItemMeasurement | null>(null);
   const [currentItem, setCurrentItem] = useState<SubworkItem>(item);
   const [newMeasurement, setNewMeasurement] = useState<Partial<ItemMeasurement>>({
     no_of_units: 0,
@@ -211,6 +213,67 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       
     } catch (error) {
       console.error('Error updating SSR quantity:', error);
+    }
+  };
+
+  const handleEditMeasurement = (measurement: ItemMeasurement) => {
+    setSelectedMeasurement(measurement);
+    setNewMeasurement({
+      description_of_items: measurement.description_of_items,
+      no_of_units: measurement.no_of_units,
+      length: measurement.length,
+      width_breadth: measurement.width_breadth,
+      height_depth: measurement.height_depth
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateMeasurement = async () => {
+    if (!selectedMeasurement || !user) return;
+
+    try {
+      const calculatedQuantity = (newMeasurement.no_of_units || 0) * 
+                                (newMeasurement.length || 0) * 
+                                (newMeasurement.width_breadth || 0) * 
+                                (newMeasurement.height_depth || 0);
+      
+      const lineAmount = calculatedQuantity * currentItem.ssr_rate;
+
+      const { error } = await supabase
+        .schema('estimate')
+        .from('item_measurements')
+        .update({
+          description_of_items: newMeasurement.description_of_items,
+          no_of_units: newMeasurement.no_of_units,
+          length: newMeasurement.length,
+          width_breadth: newMeasurement.width_breadth,
+          height_depth: newMeasurement.height_depth,
+          calculated_quantity: calculatedQuantity,
+          line_amount: lineAmount,
+          unit: currentItem.ssr_unit
+        })
+        .eq('id', selectedMeasurement.id);
+
+      if (error) throw error;
+      
+      setShowEditModal(false);
+      setSelectedMeasurement(null);
+      setNewMeasurement({
+        no_of_units: 0,
+        length: 0,
+        width_breadth: 0,
+        height_depth: 0
+      });
+      
+      // Refresh data first, then update SSR quantity
+      fetchData();
+      
+      // Update SSR quantity after editing measurement
+      setTimeout(async () => {
+        await updateItemSSRQuantity();
+      }, 100);
+    } catch (error) {
+      console.error('Error updating measurement:', error);
     }
   };
 
@@ -430,6 +493,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Height</th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -446,6 +510,24 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                             </td>
                             <td className="px-3 py-2 text-sm font-medium text-gray-900">
                               {formatCurrency(measurement.line_amount)}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex items-center space-x-2">
+                                <button 
+                                  onClick={() => handleEditMeasurement(measurement)}
+                                  className="text-green-600 hover:text-green-900 p-1 rounded"
+                                  title="Edit Measurement"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteMeasurement(measurement)}
+                                  className="text-red-600 hover:text-red-900 p-1 rounded"
+                                  title="Delete Measurement"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -872,6 +954,112 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
                 >
                   Add Material
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Measurement Modal */}
+      {showEditModal && selectedMeasurement && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-70">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Edit Measurement</h3>
+                <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <input
+                    type="text"
+                    value={newMeasurement.description_of_items || ''}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, description_of_items: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter description (optional)"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">No of Units</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={newMeasurement.no_of_units || ''}
+                      onChange={(e) => setNewMeasurement({...newMeasurement, no_of_units: parseInt(e.target.value) || 0})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Length</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newMeasurement.length || ''}
+                      onChange={(e) => setNewMeasurement({...newMeasurement, length: parseFloat(e.target.value) || 0})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Width/Breadth</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newMeasurement.width_breadth || ''}
+                      onChange={(e) => setNewMeasurement({...newMeasurement, width_breadth: parseFloat(e.target.value) || 0})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Height/Depth</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newMeasurement.height_depth || ''}
+                      onChange={(e) => setNewMeasurement({...newMeasurement, height_depth: parseFloat(e.target.value) || 0})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Calculated Quantity:</span>
+                    <span className="font-medium text-gray-900">
+                      {((newMeasurement.no_of_units || 0) * (newMeasurement.length || 0) * (newMeasurement.width_breadth || 0) * (newMeasurement.height_depth || 0)).toFixed(3)} {currentItem.ssr_unit}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-gray-600">Line Amount:</span>
+                    <span className="font-medium text-gray-900">
+                      ₹{(((newMeasurement.no_of_units || 0) * (newMeasurement.length || 0) * (newMeasurement.width_breadth || 0) * (newMeasurement.height_depth || 0)) * currentItem.ssr_rate).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateMeasurement}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  Update Measurement
                 </button>
               </div>
             </div>
