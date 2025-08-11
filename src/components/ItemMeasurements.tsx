@@ -64,7 +64,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           .from('item_measurements')
           .select('*')
           .eq('subwork_item_id', item.sr_no)
-          .order('sr_no', { ascending: true });
+          .order('measurement_sr_no', { ascending: true });
 
         if (error) throw error;
         setMeasurements(data || []);
@@ -96,10 +96,30 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }
   };
 
+  const getNextMeasurementSrNo = async (): Promise<number> => {
+    try {
+      const { data, error } = await supabase
+        .schema('estimate')
+        .from('item_measurements')
+        .select('measurement_sr_no')
+        .eq('subwork_item_id', item.sr_no)
+        .order('measurement_sr_no', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+      
+      return data && data.length > 0 ? data[0].measurement_sr_no + 1 : 1;
+    } catch (error) {
+      console.error('Error getting next measurement sr_no:', error);
+      return 1;
+    }
+  };
+
   const handleAddMeasurement = async () => {
     if (!user) return;
 
     try {
+      const nextSrNo = await getNextMeasurementSrNo();
       const calculatedQuantity = (newMeasurement.no_of_units || 0) * 
                                 (newMeasurement.length || 0) * 
                                 (newMeasurement.width_breadth || 0) * 
@@ -113,6 +133,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .insert([{
           ...newMeasurement,
           subwork_item_id: item.sr_no,
+          measurement_sr_no: nextSrNo,
           calculated_quantity: calculatedQuantity,
           line_amount: lineAmount,
           unit: item.ssr_unit
@@ -327,7 +348,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                       <tbody className="bg-white divide-y divide-gray-200">
                         {measurements.map((measurement) => (
                           <tr key={measurement.id} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 text-sm text-gray-900">{measurement.sr_no}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900">{measurement.measurement_sr_no}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.description_of_items || '-'}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.no_of_units}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.length}</td>

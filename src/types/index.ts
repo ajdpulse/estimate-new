@@ -85,7 +85,7 @@ export interface SubworkItem {
 export interface ItemMeasurement {
   id: string;
   subwork_item_id: number;
-  sr_no: number;
+  measurement_sr_no: number;
   ssr_reference?: string;
   works_number?: string;
   sub_works_number?: string;
