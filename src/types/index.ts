@@ -127,6 +127,18 @@ export interface ItemMaterial {
   created_at: string;
   updated_at: string;
 }
+
+export interface ItemRate {
+  id: string;
+  subwork_item_id: string;
+  description: string;
+  rate: number;
+  unit?: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+}
+
 export interface EstimateSubWork {
   id: string;
   work_id: string;

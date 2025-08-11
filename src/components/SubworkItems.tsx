@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { SubworkItem, ItemMeasurement } from '../types';
+import { SubworkItem, ItemMeasurement, ItemRate } from '../types';
 import { 
   Plus, 
   Edit2, 
@@ -29,6 +29,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 }) => {
   const { user } = useAuth();
   const [subworkItems, setSubworkItems] = useState<SubworkItem[]>([]);
+  const [itemRatesMap, setItemRatesMap] = useState<{[key: string]: ItemRate[]}>({});
   const [loading, setLoading] = useState(false);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [showEditItemModal, setShowEditItemModal] = useState(false);
@@ -163,10 +164,43 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
       if (error) throw error;
       setSubworkItems(data || []);
+      
+      // Fetch rates for all items
+      if (data && data.length > 0) {
+        await fetchItemRates(data);
+      }
     } catch (error) {
       console.error('Error fetching subwork items:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchItemRates = async (items: SubworkItem[]) => {
+    try {
+      const itemIds = items.map(item => item.id);
+      
+      const { data: rates, error } = await supabase
+        .schema('estimate')
+        .from('item_rates')
+        .select('*')
+        .in('subwork_item_id', itemIds)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Group rates by subwork_item_id
+      const ratesMap: {[key: string]: ItemRate[]} = {};
+      (rates || []).forEach(rate => {
+        if (!ratesMap[rate.subwork_item_id]) {
+          ratesMap[rate.subwork_item_id] = [];
+        }
+        ratesMap[rate.subwork_item_id].push(rate);
+      });
+
+      setItemRatesMap(ratesMap);
+    } catch (error) {
+      console.error('Error fetching item rates:', error);
     }
   };
 
@@ -196,7 +230,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   };
 
   const handleAddItem = async () => {
-    if (!newItem.description_of_item || !user || itemRates.length === 0) return;
+    if (!newItem.description_of_item || !user) return;
 
     // Validate that at least one rate entry is complete
     const validRates = itemRates.filter(rate => rate.description && rate.rate > 0);
@@ -211,28 +245,44 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       // Calculate total amount from all rates (for now, just sum all rates)
       const totalAmount = validRates.reduce((sum, rate) => sum + rate.rate, 0);
 
-      // Create a combined description from all rate descriptions
-      const combinedDescription = validRates.map(rate => rate.description).join(' | ');
-      
       // For now, we'll store the first rate's unit as the main unit
       const mainUnit = validRates[0]?.unit || '';
 
-      const { error } = await supabase
+      // Insert the subwork item first
+      const { data: insertedItem, error: itemError } = await supabase
         .schema('estimate')
         .from('subwork_items')
-        .insert([{
+        .insert({
           description_of_item: newItem.description_of_item,
           category: newItem.category,
           subwork_id: subworkId,
           item_number: itemNumber,
-          ssr_quantity: 1, // Default to 1 since we removed quantity input
+          ssr_quantity: 1,
           ssr_rate: totalAmount, // Sum of all rates
           ssr_unit: mainUnit,
           total_item_amount: totalAmount,
           created_by: user.id
-        }]);
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (itemError) throw itemError;
+
+      // Insert all the rates for this item
+      const ratesToInsert = validRates.map(rate => ({
+        subwork_item_id: insertedItem.id,
+        description: rate.description,
+        rate: rate.rate,
+        unit: rate.unit,
+        created_by: user.id
+      }));
+
+      const { error: ratesError } = await supabase
+        .schema('estimate')
+        .from('item_rates')
+        .insert(ratesToInsert);
+
+      if (ratesError) throw ratesError;
       
       setShowAddItemModal(false);
       setNewItem({
@@ -253,12 +303,22 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     setSelectedItem(item);
     setDescriptionQuery(item.description_of_item);
     
-    // For editing, we'll start with the current item's rate as a single entry
-    setItemRates([{
-      description: item.description_of_item,
-      rate: item.ssr_rate,
-      unit: item.ssr_unit || ''
-    }]);
+    // Load existing rates for this item
+    const existingRates = itemRatesMap[item.id] || [];
+    if (existingRates.length > 0) {
+      setItemRates(existingRates.map(rate => ({
+        description: rate.description,
+        rate: rate.rate,
+        unit: rate.unit || ''
+      })));
+    } else {
+      // Fallback to item's main rate if no separate rates exist
+      setItemRates([{
+        description: item.description_of_item,
+        rate: item.ssr_rate,
+        unit: item.ssr_unit || ''
+      }]);
+    }
     
     setNewItem({
       description_of_item: item.description_of_item,
@@ -268,7 +328,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   };
 
   const handleUpdateItem = async () => {
-    if (!newItem.description_of_item || !selectedItem || itemRates.length === 0) return;
+    if (!newItem.description_of_item || !selectedItem) return;
 
     const validRates = itemRates.filter(rate => rate.description && rate.rate > 0);
     if (validRates.length === 0) {
@@ -280,21 +340,45 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       const totalAmount = validRates.reduce((sum, rate) => sum + rate.rate, 0);
       const mainUnit = validRates[0]?.unit || '';
 
+      // Update the subwork item
       const { error } = await supabase
         .schema('estimate')
         .from('subwork_items')
         .update({
           description_of_item: newItem.description_of_item,
           category: newItem.category,
-          ssr_quantity: 1,
           ssr_rate: totalAmount,
           ssr_unit: mainUnit,
           total_item_amount: totalAmount
         })
-        .eq('subwork_id', selectedItem.subwork_id)
-        .eq('item_number', selectedItem.item_number);
+        .eq('id', selectedItem.id);
 
       if (error) throw error;
+
+      // Delete existing rates for this item
+      const { error: deleteError } = await supabase
+        .schema('estimate')
+        .from('item_rates')
+        .delete()
+        .eq('subwork_item_id', selectedItem.id);
+
+      if (deleteError) throw deleteError;
+
+      // Insert updated rates
+      const ratesToInsert = validRates.map(rate => ({
+        subwork_item_id: selectedItem.id,
+        description: rate.description,
+        rate: rate.rate,
+        unit: rate.unit,
+        created_by: user.id
+      }));
+
+      const { error: ratesError } = await supabase
+        .schema('estimate')
+        .from('item_rates')
+        .insert(ratesToInsert);
+
+      if (ratesError) throw ratesError;
       
       setShowEditItemModal(false);
       setSelectedItem(null);
@@ -315,12 +399,19 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     }
 
     try {
+      // Delete rates first (should cascade automatically, but being explicit)
+      await supabase
+        .schema('estimate')
+        .from('item_rates')
+        .delete()
+        .eq('subwork_item_id', item.id);
+
+      // Delete the item
       const { error } = await supabase
         .schema('estimate')
         .from('subwork_items')
         .delete()
-        .eq('subwork_id', item.subwork_id)
-        .eq('item_number', item.item_number);
+        .eq('id', item.id);
 
       if (error) throw error;
       fetchSubworkItems();
@@ -339,6 +430,18 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       style: 'currency',
       currency: 'INR',
     }).format(amount);
+  };
+
+  const getItemTotalFromRates = (itemId: string): number => {
+    const rates = itemRatesMap[itemId] || [];
+    return rates.reduce((sum, rate) => sum + rate.rate, 0);
+  };
+
+  const getItemRatesDisplay = (itemId: string): string => {
+    const rates = itemRatesMap[itemId] || [];
+    if (rates.length === 0) return 'No rates';
+    if (rates.length === 1) return `₹${rates[0].rate.toFixed(2)}`;
+    return `${rates.length} rates (₹${rates.reduce((sum, rate) => sum + rate.rate, 0).toFixed(2)})`;
   };
 
   const totalItemsAmount = subworkItems.reduce((sum, item) => sum + item.total_item_amount, 0);
@@ -445,10 +548,10 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           {item.category || '-'}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                          1 {item.ssr_unit}
+                          {item.ssr_quantity} {item.ssr_unit}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                          ₹{item.ssr_rate.toFixed(2)}
+                          {getItemRatesDisplay(item.id)}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                           {formatCurrency(item.total_item_amount)}
