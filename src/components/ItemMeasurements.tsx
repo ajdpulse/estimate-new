@@ -722,23 +722,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     placeholder="Enter description (optional)"
                   />
                 </div>
-                
-                <div>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={newMeasurement.is_deduction || false}
-                      onChange={(e) => setNewMeasurement({...newMeasurement, is_deduction: e.target.checked})}
-                      className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      This is a deduction (subtract from total)
-                    </span>
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Check this box if this measurement should be subtracted from the total quantity
-                  </p>
-                </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
