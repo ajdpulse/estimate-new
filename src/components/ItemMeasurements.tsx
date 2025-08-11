@@ -189,17 +189,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       const { data: allMeasurements, error: fetchError } = await supabase
         .schema('estimate')
         .from('item_measurements')
-        .select('calculated_quantity, is_deduction')
+        .select('calculated_quantity')
         .eq('subwork_item_id', currentItem.sr_no);
 
       if (fetchError) throw fetchError;
 
       // Calculate total quantity from all measurements
-      const totalQuantity = (allMeasurements || []).reduce((sum, measurement) => {
-        return measurement.is_deduction 
-          ? sum - measurement.calculated_quantity 
-          : sum + measurement.calculated_quantity;
-      }, 0);
+      const totalQuantity = (allMeasurements || []).reduce((sum, m) => sum + m.calculated_quantity, 0);
       
       // Update the subwork item's SSR quantity and total amount
       const newTotalAmount = totalQuantity * currentItem.ssr_rate;
@@ -388,11 +384,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }).format(amount);
   };
 
-  const totalMeasurementQuantity = measurements.reduce((sum, measurement) => {
-    return measurement.is_deduction 
-      ? sum - measurement.calculated_quantity 
-      : sum + measurement.calculated_quantity;
-  }, 0);
+  const totalMeasurementQuantity = measurements.reduce((sum, m) => sum + m.calculated_quantity, 0);
   const totalMeasurementAmount = measurements.reduce((sum, m) => sum + m.line_amount, 0);
   const totalLeadCharges = leads.reduce((sum, l) => sum + l.net_lead_charges, 0);
   const totalMaterialCost = materials.reduce((sum, m) => sum + m.total_material_cost, 0);
@@ -510,6 +502,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sr No</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Type
+                          </th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Units</th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Length</th>
