@@ -233,11 +233,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
       if (fetchError) throw fetchError;
 
-      // Calculate total quantity from all measurements
-      const totalQuantity = (allMeasurements || []).reduce((sum, m) => sum + m.calculated_quantity, 0);
-      
-      // Update the subwork item's SSR quantity and total amount
-      const newTotalAmount = totalQuantity * currentItem.ssr_rate;
       
       const { error: updateError } = await supabase
         .schema('estimate')
