@@ -253,8 +253,17 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       description_of_items: measurement.description_of_items,
       no_of_units: measurement.no_of_units,
       length: measurement.length,
-      width_breadth: measurement.width_breadth,
-      height_depth: measurement.height_depth
+      if (measurement.is_deduction) {
+        totalQuantity -= measurement.calculated_quantity;
+        totalAmount -= measurement.line_amount;
+      } else {
+      unit: measurement.unit || '',
+      is_deduction: measurement.is_deduction || false,
+      is_manual_quantity: measurement.is_manual_quantity || false,
+      manual_quantity: measurement.manual_quantity || 0,
+        totalQuantity += measurement.calculated_quantity;
+        totalAmount += measurement.line_amount;
+      }
     });
     setShowEditModal(true);
   };
@@ -816,6 +825,54 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     className="mt-1 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
                   />
                   <div>
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="edit-is-manual"
+                      checked={newMeasurement.is_manual_quantity || false}
+                      onChange={(e) => setNewMeasurement({...newMeasurement, is_manual_quantity: e.target.checked})}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="edit-is-manual" className="ml-2 block text-sm text-gray-700">
+                      Enter quantity manually (don't calculate from L×B×H)
+                    </label>
+                  </div>
+                  
+                  {newMeasurement.is_manual_quantity && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Manual Quantity
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        value={newMeasurement.manual_quantity || ''}
+                        onChange={(e) => setNewMeasurement({...newMeasurement, manual_quantity: parseFloat(e.target.value) || 0})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter manual quantity"
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="edit-is-deduction"
+                      checked={newMeasurement.is_deduction || false}
+                      onChange={(e) => setNewMeasurement({...newMeasurement, is_deduction: e.target.checked})}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="edit-is-deduction" className="ml-2 block text-sm text-red-700">
+                      This is a deduction (subtract from total)
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Use deductions for items like door/window openings, voids, or areas to be excluded from calculations.
+                  </p>
+                </div>
+
                     <label htmlFor="is_deduction" className="text-sm font-medium text-gray-700">
                       This is a deduction (subtract from total)
                     </label>
@@ -1125,14 +1182,15 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                 <div className="bg-gray-50 p-3 rounded-md">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Calculated Quantity:</span>
-                    <span className="font-medium text-gray-900">
-                      {((newMeasurement.no_of_units || 0) * (newMeasurement.length || 0) * (newMeasurement.width_breadth || 0) * (newMeasurement.height_depth || 0)).toFixed(3)} {currentItem.ssr_unit}
+                    <span className={`font-medium ${newMeasurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
+                      {newMeasurement.is_deduction ? '-' : ''}{calculateQuantity().toFixed(3)} {newMeasurement.unit || currentItem.ssr_unit}
+                      {newMeasurement.is_manual_quantity && <span className="text-blue-600 text-xs ml-1">(Manual)</span>}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm mt-1">
                     <span className="text-gray-600">Line Amount:</span>
-                    <span className="font-medium text-gray-900">
-                      ₹{(((newMeasurement.no_of_units || 0) * (newMeasurement.length || 0) * (newMeasurement.width_breadth || 0) * (newMeasurement.height_depth || 0)) * currentItem.ssr_rate).toFixed(2)}
+                    <span className={`font-medium ${newMeasurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
+                      {newMeasurement.is_deduction ? '-' : ''}{formatCurrency(Math.abs(calculateLineAmount()))}
                     </span>
                   </div>
                 </div>
