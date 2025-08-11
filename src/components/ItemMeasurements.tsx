@@ -63,18 +63,15 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     setCurrentItem(item);
   }, [item]);
 
-  const calculateQuantity = (measurement: Partial<ItemMeasurement>): number => {
-    // If manual quantity is provided, use it
-    if (measurement.manual_quantity !== null && measurement.manual_quantity !== undefined) {
-      return measurement.manual_quantity;
-    }
-    
-    // Otherwise calculate from L×B×H
-    const units = measurement.no_of_units || 0;
-    const length = measurement.length || 0;
-    const width = measurement.width_breadth || 0;
-    const height = measurement.height_depth || 0;
-    return units * length * width * height;
+  const getTotalQuantity = (): number => {
+    return measurements.reduce((sum, measurement) => {
+      const quantity = measurement.manual_quantity !== null && measurement.manual_quantity !== undefined 
+        ? measurement.manual_quantity 
+        : measurement.calculated_quantity;
+      
+      // If it's a deduction, subtract from total
+      return measurement.is_deduction ? sum - Math.abs(quantity) : sum + quantity;
+    }, 0);
   };
 
   const fetchData = async () => {
