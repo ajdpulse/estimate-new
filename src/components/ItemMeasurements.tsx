@@ -49,10 +49,10 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   });
 
   useEffect(() => {
-    if (isOpen && item.id) {
+    if (isOpen && item.sr_no) {
       fetchData();
     }
-  }, [isOpen, item.id, activeTab]);
+  }, [isOpen, item.sr_no, activeTab]);
 
   const fetchData = async () => {
     try {
@@ -63,7 +63,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           .schema('estimate')
           .from('item_measurements')
           .select('*')
-          .eq('subwork_item_id', item.id)
+          .eq('subwork_item_id', item.sr_no)
           .order('sr_no', { ascending: true });
 
         if (error) throw error;
@@ -73,7 +73,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           .schema('estimate')
           .from('item_leads')
           .select('*')
-          .eq('subwork_item_id', item.id)
+          .eq('subwork_item_id', item.sr_no)
           .order('sr_no', { ascending: true });
 
         if (error) throw error;
@@ -83,7 +83,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           .schema('estimate')
           .from('item_materials')
           .select('*')
-          .eq('subwork_item_id', item.id)
+          .eq('subwork_item_id', item.sr_no)
           .order('material_name', { ascending: true });
 
         if (error) throw error;
@@ -112,7 +112,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .from('item_measurements')
         .insert([{
           ...newMeasurement,
-          subwork_item_id: item.id,
+          subwork_item_id: item.sr_no,
           calculated_quantity: calculatedQuantity,
           line_amount: lineAmount,
           unit: item.ssr_unit
@@ -144,7 +144,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .from('item_leads')
         .insert([{
           ...newLead,
-          subwork_item_id: item.id,
+          subwork_item_id: item.sr_no,
           net_lead_charges: netLeadCharges
         }]);
 
@@ -174,7 +174,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .from('item_materials')
         .insert([{
           ...newMaterial,
-          subwork_item_id: item.id,
+          subwork_item_id: item.sr_no,
           total_material_cost: totalCost
         }]);
 

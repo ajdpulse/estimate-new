@@ -84,7 +84,7 @@ export interface SubworkItem {
 
 export interface ItemMeasurement {
   id: string;
-  subwork_item_id: string;
+  subwork_item_id: number;
   sr_no: number;
   ssr_reference?: string;
   works_number?: string;
@@ -104,7 +104,7 @@ export interface ItemMeasurement {
 
 export interface ItemLead {
   id: string;
-  subwork_item_id: string;
+  subwork_item_id: number;
   sr_no: number;
   material: string;
   location_of_quarry?: string;
@@ -118,7 +118,7 @@ export interface ItemLead {
 
 export interface ItemMaterial {
   id: string;
-  subwork_item_id: string;
+  subwork_item_id: number;
   material_name: string;
   required_quantity: number;
   unit?: string;
