@@ -232,6 +232,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
   const handleEditMeasurement = (measurement: ItemMeasurement) => {
     setSelectedMeasurement(measurement);
+    const hasManualQuantity = measurement.manual_quantity !== null && measurement.manual_quantity !== undefined;
+    setEditUseManualQuantity(hasManualQuantity);
     setNewMeasurement({
       description_of_items: measurement.description_of_items,
       no_of_units: measurement.no_of_units,
@@ -239,6 +241,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       width_breadth: measurement.width_breadth,
       height_depth: measurement.height_depth
     });
+      unit: measurement.unit || '',
+      is_deduction: measurement.is_deduction || false,
+      manual_quantity: hasManualQuantity ? measurement.manual_quantity : null
     setShowEditModal(true);
   };
 
