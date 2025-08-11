@@ -79,8 +79,14 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       }
 
       const data = await response.json();
-      setSsrSuggestions(data.results || []);
-      setShowSuggestions(true);
+      // Only show suggestions if we have actual results from the Python file
+      if (data.results && data.results.length > 0) {
+        setSsrSuggestions(data.results);
+        setShowSuggestions(true);
+      } else {
+        setSsrSuggestions([]);
+        setShowSuggestions(false);
+      }
     } catch (error) {
       console.error('Error searching SSR items:', error);
       setSsrSuggestions([]);
