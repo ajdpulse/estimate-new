@@ -39,8 +39,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     no_of_units: 0,
     length: 0,
     width_breadth: 0,
-    height_depth: 0
+    height_depth: 0,
+    calculated_quantity: 0,
+    unit: '',
+    is_deduction: false
   });
+  const [manualQuantityMode, setManualQuantityMode] = useState(false);
+  const [manualQuantity, setManualQuantity] = useState<number>(0);
   const [newLead, setNewLead] = useState<Partial<ItemLead>>({
     material: '',
     lead_in_km: 0,
@@ -154,7 +159,10 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         no_of_units: 0,
         length: 0,
         width_breadth: 0,
-        height_depth: 0
+        height_depth: 0,
+        calculated_quantity: 0,
+        unit: '',
+        is_deduction: false
       });
       
       // Refresh data first, then update SSR quantity
@@ -178,7 +186,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         is_deduction: lastMeasurement.is_deduction || false,
         length: lastMeasurement.length,
         width_breadth: lastMeasurement.width_breadth,
-        height_depth: lastMeasurement.height_depth
+        height_depth: lastMeasurement.height_depth,
+        calculated_quantity: 0,
+        unit: ''
       });
     }
   };
@@ -237,7 +247,10 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       no_of_units: measurement.no_of_units,
       length: measurement.length,
       width_breadth: measurement.width_breadth,
-      height_depth: measurement.height_depth
+      height_depth: measurement.height_depth,
+      calculated_quantity: 0,
+      unit: '',
+      is_deduction: false
     });
     setShowEditModal(true);
   };
@@ -277,7 +290,10 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         no_of_units: 0,
         length: 0,
         width_breadth: 0,
-        height_depth: 0
+        height_depth: 0,
+        calculated_quantity: 0,
+        unit: '',
+        is_deduction: false
       });
       
       // Refresh data first, then update SSR quantity
