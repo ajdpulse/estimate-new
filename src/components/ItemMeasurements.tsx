@@ -525,7 +525,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                               {measurement.calculated_quantity.toFixed(3)} {measurement.unit || currentItem.ssr_unit}
                             </td>
                             <td className="px-3 py-2 text-sm font-medium text-gray-900">
-                              {measurement.is_deduction ? '-' : ''}{formatCurrency(Math.abs(measurement.line_amount))}
+                              {formatCurrency(measurement.line_amount)}
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center space-x-2">
@@ -721,6 +721,23 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter description (optional)"
                   />
+                </div>
+                
+                <div>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={newMeasurement.is_deduction || false}
+                      onChange={(e) => setNewMeasurement({...newMeasurement, is_deduction: e.target.checked})}
+                      className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      This is a deduction (subtract from total)
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Check this box if this measurement should be subtracted from the total quantity
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
