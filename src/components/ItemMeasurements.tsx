@@ -63,11 +63,17 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     setCurrentItem(item);
   }, [item]);
 
-  const calculateQuantity = () => {
-    return (newMeasurement.no_of_units || 0) * 
-           (newMeasurement.length || 0) * 
-           (newMeasurement.width_breadth || 0) * 
-           (newMeasurement.height_depth || 0);
+  const calculateQuantity = (measurement: Partial<ItemMeasurement>): number => {
+    if (measurement.is_manual_quantity && measurement.manual_quantity !== undefined) {
+      return measurement.manual_quantity;
+    }
+    
+    const units = measurement.no_of_units || 0;
+    const length = measurement.length || 0;
+    const width = measurement.width_breadth || 0;
+    const height = measurement.height_depth || 0;
+    
+    return units * length * width * height;
   };
 
   const calculateLineAmount = () => {
