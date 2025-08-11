@@ -62,6 +62,21 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   useEffect(() => {
     setCurrentItem(item);
   }, [item]);
+
+  const calculateQuantity = (measurement: Partial<ItemMeasurement>): number => {
+    // If manual quantity is provided, use it
+    if (measurement.manual_quantity !== null && measurement.manual_quantity !== undefined) {
+      return measurement.manual_quantity;
+    }
+    
+    // Otherwise calculate from L×B×H
+    const units = measurement.no_of_units || 0;
+    const length = measurement.length || 0;
+    const width = measurement.width_breadth || 0;
+    const height = measurement.height_depth || 0;
+    return units * length * width * height;
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -232,8 +247,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
   const handleEditMeasurement = (measurement: ItemMeasurement) => {
     setSelectedMeasurement(measurement);
-    const hasManualQuantity = measurement.manual_quantity !== null && measurement.manual_quantity !== undefined;
-    setEditUseManualQuantity(hasManualQuantity);
     setNewMeasurement({
       description_of_items: measurement.description_of_items,
       no_of_units: measurement.no_of_units,
@@ -241,9 +254,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       width_breadth: measurement.width_breadth,
       height_depth: measurement.height_depth
     });
-      unit: measurement.unit || '',
-      is_deduction: measurement.is_deduction || false,
-      manual_quantity: hasManualQuantity ? measurement.manual_quantity : null
     setShowEditModal(true);
   };
 
