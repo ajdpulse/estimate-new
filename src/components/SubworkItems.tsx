@@ -41,10 +41,13 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [newItem, setNewItem] = useState<Partial<SubworkItem>>({
     description_of_item: '',
-    ssr_quantity: 0,
-    ssr_rate: 0,
-    ssr_unit: ''
+    category: ''
   });
+  const [itemRates, setItemRates] = useState<Array<{
+    description: string;
+    rate: number;
+    unit: string;
+  }>>([{ description: '', rate: 0, unit: '' }]);
 
   useEffect(() => {
     if (isOpen && subworkId) {
@@ -119,12 +122,25 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   };
 
   const selectSSRItem = (item: any) => {
-    setNewItem({
-      ...newItem,
-      description_of_item: item.description,
-      ssr_rate: parseFloat(item.rate_2024_25 || item.rate_2023_24 || '0'),
-      ssr_unit: item.unit || ''
+    // Add the SSR item as a new rate entry
+    const newRate = {
+      description: item.description,
+      rate: parseFloat(item.rate_2024_25 || item.rate_2023_24 || '0'),
+      unit: item.unit || ''
+    };
+    
+    setItemRates(prev => {
+      const updated = [...prev];
+      // Replace the first empty entry or add new one
+      const emptyIndex = updated.findIndex(r => !r.description && !r.rate);
+      if (emptyIndex >= 0) {
+        updated[emptyIndex] = newRate;
+      } else {
+        updated.push(newRate);
+      }
+      return updated;
     });
+    
     setDescriptionQuery(item.description);
     setShowSuggestions(false);
     setSsrSuggestions([]);
@@ -180,19 +196,38 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   };
 
   const handleAddItem = async () => {
-    if (!newItem.description_of_item || !user) return;
+    if (!newItem.description_of_item || !user || itemRates.length === 0) return;
+
+    // Validate that at least one rate entry is complete
+    const validRates = itemRates.filter(rate => rate.description && rate.rate > 0);
+    if (validRates.length === 0) {
+      alert('Please add at least one valid rate entry with description and rate.');
+      return;
+    }
 
     try {
       const itemNumber = await generateItemNumber();
-      const totalAmount = (newItem.ssr_quantity || 0) * (newItem.ssr_rate || 0);
+      
+      // Calculate total amount from all rates (for now, just sum all rates)
+      const totalAmount = validRates.reduce((sum, rate) => sum + rate.rate, 0);
+
+      // Create a combined description from all rate descriptions
+      const combinedDescription = validRates.map(rate => rate.description).join(' | ');
+      
+      // For now, we'll store the first rate's unit as the main unit
+      const mainUnit = validRates[0]?.unit || '';
 
       const { error } = await supabase
         .schema('estimate')
         .from('subwork_items')
         .insert([{
-          ...newItem,
+          description_of_item: newItem.description_of_item,
+          category: newItem.category,
           subwork_id: subworkId,
           item_number: itemNumber,
+          ssr_quantity: 1, // Default to 1 since we removed quantity input
+          ssr_rate: totalAmount, // Sum of all rates
+          ssr_unit: mainUnit,
           total_item_amount: totalAmount,
           created_by: user.id
         }]);
@@ -202,10 +237,9 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       setShowAddItemModal(false);
       setNewItem({
         description_of_item: '',
-        ssr_quantity: 0,
-        ssr_rate: 0,
-        ssr_unit: ''
+        category: ''
       });
+      setItemRates([{ description: '', rate: 0, unit: '' }]);
       setDescriptionQuery('');
       setSsrSuggestions([]);
       setShowSuggestions(false);
@@ -218,27 +252,43 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   const handleEditItem = (item: SubworkItem) => {
     setSelectedItem(item);
     setDescriptionQuery(item.description_of_item);
+    
+    // For editing, we'll start with the current item's rate as a single entry
+    setItemRates([{
+      description: item.description_of_item,
+      rate: item.ssr_rate,
+      unit: item.ssr_unit || ''
+    }]);
+    
     setNewItem({
       description_of_item: item.description_of_item,
-      category: item.category,
-      ssr_quantity: item.ssr_quantity,
-      ssr_rate: item.ssr_rate,
-      ssr_unit: item.ssr_unit
+      category: item.category
     });
     setShowEditItemModal(true);
   };
 
   const handleUpdateItem = async () => {
-    if (!newItem.description_of_item || !selectedItem) return;
+    if (!newItem.description_of_item || !selectedItem || itemRates.length === 0) return;
+
+    const validRates = itemRates.filter(rate => rate.description && rate.rate > 0);
+    if (validRates.length === 0) {
+      alert('Please add at least one valid rate entry with description and rate.');
+      return;
+    }
 
     try {
-      const totalAmount = (newItem.ssr_quantity || 0) * (newItem.ssr_rate || 0);
+      const totalAmount = validRates.reduce((sum, rate) => sum + rate.rate, 0);
+      const mainUnit = validRates[0]?.unit || '';
 
       const { error } = await supabase
         .schema('estimate')
         .from('subwork_items')
         .update({
-          ...newItem,
+          description_of_item: newItem.description_of_item,
+          category: newItem.category,
+          ssr_quantity: 1,
+          ssr_rate: totalAmount,
+          ssr_unit: mainUnit,
           total_item_amount: totalAmount
         })
         .eq('subwork_id', selectedItem.subwork_id)
@@ -250,10 +300,9 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       setSelectedItem(null);
       setNewItem({
         description_of_item: '',
-        ssr_quantity: 0,
-        ssr_rate: 0,
-        ssr_unit: ''
+        category: ''
       });
+      setItemRates([{ description: '', rate: 0, unit: '' }]);
       fetchSubworkItems();
     } catch (error) {
       console.error('Error updating item:', error);
@@ -293,6 +342,24 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   };
 
   const totalItemsAmount = subworkItems.reduce((sum, item) => sum + item.total_item_amount, 0);
+
+  const addRateEntry = () => {
+    setItemRates(prev => [...prev, { description: '', rate: 0, unit: '' }]);
+  };
+
+  const removeRateEntry = (index: number) => {
+    if (itemRates.length > 1) {
+      setItemRates(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateRateEntry = (index: number, field: string, value: any) => {
+    setItemRates(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
 
   if (!isOpen) return null;
 
@@ -378,7 +445,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           {item.category || '-'}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                          {item.ssr_quantity} {item.ssr_unit}
+                          1 {item.ssr_unit}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                           ₹{item.ssr_rate.toFixed(2)}
@@ -566,48 +633,79 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      SSR Quantity *
+                {/* Multiple Rates Table */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Rates *
                     </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.001"
-                      value={newItem.ssr_quantity || ''}
-                      onChange={(e) => setNewItem({...newItem, ssr_quantity: parseFloat(e.target.value) || 0})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="0.000"
-                    />
+                    <button
+                      type="button"
+                      onClick={addRateEntry}
+                      className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-blue-600 bg-blue-100 hover:bg-blue-200"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add Rate
+                    </button>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      SSR Rate (₹) *
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={newItem.ssr_rate || ''}
-                      onChange={(e) => setNewItem({...newItem, ssr_rate: parseFloat(e.target.value) || 0})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Unit
-                    </label>
-                    <input
-                      type="text"
-                      value={newItem.ssr_unit || ''}
-                      onChange={(e) => setNewItem({...newItem, ssr_unit: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., sqm, cum, nos"
-                    />
+                  
+                  <div className="border border-gray-300 rounded-md overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rate (₹)</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {itemRates.map((rate, index) => (
+                          <tr key={index}>
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={rate.description}
+                                onChange={(e) => updateRateEntry(index, 'description', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Material/work description"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={rate.rate || ''}
+                                onChange={(e) => updateRateEntry(index, 'rate', parseFloat(e.target.value) || 0)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="0.00"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={rate.unit}
+                                onChange={(e) => updateRateEntry(index, 'unit', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="sqm, cum, nos"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              {itemRates.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeRateEntry(index)}
+                                  className="text-red-600 hover:text-red-800 p-1"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
@@ -615,7 +713,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Total Amount:</span>
                     <span className="font-medium text-gray-900">
-                      ₹{((newItem.ssr_quantity || 0) * (newItem.ssr_rate || 0)).toFixed(2)}
+                      ₹{itemRates.reduce((sum, rate) => sum + (rate.rate || 0), 0).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -630,7 +728,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                 </button>
                 <button
                   onClick={handleAddItem}
-                  disabled={!newItem.description_of_item}
+                  disabled={!newItem.description_of_item || itemRates.every(rate => !rate.description || !rate.rate)}
                   className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add Item
@@ -761,48 +859,79 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      SSR Quantity *
+                {/* Multiple Rates Table for Edit */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Rates *
                     </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.001"
-                      value={newItem.ssr_quantity || ''}
-                      onChange={(e) => setNewItem({...newItem, ssr_quantity: parseFloat(e.target.value) || 0})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="0.000"
-                    />
+                    <button
+                      type="button"
+                      onClick={addRateEntry}
+                      className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-blue-600 bg-blue-100 hover:bg-blue-200"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add Rate
+                    </button>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      SSR Rate (₹) *
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={newItem.ssr_rate || ''}
-                      onChange={(e) => setNewItem({...newItem, ssr_rate: parseFloat(e.target.value) || 0})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Unit
-                    </label>
-                    <input
-                      type="text"
-                      value={newItem.ssr_unit || ''}
-                      onChange={(e) => setNewItem({...newItem, ssr_unit: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., sqm, cum, nos"
-                    />
+                  
+                  <div className="border border-gray-300 rounded-md overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rate (₹)</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {itemRates.map((rate, index) => (
+                          <tr key={index}>
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={rate.description}
+                                onChange={(e) => updateRateEntry(index, 'description', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Material/work description"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={rate.rate || ''}
+                                onChange={(e) => updateRateEntry(index, 'rate', parseFloat(e.target.value) || 0)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="0.00"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={rate.unit}
+                                onChange={(e) => updateRateEntry(index, 'unit', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="sqm, cum, nos"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              {itemRates.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeRateEntry(index)}
+                                  className="text-red-600 hover:text-red-800 p-1"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
@@ -810,7 +939,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Total Amount:</span>
                     <span className="font-medium text-gray-900">
-                      ₹{((newItem.ssr_quantity || 0) * (newItem.ssr_rate || 0)).toFixed(2)}
+                      ₹{itemRates.reduce((sum, rate) => sum + (rate.rate || 0), 0).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -833,7 +962,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                 </button>
                 <button
                   onClick={handleUpdateItem}
-                  disabled={!newItem.description_of_item}
+                  disabled={!newItem.description_of_item || itemRates.every(rate => !rate.description || !rate.rate)}
                   className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Update Item
