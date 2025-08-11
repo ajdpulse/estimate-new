@@ -442,8 +442,3 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 };
 
 export default ItemMeasurements;
-
-export default ItemMeasurements;
-
-  )
-}
