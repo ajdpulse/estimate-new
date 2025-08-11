@@ -228,10 +228,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           return sum + measurement.calculated_quantity;
         }
       }, 0);
-        .select('calculated_quantity')
-        .eq('subwork_item_id', currentItem.sr_no);
-
-      if (fetchError) throw fetchError;
 
       
       const { error: updateError } = await supabase
