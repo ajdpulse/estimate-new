@@ -221,9 +221,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const updateItemSSRQuantity = async () => {
     try {
       // Get all measurements for this item
-      const { data: allMeasurements, error: fetchError } = await supabase
-        .schema('estimate')
-        .from('item_measurements')
+      const totalQuantity = measurements.reduce((sum, measurement) => {
+        if (measurement.is_deduction) {
+          return sum - Math.abs(measurement.calculated_quantity);
+        } else {
+          return sum + measurement.calculated_quantity;
+        }
+      }, 0);
         .select('calculated_quantity')
         .eq('subwork_item_id', currentItem.sr_no);
 
