@@ -356,7 +356,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {subworkItems.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
+                      <tr key={`${item.subwork_id}-${item.item_number}`} className="hover:bg-gray-50">
                         <td className="px-4 py-2 whitespace-nowrap">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             {item.item_number}
