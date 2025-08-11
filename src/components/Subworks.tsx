@@ -337,9 +337,10 @@ const Subworks: React.FC = () => {
                   <button
                     onClick={handleViewItems}
                     disabled={selectedSubworkIds.length === 0}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:opacity-50">
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:opacity-50"
+                  >
                     <Eye className="w-3 h-3 mr-1" />
-                    View Items ({selectedSubworkIds.length})
+                    View Items ({selectedSubworkIds.length > 0 ? `${selectedSubworkIds.length} selected` : '0'})
                   </button>
                 </div>
               </div>
