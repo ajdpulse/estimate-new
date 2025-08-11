@@ -231,9 +231,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
       // Calculate new total amount
       const newTotalAmount = newTotalQuantity * currentItem.ssr_rate;
-      // Calculate new total amount based on quantity and rate
-      const newTotalAmount = newTotalQuantity * currentItem.ssr_rate;
-
       
       const { error: updateError } = await supabase
         .schema('estimate')
