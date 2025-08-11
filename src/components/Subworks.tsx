@@ -54,7 +54,6 @@ const Subworks: React.FC = () => {
 
   useEffect(() => {
     if (selectedWorkId) {
-      console.log('selectedWorkId changed, fetching subworks for:', selectedWorkId);
       fetchSubworks(selectedWorkId);
     }
   }, [selectedWorkId]);
