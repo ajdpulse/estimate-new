@@ -501,15 +501,17 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sr No</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Units</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Length</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Width</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Height</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sr No</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Length</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Width</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Height</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
