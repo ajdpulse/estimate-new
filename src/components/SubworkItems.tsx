@@ -352,7 +352,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
           ssr_unit: mainUnit,
           total_item_amount: totalAmount
         })
-        .eq('id', selectedItem.id);
+        .eq('sr_no', selectedItem.sr_no);
 
       if (error) throw error;
 
