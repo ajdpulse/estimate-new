@@ -26,6 +26,7 @@ const Subworks: React.FC = () => {
   const [subworks, setSubworks] = useState<SubWork[]>([]);
   const [selectedWorkId, setSelectedWorkId] = useState<string>('');
   const [selectedSubworkIds, setSelectedSubworkIds] = useState<string[]>([]);
+  const [subworkItemCounts, setSubworkItemCounts] = useState<{[key: string]: number}>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -57,6 +58,12 @@ const Subworks: React.FC = () => {
       fetchSubworks(selectedWorkId);
     }
   }, [selectedWorkId]);
+
+  useEffect(() => {
+    if (selectedSubworkIds.length > 0) {
+      fetchItemCounts();
+    }
+  }, [selectedSubworkIds]);
 
   const fetchWorks = async () => {
     try {
@@ -94,6 +101,27 @@ const Subworks: React.FC = () => {
       setSubworks(data || []);
     } catch (error) {
       console.error('Error fetching subworks:', error);
+    }
+  };
+
+  const fetchItemCounts = async () => {
+    try {
+      const counts: {[key: string]: number} = {};
+      
+      for (const subworkId of selectedSubworkIds) {
+        const { count, error } = await supabase
+          .schema('estimate')
+          .from('subwork_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('subwork_id', subworkId);
+
+        if (error) throw error;
+        counts[subworkId] = count || 0;
+      }
+      
+      setSubworkItemCounts(counts);
+    } catch (error) {
+      console.error('Error fetching item counts:', error);
     }
   };
 
@@ -232,6 +260,12 @@ const Subworks: React.FC = () => {
     }).format(amount);
   };
 
+  const getTotalItemsCount = () => {
+    return selectedSubworkIds.reduce((total, subworkId) => {
+      return total + (subworkItemCounts[subworkId] || 0);
+    }, 0);
+  };
+
   const selectedWork = works.find(work => work.works_id === selectedWorkId);
   
   const filteredSubworks = subworks.filter(subwork =>
@@ -340,7 +374,7 @@ const Subworks: React.FC = () => {
                     className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:opacity-50"
                   >
                     <Eye className="w-3 h-3 mr-1" />
-                    View Items ({selectedSubworkIds.length > 0 ? `${selectedSubworkIds.length} selected` : '0'})
+                    View Items ({selectedSubworkIds.length > 0 ? `${getTotalItemsCount()} items` : '0 items'})
                   </button>
                 </div>
               </div>
