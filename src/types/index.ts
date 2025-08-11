@@ -97,6 +97,9 @@ export interface ItemMeasurement {
   height_depth: number;
   calculated_quantity: number;
   unit?: string;
+  is_deduction?: boolean;
+  is_manual_quantity?: boolean;
+  manual_quantity?: number;
   line_amount: number;
   created_at: string;
   updated_at: string;
