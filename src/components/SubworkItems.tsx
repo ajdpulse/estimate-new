@@ -176,6 +176,30 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     }
   };
 
+  // Function to refresh a specific item's data
+  const refreshItemData = async (itemSrNo: number) => {
+    try {
+      const { data, error } = await supabase
+        .schema('estimate')
+        .from('subwork_items')
+        .select('*')
+        .eq('sr_no', itemSrNo)
+        .single();
+
+      if (error) throw error;
+      
+      // Update the item in the local state
+      setSubworkItems(prev => 
+        prev.map(item => 
+          item.sr_no === itemSrNo ? data : item
+        )
+      );
+      
+      console.log(`Refreshed item ${itemSrNo} data:`, data);
+    } catch (error) {
+      console.error('Error refreshing item data:', error);
+    }
+  };
   const fetchItemRates = async (items: SubworkItem[]) => {
     try {
       const itemSrNos = items.map(item => item.sr_no);
@@ -1083,6 +1107,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
           item={selectedItem}
           isOpen={showMeasurementsModal}
           onClose={() => setShowMeasurementsModal(false)}
+          onItemUpdated={refreshItemData}
         />
       )}
     </div>

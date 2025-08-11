@@ -16,12 +16,14 @@ interface ItemMeasurementsProps {
   item: SubworkItem;
   isOpen: boolean;
   onClose: () => void;
+  onItemUpdated?: (itemSrNo: number) => void;
 }
 
 const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({ 
   item, 
   isOpen, 
-  onClose 
+  onClose,
+  onItemUpdated
 }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'measurements' | 'leads' | 'materials'>('measurements');
@@ -30,6 +32,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const [materials, setMaterials] = useState<ItemMaterial[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [currentItem, setCurrentItem] = useState<SubworkItem>(item);
   const [newMeasurement, setNewMeasurement] = useState<Partial<ItemMeasurement>>({
     no_of_units: 0,
     length: 0,
@@ -54,6 +57,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }
   }, [isOpen, item.sr_no, activeTab]);
 
+  useEffect(() => {
+    setCurrentItem(item);
+  }, [item]);
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -63,7 +69,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           .schema('estimate')
           .from('item_measurements')
           .select('*')
-          .eq('subwork_item_id', item.sr_no)
+          .eq('subwork_item_id', currentItem.sr_no)
           .order('measurement_sr_no', { ascending: true });
 
         if (error) throw error;
@@ -73,7 +79,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           .schema('estimate')
           .from('item_leads')
           .select('*')
-          .eq('subwork_item_id', item.sr_no)
+          .eq('subwork_item_id', currentItem.sr_no)
           .order('sr_no', { ascending: true });
 
         if (error) throw error;
@@ -83,7 +89,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           .schema('estimate')
           .from('item_materials')
           .select('*')
-          .eq('subwork_item_id', item.sr_no)
+          .eq('subwork_item_id', currentItem.sr_no)
           .order('material_name', { ascending: true });
 
         if (error) throw error;
@@ -102,7 +108,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .schema('estimate')
         .from('item_measurements')
         .select('measurement_sr_no')
-        .eq('subwork_item_id', item.sr_no)
+        .eq('subwork_item_id', currentItem.sr_no)
         .order('measurement_sr_no', { ascending: false })
         .limit(1);
 
@@ -125,18 +131,18 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                                 (newMeasurement.width_breadth || 0) * 
                                 (newMeasurement.height_depth || 0);
       
-      const lineAmount = calculatedQuantity * item.ssr_rate;
+      const lineAmount = calculatedQuantity * currentItem.ssr_rate;
 
       const { error } = await supabase
         .schema('estimate')
         .from('item_measurements')
         .insert([{
           ...newMeasurement,
-          subwork_item_id: item.sr_no,
+          subwork_item_id: currentItem.sr_no,
           measurement_sr_no: nextSrNo,
           calculated_quantity: calculatedQuantity,
           line_amount: lineAmount,
-          unit: item.ssr_unit
+          unit: currentItem.ssr_unit
         }]);
 
       if (error) throw error;
@@ -168,7 +174,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .schema('estimate')
         .from('item_measurements')
         .select('calculated_quantity')
-        .eq('subwork_item_id', item.sr_no);
+        .eq('subwork_item_id', currentItem.sr_no);
 
       if (fetchError) throw fetchError;
 
@@ -176,7 +182,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       const totalQuantity = (allMeasurements || []).reduce((sum, m) => sum + m.calculated_quantity, 0);
       
       // Update the subwork item's SSR quantity and total amount
-      const newTotalAmount = totalQuantity * item.ssr_rate;
+      const newTotalAmount = totalQuantity * currentItem.ssr_rate;
       
       const { error: updateError } = await supabase
         .schema('estimate')
@@ -185,15 +191,23 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           ssr_quantity: totalQuantity,
           total_item_amount: newTotalAmount
         })
-        .eq('sr_no', item.sr_no);
+        .eq('sr_no', currentItem.sr_no);
 
       if (updateError) throw updateError;
       
-      // Update the local item object to reflect changes
-      item.ssr_quantity = totalQuantity;
-      item.total_item_amount = newTotalAmount;
+      // Update the local current item object to reflect changes
+      setCurrentItem(prev => ({
+        ...prev,
+        ssr_quantity: totalQuantity,
+        total_item_amount: newTotalAmount
+      }));
       
-      console.log(`Updated SSR quantity to ${totalQuantity} for item ${item.sr_no}`);
+      // Notify parent component to refresh the item data
+      if (onItemUpdated) {
+        onItemUpdated(currentItem.sr_no);
+      }
+      
+      console.log(`Updated SSR quantity to ${totalQuantity} for item ${currentItem.sr_no}`);
       
     } catch (error) {
       console.error('Error updating SSR quantity:', error);
@@ -236,7 +250,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .from('item_leads')
         .insert([{
           ...newLead,
-          subwork_item_id: item.sr_no,
+          subwork_item_id: currentItem.sr_no,
           net_lead_charges: netLeadCharges
         }]);
 
@@ -266,7 +280,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .from('item_materials')
         .insert([{
           ...newMaterial,
-          subwork_item_id: item.sr_no,
+          subwork_item_id: currentItem.sr_no,
           total_material_cost: totalCost
         }]);
 
@@ -322,21 +336,21 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-blue-700 font-medium">SSR Quantity:</span>
-                <p className="text-blue-900" id="ssr-quantity-display">{item.ssr_quantity.toFixed(3)} {item.ssr_unit}</p>
+                <p className="text-blue-900" id="ssr-quantity-display">{currentItem.ssr_quantity.toFixed(3)} {currentItem.ssr_unit}</p>
                 <p className="text-xs text-blue-600">(Auto-calculated from measurements)</p>
               </div>
               <div>
                 <span className="text-blue-700 font-medium">SSR Rate:</span>
-                <p className="text-blue-900">₹{item.ssr_rate.toFixed(2)}</p>
+                <p className="text-blue-900">₹{currentItem.ssr_rate.toFixed(2)}</p>
               </div>
               <div>
                 <span className="text-blue-700 font-medium">SSR Amount:</span>
-                <p className="text-blue-900">{formatCurrency(item.total_item_amount)}</p>
+                <p className="text-blue-900">{formatCurrency(currentItem.total_item_amount)}</p>
                 <p className="text-xs text-blue-600">(Quantity × Rate)</p>
               </div>
               <div>
                 <span className="text-blue-700 font-medium">Category:</span>
-                <p className="text-blue-900">{item.category || 'N/A'}</p>
+                <p className="text-blue-900">{currentItem.category || 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -387,7 +401,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <div className="text-sm text-gray-600">
-                    Total Quantity: {totalMeasurementQuantity.toFixed(3)} {item.ssr_unit} | 
+                    Total Quantity: {totalMeasurementQuantity.toFixed(3)} {currentItem.ssr_unit} | 
                     Total Amount: {formatCurrency(totalMeasurementAmount)}
                   </div>
                   <button 
@@ -428,7 +442,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.width_breadth}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.height_depth}</td>
                             <td className="px-3 py-2 text-sm font-medium text-gray-900">
-                              {measurement.calculated_quantity.toFixed(3)} {measurement.unit}
+                              {measurement.calculated_quantity.toFixed(3)} {measurement.unit || currentItem.ssr_unit}
                             </td>
                             <td className="px-3 py-2 text-sm font-medium text-gray-900">
                               {formatCurrency(measurement.line_amount)}
@@ -644,13 +658,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Calculated Quantity:</span>
                     <span className="font-medium text-gray-900">
-                      {((newMeasurement.no_of_units || 0) * (newMeasurement.length || 0) * (newMeasurement.width_breadth || 0) * (newMeasurement.height_depth || 0)).toFixed(3)} {item.ssr_unit}
+                      {((newMeasurement.no_of_units || 0) * (newMeasurement.length || 0) * (newMeasurement.width_breadth || 0) * (newMeasurement.height_depth || 0)).toFixed(3)} {currentItem.ssr_unit}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm mt-1">
                     <span className="text-gray-600">Line Amount:</span>
                     <span className="font-medium text-gray-900">
-                      ₹{(((newMeasurement.no_of_units || 0) * (newMeasurement.length || 0) * (newMeasurement.width_breadth || 0) * (newMeasurement.height_depth || 0)) * item.ssr_rate).toFixed(2)}
+                      ₹{(((newMeasurement.no_of_units || 0) * (newMeasurement.length || 0) * (newMeasurement.width_breadth || 0) * (newMeasurement.height_depth || 0)) * currentItem.ssr_rate).toFixed(2)}
                     </span>
                   </div>
                 </div>
