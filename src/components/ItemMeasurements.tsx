@@ -169,6 +169,19 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }
   };
 
+  const copyLastMeasurement = () => {
+    if (measurements.length > 0) {
+      const lastMeasurement = measurements[measurements.length - 1];
+      setNewMeasurement({
+        description_of_items: lastMeasurement.description_of_items,
+        no_of_units: lastMeasurement.no_of_units,
+        length: lastMeasurement.length,
+        width_breadth: lastMeasurement.width_breadth,
+        height_depth: lastMeasurement.height_depth
+      });
+    }
+  };
+
   const updateItemSSRQuantity = async () => {
     try {
       // Get all measurements for this item
