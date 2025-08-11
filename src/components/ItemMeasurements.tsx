@@ -175,6 +175,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       setNewMeasurement({
         description_of_items: lastMeasurement.description_of_items,
         no_of_units: lastMeasurement.no_of_units,
+        is_deduction: lastMeasurement.is_deduction || false,
         length: lastMeasurement.length,
         width_breadth: lastMeasurement.width_breadth,
         height_depth: lastMeasurement.height_depth
@@ -185,7 +186,11 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const updateItemSSRQuantity = async () => {
     try {
       // Get all measurements for this item
-      const { data: allMeasurements, error: fetchError } = await supabase
+      const totalQuantity = measurements.reduce((sum, measurement) => {
+        return measurement.is_deduction 
+          ? sum - measurement.calculated_quantity 
+          : sum + measurement.calculated_quantity;
+      }, 0);
         .schema('estimate')
         .from('item_measurements')
         .select('calculated_quantity')
