@@ -100,6 +100,7 @@ export interface ItemMeasurement {
   is_deduction?: boolean;
   is_manual_quantity?: boolean;
   manual_quantity?: number;
+  selected_rate_id?: number;
   line_amount: number;
   created_at: string;
   updated_at: string;

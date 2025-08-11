@@ -76,16 +76,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     const quantity = calculateQuantity();
     const amount = quantity * currentItem.ssr_rate;
     return newMeasurement.is_deduction ? -amount : amount;
-    
-    // Use selected rate or default to item's SSR rate
-    let rate = selectedItem?.ssr_rate || 0;
-    if (newMeasurement.selected_rate_id && itemRates.length > 0) {
-      const selectedRate = itemRates.find(r => r.sr_no === newMeasurement.selected_rate_id);
-      if (selectedRate) {
-        rate = selectedRate.rate;
-      }
-    }
-    
+  };
 
   const fetchData = async () => {
     try {
@@ -269,7 +260,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       unit: measurement.unit || '',
       is_deduction: measurement.is_deduction || false,
       is_manual_quantity: measurement.is_manual_quantity || false,
-      manual_quantity: measurement.manual_quantity || 0
+      is_manual_quantity: false,
+      selected_rate_id: undefined
     });
     setShowEditModal(true);
   };
