@@ -178,24 +178,25 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
   const fetchItemRates = async (items: SubworkItem[]) => {
     try {
-      const itemIds = items.map(item => item.id);
+      const itemSrNos = items.map(item => item.sr_no);
       
       const { data: rates, error } = await supabase
         .schema('estimate')
         .from('item_rates')
         .select('*')
-        .in('subwork_item_id', itemIds)
+        .in('subwork_item_sr_no', itemSrNos)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
 
-      // Group rates by subwork_item_id
+      // Group rates by subwork_item_sr_no
       const ratesMap: {[key: string]: ItemRate[]} = {};
       (rates || []).forEach(rate => {
-        if (!ratesMap[rate.subwork_item_id]) {
-          ratesMap[rate.subwork_item_id] = [];
+        const key = rate.subwork_item_sr_no.toString();
+        if (!ratesMap[key]) {
+          ratesMap[key] = [];
         }
-        ratesMap[rate.subwork_item_id].push(rate);
+        ratesMap[key].push(rate);
       });
 
       setItemRatesMap(ratesMap);
@@ -270,7 +271,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
       // Insert all the rates for this item
       const ratesToInsert = validRates.map(rate => ({
-        subwork_item_id: insertedItem.id,
+        subwork_item_sr_no: insertedItem.sr_no,
         description: rate.description,
         rate: rate.rate,
         unit: rate.unit,
@@ -304,7 +305,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     setDescriptionQuery(item.description_of_item);
     
     // Load existing rates for this item
-    const existingRates = itemRatesMap[item.id] || [];
+    const existingRates = itemRatesMap[item.sr_no.toString()] || [];
     if (existingRates.length > 0) {
       setItemRates(existingRates.map(rate => ({
         description: rate.description,
@@ -360,13 +361,13 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
         .schema('estimate')
         .from('item_rates')
         .delete()
-        .eq('subwork_item_id', selectedItem.id);
+        .eq('subwork_item_sr_no', selectedItem.sr_no);
 
       if (deleteError) throw deleteError;
 
       // Insert updated rates
       const ratesToInsert = validRates.map(rate => ({
-        subwork_item_id: selectedItem.id,
+        subwork_item_sr_no: selectedItem.sr_no,
         description: rate.description,
         rate: rate.rate,
         unit: rate.unit,
@@ -404,14 +405,14 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
         .schema('estimate')
         .from('item_rates')
         .delete()
-        .eq('subwork_item_id', item.id);
+        .eq('subwork_item_sr_no', item.sr_no);
 
       // Delete the item
       const { error } = await supabase
         .schema('estimate')
         .from('subwork_items')
         .delete()
-        .eq('id', item.id);
+        .eq('sr_no', item.sr_no);
 
       if (error) throw error;
       fetchSubworkItems();
@@ -432,13 +433,13 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     }).format(amount);
   };
 
-  const getItemTotalFromRates = (itemId: string): number => {
-    const rates = itemRatesMap[itemId] || [];
+  const getItemTotalFromRates = (itemSrNo: number): number => {
+    const rates = itemRatesMap[itemSrNo.toString()] || [];
     return rates.reduce((sum, rate) => sum + rate.rate, 0);
   };
 
-  const getItemRatesDisplay = (itemId: string): string => {
-    const rates = itemRatesMap[itemId] || [];
+  const getItemRatesDisplay = (itemSrNo: number): string => {
+    const rates = itemRatesMap[itemSrNo.toString()] || [];
     if (rates.length === 0) return 'No rates';
     if (rates.length === 1) return `₹${rates[0].rate.toFixed(2)}`;
     return `${rates.length} rates (₹${rates.reduce((sum, rate) => sum + rate.rate, 0).toFixed(2)})`;
@@ -551,7 +552,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           {item.ssr_quantity} {item.ssr_unit}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                          {getItemRatesDisplay(item.id)}
+                          {getItemRatesDisplay(item.sr_no)}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                           {formatCurrency(item.total_item_amount)}
