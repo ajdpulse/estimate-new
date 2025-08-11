@@ -35,9 +35,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMeasurement, setSelectedMeasurement] = useState<ItemMeasurement | null>(null);
   const [currentItem, setCurrentItem] = useState<SubworkItem>(item);
-  const [isManualQuantity, setIsManualQuantity] = useState(false);
-  const [manualQuantity, setManualQuantity] = useState(0);
-  const [isDeduction, setIsDeduction] = useState(false);
   const [newMeasurement, setNewMeasurement] = useState<Partial<ItemMeasurement>>({
     no_of_units: 0,
     length: 0,
