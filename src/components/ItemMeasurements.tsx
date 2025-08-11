@@ -39,13 +39,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     no_of_units: 0,
     length: 0,
     width_breadth: 0,
-    height_depth: 0,
-    calculated_quantity: 0,
-    unit: '',
-    is_deduction: false
+    height_depth: 0
   });
-  const [manualQuantityMode, setManualQuantityMode] = useState(false);
-  const [manualQuantity, setManualQuantity] = useState<number>(0);
   const [newLead, setNewLead] = useState<Partial<ItemLead>>({
     material: '',
     lead_in_km: 0,
@@ -159,10 +154,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         no_of_units: 0,
         length: 0,
         width_breadth: 0,
-        height_depth: 0,
-        calculated_quantity: 0,
-        unit: '',
-        is_deduction: false
+        height_depth: 0
       });
       
       // Refresh data first, then update SSR quantity
@@ -186,9 +178,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         is_deduction: lastMeasurement.is_deduction || false,
         length: lastMeasurement.length,
         width_breadth: lastMeasurement.width_breadth,
-        height_depth: lastMeasurement.height_depth,
-        calculated_quantity: 0,
-        unit: ''
+        height_depth: lastMeasurement.height_depth
       });
     }
   };
@@ -247,12 +237,16 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       no_of_units: measurement.no_of_units,
       length: measurement.length,
       width_breadth: measurement.width_breadth,
-      height_depth: measurement.height_depth,
-      calculated_quantity: 0,
-      unit: '',
-      is_deduction: false
+      height_depth: measurement.height_depth
     });
-    setShowEditModal(true);
+    setManualQuantity(measurement.calculated_quantity);
+    // Check if this was manually entered (all dimensions are 0 but quantity > 0)
+    const wasManual = measurement.length === 0 && measurement.width_breadth === 0 && 
+                     measurement.height_depth === 0 && measurement.calculated_quantity > 0;
+    setManualQuantityMode(wasManual);
+      calculated_quantity: measurement.calculated_quantity,
+      unit: measurement.unit || '',
+      is_deduction: measurement.is_deduction || false
   };
 
   const handleUpdateMeasurement = async () => {
@@ -290,10 +284,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         no_of_units: 0,
         length: 0,
         width_breadth: 0,
-        height_depth: 0,
-        calculated_quantity: 0,
-        unit: '',
-        is_deduction: false
+        height_depth: 0
       });
       
       // Refresh data first, then update SSR quantity
