@@ -432,9 +432,4 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
               </div>
               <div>
                 <span className="text-blue-700 font-medium">Category:</span>
-                <p className="text-blue-900">{currentItem.category || '-'}</p>
-              </div>
-            </div>
-          </div>
-  )
-}
+                <p className="text-blue-900">{currentItem.category ||
