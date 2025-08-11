@@ -91,7 +91,6 @@ const Subworks: React.FC = () => {
         .order('sr_no', { ascending: false });
 
       if (error) throw error;
-      console.log('Fetching subworks for workId:', workId, 'Data:', data);
       setSubworks(data || []);
     } catch (error) {
       console.error('Error fetching subworks:', error);
