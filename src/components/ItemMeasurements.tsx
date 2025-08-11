@@ -28,10 +28,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'measurements' | 'leads' | 'materials'>('measurements');
   const [measurements, setMeasurements] = useState<ItemMeasurement[]>([]);
+  const [itemRates, setItemRates] = useState<ItemRate[]>([]);
   const [leads, setLeads] = useState<ItemLead[]>([]);
   const [materials, setMaterials] = useState<ItemMaterial[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
+    is_manual_quantity: false,
+    selected_rate_id: undefined
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMeasurement, setSelectedMeasurement] = useState<ItemMeasurement | null>(null);
   const [currentItem, setCurrentItem] = useState<SubworkItem>(item);

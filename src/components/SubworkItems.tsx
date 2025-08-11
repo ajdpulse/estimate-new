@@ -568,6 +568,20 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           <div className="text-sm font-medium text-gray-900">
                             {item.description_of_item}
                           </div>
+                          {/* Show individual rates if multiple rates exist */}
+                          {itemRatesMap[item.sr_no.toString()] && itemRatesMap[item.sr_no.toString()].length > 1 && (
+                            <div className="mt-2 space-y-1">
+                              {itemRatesMap[item.sr_no.toString()].map((rate, index) => (
+                                <div key={index} className="text-xs bg-gray-50 p-2 rounded border-l-2 border-blue-200">
+                                  <div className="font-medium text-gray-700">{rate.description}</div>
+                                  <div className="flex items-center justify-between mt-1">
+                                    <span className="text-gray-600">₹{rate.rate.toFixed(2)}</span>
+                                    {rate.unit && <span className="text-gray-500">per {rate.unit}</span>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
                           {item.category || '-'}
@@ -576,7 +590,23 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           {item.ssr_quantity} {item.ssr_unit}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                          {getItemRatesDisplay(item.sr_no)}
+                          <div>
+                            {itemRatesMap[item.sr_no.toString()] && itemRatesMap[item.sr_no.toString()].length > 1 ? (
+                              <div className="space-y-1">
+                                {itemRatesMap[item.sr_no.toString()].map((rate, index) => (
+                                  <div key={index} className="text-xs">
+                                    <span className="font-medium">₹{rate.rate.toFixed(2)}</span>
+                                    {rate.unit && <span className="text-gray-500 ml-1">/{rate.unit}</span>}
+                                  </div>
+                                ))}
+                                <div className="text-xs text-blue-600 font-medium border-t pt-1">
+                                  Total: ₹{itemRatesMap[item.sr_no.toString()].reduce((sum, rate) => sum + rate.rate, 0).toFixed(2)}
+                                </div>
+                              </div>
+                            ) : (
+                              getItemRatesDisplay(item.sr_no)
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                           {formatCurrency(item.total_item_amount)}
