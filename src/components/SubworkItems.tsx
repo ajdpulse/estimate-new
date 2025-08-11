@@ -510,7 +510,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
                         <div className="p-2 text-xs text-gray-500 border-b">
                           <Search className="w-3 h-3 inline mr-1" />
-                          SSR Rate Suggestions (Optional - You can also type manually)
+                          SSR Rate Suggestions from Database
                         </div>
                         {ssrSuggestions.map((item, index) => (
                           <div
@@ -559,7 +559,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           </div>
                         ))}
                         <div className="p-2 text-xs text-gray-400 text-center border-t">
-                          Click on an item to auto-fill rate and unit, or continue typing manually
+                          Click on an item to auto-fill rate and unit from SSR database
                         </div>
                       </div>
                     )}
@@ -705,7 +705,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
                         <div className="p-2 text-xs text-gray-500 border-b">
                           <Search className="w-3 h-3 inline mr-1" />
-                          SSR Rate Suggestions (Optional - You can also type manually)
+                          SSR Rate Suggestions from Database
                         </div>
                         {ssrSuggestions.map((item, index) => (
                           <div
@@ -754,7 +754,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           </div>
                         ))}
                         <div className="p-2 text-xs text-gray-400 text-center border-t">
-                          Click on an item to auto-fill rate and unit, or continue typing manually
+                          Click on an item to auto-fill rate and unit from SSR database
                         </div>
                       </div>
                     )}
