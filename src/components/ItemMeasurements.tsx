@@ -436,9 +436,11 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
               </div>
             </div>
           </div>
+  )
+}
       </div>
     </div>
   );
 };
-
-export default ItemMeasurements;
+  )
+}
