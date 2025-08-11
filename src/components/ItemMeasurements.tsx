@@ -32,8 +32,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const [leads, setLeads] = useState<ItemLead[]>([]);
   const [materials, setMaterials] = useState<ItemMaterial[]>([]);
   const [loading, setLoading] = useState(false);
-    is_manual_quantity: false,
-    selected_rate_id: undefined
+  const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMeasurement, setSelectedMeasurement] = useState<ItemMeasurement | null>(null);
   const [currentItem, setCurrentItem] = useState<SubworkItem>(item);
@@ -41,7 +40,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     no_of_units: 0,
     length: 0,
     width_breadth: 0,
-    height_depth: 0
+    height_depth: 0,
+    is_manual_quantity: false,
+    selected_rate_id: undefined
   });
   const [newLead, setNewLead] = useState<Partial<ItemLead>>({
     material: '',
@@ -76,6 +77,15 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     const quantity = calculateQuantity();
     const amount = quantity * currentItem.ssr_rate;
     return newMeasurement.is_deduction ? -amount : amount;
+    
+    // Use selected rate or default to item's SSR rate
+    let rate = currentItem?.ssr_rate || 0;
+    if (newMeasurement.selected_rate_id && itemRates.length > 0) {
+      const selectedRate = itemRates.find(r => r.sr_no === newMeasurement.selected_rate_id);
+      if (selectedRate) {
+        rate = selectedRate.rate;
+      }
+    }
   };
 
   const fetchData = async () => {
@@ -260,8 +270,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       unit: measurement.unit || '',
       is_deduction: measurement.is_deduction || false,
       is_manual_quantity: measurement.is_manual_quantity || false,
-      is_manual_quantity: false,
-      selected_rate_id: undefined
+      manual_quantity: measurement.manual_quantity || 0
     });
     setShowEditModal(true);
   };
