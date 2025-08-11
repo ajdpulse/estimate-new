@@ -270,7 +270,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           line_amount: calculateLineAmount(),
           is_manual_quantity: newMeasurement.is_manual_quantity || false,
           manual_quantity: newMeasurement.manual_quantity || 0,
-          is_deduction: newMeasurement.is_deduction || false
+          is_deduction: newMeasurement.is_deduction || false,
           unit: currentItem.ssr_unit
         })
         .eq('subwork_item_id', selectedMeasurement.subwork_item_id)
