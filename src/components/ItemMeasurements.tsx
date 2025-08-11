@@ -144,7 +144,10 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           measurement_sr_no: nextSrNo,
           calculated_quantity: calculatedQuantity,
           line_amount: lineAmount,
-          unit: currentItem.ssr_unit
+          unit: newMeasurement.unit || null,
+          is_deduction: newMeasurement.is_deduction || false,
+          is_manual_quantity: newMeasurement.is_manual_quantity || false,
+          manual_quantity: newMeasurement.is_manual_quantity ? (newMeasurement.manual_quantity || 0) : null
         }]);
 
       if (error) throw error;
@@ -501,17 +504,15 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sr No</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Length</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Width</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Height</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sr No</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Units</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Length</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Width</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Height</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -945,77 +946,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     />
                   </div>
                   <div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Unit
-                    </label>
-                    <input
-                      type="text"
-                      value={newMeasurement.unit || ''}
-                      onChange={(e) => setNewMeasurement({...newMeasurement, unit: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="sqm, cum, nos, etc."
-                    />
-                  </div>
-
-                  {/* Manual Quantity Toggle */}
-                  <div className="col-span-2">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="editUseManualQuantity"
-                        checked={editUseManualQuantity}
-                        onChange={(e) => {
-                          setEditUseManualQuantity(e.target.checked);
-                          if (!e.target.checked) {
-                            setNewMeasurement({...newMeasurement, manual_quantity: null});
-                          }
-                        }}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor="editUseManualQuantity" className="ml-2 block text-sm text-gray-900">
-                        Enter quantity manually (don't calculate from L×B×H)
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Manual Quantity Input */}
-                  {editUseManualQuantity && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Manual Quantity *
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.001"
-                        value={newMeasurement.manual_quantity || ''}
-                        onChange={(e) => setNewMeasurement({...newMeasurement, manual_quantity: parseFloat(e.target.value) || 0})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="0.000"
-                      />
-                    </div>
-                  )}
-
-                  {/* Deduction Checkbox */}
-                  <div className="col-span-2">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="editIsDeduction"
-                        checked={newMeasurement.is_deduction || false}
-                        onChange={(e) => setNewMeasurement({...newMeasurement, is_deduction: e.target.checked})}
-                        className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor="editIsDeduction" className="ml-2 block text-sm text-gray-900">
-                        This is a deduction (subtract from total)
-                      </label>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Check this for door/window openings, voids, or corrections that should be subtracted
-                    </p>
-                  </div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
                     <input
                       type="text"
@@ -1143,8 +1073,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Calculated Quantity:</span>
                     <span className="font-medium text-gray-900">
-                      {newMeasurement.is_deduction ? '-' : ''}{Math.abs(calculateQuantity(newMeasurement)).toFixed(3)}
-                      {editUseManualQuantity && ' (Manual)'}
+                      {((newMeasurement.no_of_units || 0) * (newMeasurement.length || 0) * (newMeasurement.width_breadth || 0) * (newMeasurement.height_depth || 0)).toFixed(3)} {currentItem.ssr_unit}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm mt-1">
