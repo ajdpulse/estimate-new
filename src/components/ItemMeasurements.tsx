@@ -67,6 +67,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   }, [item]);
 
   const calculateQuantity = () => {
+    // If manual quantity is enabled, use the manual quantity value
+    if (newMeasurement.is_manual_quantity && newMeasurement.manual_quantity !== undefined) {
+      return newMeasurement.manual_quantity;
+    }
+    
+    // Otherwise calculate from dimensions
     return (newMeasurement.no_of_units || 0) * 
            (newMeasurement.length || 0) * 
            (newMeasurement.width_breadth || 0) * 
