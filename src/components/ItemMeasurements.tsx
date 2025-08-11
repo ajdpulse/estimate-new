@@ -141,9 +141,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
       if (error) throw error;
       
-      // Update SSR quantity in subwork_items with total from all measurements
-      await updateItemSSRQuantity();
-      
       setShowAddModal(false);
       setNewMeasurement({
         no_of_units: 0,
@@ -151,7 +148,14 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         width_breadth: 0,
         height_depth: 0
       });
+      
+      // Refresh data first, then update SSR quantity
       fetchData();
+      
+      // Update SSR quantity after adding measurement
+      setTimeout(async () => {
+        await updateItemSSRQuantity();
+      }, 100);
     } catch (error) {
       console.error('Error adding measurement:', error);
     }
@@ -189,6 +193,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       item.ssr_quantity = totalQuantity;
       item.total_item_amount = newTotalAmount;
       
+      console.log(`Updated SSR quantity to ${totalQuantity} for item ${item.sr_no}`);
+      
     } catch (error) {
       console.error('Error updating SSR quantity:', error);
     }
@@ -208,9 +214,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
       if (error) throw error;
       
-      // Update SSR quantity after deletion
-      await updateItemSSRQuantity();
       fetchData();
+      
+      // Update SSR quantity after deletion
+      setTimeout(async () => {
+        await updateItemSSRQuantity();
+      }, 100);
     } catch (error) {
       console.error('Error deleting measurement:', error);
     }
