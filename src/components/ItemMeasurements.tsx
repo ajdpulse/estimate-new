@@ -253,17 +253,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       description_of_items: measurement.description_of_items,
       no_of_units: measurement.no_of_units,
       length: measurement.length,
-      if (measurement.is_deduction) {
-        totalQuantity -= measurement.calculated_quantity;
-        totalAmount -= measurement.line_amount;
-      } else {
+      width_breadth: measurement.width_breadth,
+      height_depth: measurement.height_depth,
       unit: measurement.unit || '',
       is_deduction: measurement.is_deduction || false,
       is_manual_quantity: measurement.is_manual_quantity || false,
-      manual_quantity: measurement.manual_quantity || 0,
-        totalQuantity += measurement.calculated_quantity;
-        totalAmount += measurement.line_amount;
-      }
+      manual_quantity: measurement.manual_quantity || 0
     });
     setShowEditModal(true);
   };
@@ -552,10 +547,26 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.width_breadth}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.height_depth}</td>
                             <td className="px-3 py-2 text-sm font-medium text-gray-900">
-                              {measurement.calculated_quantity.toFixed(3)} {measurement.unit || currentItem.ssr_unit}
+                              <div className="flex items-center">
+                                <span className={measurement.is_deduction ? 'text-red-600' : 'text-gray-900'}>
+                                  {measurement.is_deduction ? '-' : ''}{measurement.calculated_quantity.toFixed(3)} {measurement.unit || currentItem.ssr_unit}
+                                </span>
+                                {measurement.is_manual_quantity && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                    Manual
+                                  </span>
+                                )}
+                                {measurement.is_deduction && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                    Deduction
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-3 py-2 text-sm font-medium text-gray-900">
-                              {formatCurrency(measurement.line_amount)}
+                              <span className={measurement.is_deduction ? 'text-red-600' : 'text-gray-900'}>
+                                {measurement.is_deduction ? '-' : ''}{formatCurrency(Math.abs(measurement.line_amount))}
+                              </span>
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center space-x-2">
