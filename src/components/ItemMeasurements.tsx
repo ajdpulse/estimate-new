@@ -438,3 +438,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           </div>
   )
 }
+      </div>
+    </div>
+  );
+};
