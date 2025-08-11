@@ -211,6 +211,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
   const handleEditItem = (item: SubworkItem) => {
     setSelectedItem(item);
+    setDescriptionQuery(item.description_of_item);
     setNewItem({
       description_of_item: item.description_of_item,
       category: item.category,
@@ -439,8 +440,6 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">Add New Item</h3>
                 <button
-                  onClick={() => setShowAddItemModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
                   onClick={() => {
                     setShowAddItemModal(false);
                     setDescriptionQuery('');
@@ -450,6 +449,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                       clearTimeout(searchTimeoutRef.current);
                     }
                   }}
+                  className="text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -557,16 +557,6 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                         </div>
                       </div>
                     )}
-                    
-                    {/* Manual Input Helper Text */}
-                    {!showSuggestions && descriptionQuery.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-gray-50 border border-gray-200 rounded-md p-2">
-                        <div className="text-xs text-gray-600 flex items-center">
-                          <span className="mr-2">✏️</span>
-                          Manual entry mode - You can continue typing or search for SSR items
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -655,15 +645,6 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                 <button
                   onClick={() => setShowEditItemModal(false)}
                   className="text-gray-400 hover:text-gray-600"
-                  onClick={() => {
-                    setShowEditItemModal(false);
-                    setDescriptionQuery('');
-                    setSsrSuggestions([]);
-                    setShowSuggestions(false);
-                    if (searchTimeoutRef.current) {
-                      clearTimeout(searchTimeoutRef.current);
-                    }
-                  }}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -771,16 +752,6 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                         </div>
                       </div>
                     )}
-                    
-                    {/* Manual Input Helper Text */}
-                    {!showSuggestions && descriptionQuery.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-gray-50 border border-gray-200 rounded-md p-2">
-                        <div className="text-xs text-gray-600 flex items-center">
-                          <span className="mr-2">✏️</span>
-                          Manual entry mode - You can continue typing or search for SSR items
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -841,7 +812,15 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
               <div className="flex justify-end space-x-3 mt-6">
                 <button
-                  onClick={() => setShowEditItemModal(false)}
+                  onClick={() => {
+                    setShowEditItemModal(false);
+                    setDescriptionQuery('');
+                    setSsrSuggestions([]);
+                    setShowSuggestions(false);
+                    if (searchTimeoutRef.current) {
+                      clearTimeout(searchTimeoutRef.current);
+                    }
+                  }}
                   className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   Cancel
