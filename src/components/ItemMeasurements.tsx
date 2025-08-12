@@ -24,7 +24,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   item, 
   isOpen, 
   onClose,
-  onItemUpdated
+  onItemUpdated,
+  availableRates
 }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'measurements' | 'leads' | 'materials'>('measurements');
