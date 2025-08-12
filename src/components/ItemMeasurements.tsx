@@ -1209,10 +1209,33 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     value={newMeasurement.unit || ''}
                     onChange={(e) => setNewMeasurement({...newMeasurement, unit: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter unit (sqm, cum, nos, etc.)"
+                    placeholder="Enter unit (e.g., sqm, cum, nos)"
                   />
                 </div>
 
+                {/* Rate Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Select Rate *
+                  </label>
+                  <select
+                    value={newMeasurement.selected_rate_id || ''}
+                    onChange={(e) => setNewMeasurement({
+                      ...newMeasurement, 
+                      selected_rate_id: e.target.value ? parseInt(e.target.value) : undefined
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Default SSR Rate (₹{item.ssr_rate.toFixed(2)})</option>
+                    {availableRates.map((rate, index) => (
+                      <option key={rate.sr_no} value={rate.sr_no}>
+                        {rate.description} - ₹{rate.rate.toFixed(2)} per {rate.unit || 'unit'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Dimensions */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">No of Units</label>
@@ -1323,19 +1346,20 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                 <div className="bg-gray-50 p-3 rounded-md">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Calculated Quantity:</span>
-                    <span className={`font-medium ${newMeasurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
-                      {newMeasurement.is_deduction ? '-' : ''}{calculateQuantity().toFixed(3)} {newMeasurement.unit || currentItem.ssr_unit}
-                      {newMeasurement.is_manual_quantity && (
-                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          Manual
-                        </span>
-                      )}
+                    <span className="font-medium text-gray-900">
+                      {calculateQuantity().toFixed(3)} {newMeasurement.unit || item.ssr_unit}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm mt-1">
+                  <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Line Amount:</span>
-                    <span className={`font-medium ${newMeasurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
-                      {newMeasurement.is_deduction ? '-' : ''}{formatCurrency(Math.abs(calculateLineAmount()))}
+                    <span className="font-medium text-gray-900">
+                      ₹{(calculateQuantity() * getSelectedRate()).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>Rate Used:</span>
+                    <span>
+                      ₹{getSelectedRate().toFixed(2)} per {newMeasurement.unit || item.ssr_unit}
                     </span>
                   </div>
                 </div>
