@@ -439,6 +439,14 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }
   };
 
+  const getSelectedRateForMeasurement = (measurement: ItemMeasurement): number => {
+    if (measurement.selected_rate_id) {
+      const selectedRate = availableRates.find(rate => rate.sr_no === measurement.selected_rate_id);
+      return selectedRate ? selectedRate.rate : item.ssr_rate;
+    }
+    return item.ssr_rate;
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('hi-IN', {
       style: 'currency',
@@ -570,6 +578,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Width</th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Height</th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            SSR Amount
+                          </th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
@@ -597,6 +608,35 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                                   <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
                                     Deduction
                                   </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {measurement.selected_rate_id ? (
+                                  <div>
+                                    <div className="font-medium">
+                                      ₹{(measurement.calculated_quantity * getSelectedRateForMeasurement(measurement)).toFixed(2)}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      @ ₹{getSelectedRateForMeasurement(measurement).toFixed(2)}/{measurement.unit}
+                                    </div>
+                                    <div className="text-xs text-blue-600">
+                                      {availableRates.find(r => r.sr_no === measurement.selected_rate_id)?.description || 'Custom Rate'}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div className="font-medium">
+                                      ₹{(measurement.calculated_quantity * item.ssr_rate).toFixed(2)}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      @ ₹{item.ssr_rate.toFixed(2)}/{item.ssr_unit}
+                                    </div>
+                                    <div className="text-xs text-blue-600">
+                                      Default SSR Rate
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                             </td>
