@@ -58,6 +58,15 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     rate_per_unit: 0
   });
 
+  // Get the selected rate for calculations
+  const getSelectedRate = () => {
+    if (newMeasurement.selected_rate_id) {
+      const selectedRate = availableRates.find(rate => rate.sr_no === newMeasurement.selected_rate_id);
+      return selectedRate ? selectedRate.rate : item.ssr_rate;
+    }
+    return item.ssr_rate;
+  };
+
   useEffect(() => {
     if (isOpen && item.sr_no) {
       fetchData();
@@ -83,7 +92,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
   const calculateLineAmount = () => {
     const quantity = calculateQuantity();
-    const amount = quantity * currentItem.ssr_rate;
+    const amount = quantity * getSelectedRate();
     return newMeasurement.is_deduction ? -amount : amount;
     
     // Use selected rate or default to item's SSR rate
@@ -181,7 +190,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           unit: newMeasurement.unit || null,
           is_deduction: newMeasurement.is_deduction || false,
           is_manual_quantity: newMeasurement.is_manual_quantity || false,
-          manual_quantity: newMeasurement.is_manual_quantity ? (newMeasurement.manual_quantity || 0) : null
+          manual_quantity: newMeasurement.is_manual_quantity ? (newMeasurement.manual_quantity || 0) : null,
+          selected_rate_id: newMeasurement.selected_rate_id || null
         }]);
 
       if (error) throw error;
@@ -191,7 +201,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         no_of_units: 0,
         length: 0,
         width_breadth: 0,
-        height_depth: 0
+        height_depth: 0,
+        selected_rate_id: undefined
       });
       
       // Refresh data first, then update SSR quantity
@@ -806,7 +817,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                 {/* Rate Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Select Rate for Calculation
+                    Select Rate
                   </label>
                   <select
                     value={newMeasurement.selected_rate_id || ''}
@@ -816,7 +827,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="">Default SSR Rate (₹{currentItem.ssr_rate.toFixed(2)})</option>
+                    <option value="">Default SSR Rate (₹{item.ssr_rate.toFixed(2)})</option>
                     {availableRates.map((rate) => (
                       <option key={rate.sr_no} value={rate.sr_no}>
                         {rate.description} - ₹{rate.rate.toFixed(2)} per {rate.unit || 'unit'}
@@ -946,6 +957,10 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     <span className={`font-medium ${newMeasurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
                       {newMeasurement.is_deduction ? '-' : ''}{formatCurrency(Math.abs(calculateLineAmount()))}
                     </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs mt-1 text-gray-500">
+                    <span>Rate Used:</span>
+                    <span>₹{getSelectedRate().toFixed(2)}</span>
                   </div>
                 </div>
               </div>
