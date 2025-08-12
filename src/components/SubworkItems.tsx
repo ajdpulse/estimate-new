@@ -1138,6 +1138,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
           isOpen={showMeasurementsModal}
           onClose={() => setShowMeasurementsModal(false)}
           onItemUpdated={refreshItemData}
+          availableRates={itemRatesMap[selectedItem.sr_no.toString()] || []}
         />
       )}
     </div>

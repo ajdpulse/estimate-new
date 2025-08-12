@@ -17,6 +17,7 @@ interface ItemMeasurementsProps {
   isOpen: boolean;
   onClose: () => void;
   onItemUpdated?: (itemSrNo: number) => void;
+  availableRates: ItemRate[];
 }
 
 const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({ 
