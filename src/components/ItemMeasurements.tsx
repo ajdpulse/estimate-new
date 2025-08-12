@@ -221,6 +221,15 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const updateItemSSRQuantity = async () => {
     try {
       // Get all measurements for this item
+    // Calculate the new total quantity from measurements
+    const newTotalQuantity = measurements.reduce((total, measurement) => {
+      if (measurement.is_deduction) {
+        return total - Math.abs(measurement.calculated_quantity);
+      } else {
+        return total + measurement.calculated_quantity;
+      }
+    }, 0);
+
       const totalQuantity = measurements.reduce((sum, measurement) => {
         if (measurement.is_deduction) {
           return sum - Math.abs(measurement.calculated_quantity);
