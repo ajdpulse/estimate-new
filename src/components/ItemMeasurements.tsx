@@ -11,7 +11,8 @@ import {
   Camera,
   Upload,
   X,
-  Image as ImageIcon
+  ImageIcon,
+  Package2
 } from 'lucide-react';
 
 interface ItemMeasurementsProps {
