@@ -316,18 +316,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
   if (!isOpen) return null;
 
-  if (loading) {
-    return (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-7xl shadow-lg rounded-md bg-white">
-          <div className="flex items-center justify-center py-12">
-            <LoadingSpinner text="Loading measurements..." />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div className="relative top-4 mx-auto p-5 border w-11/12 max-w-7xl shadow-lg rounded-md bg-white">
@@ -344,7 +332,10 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           </button>
         </div>
 
-        <div className="space-y-6">
+        {loading ? (
+          <LoadingSpinner />
+        ) : (
+          <div className="space-y-6">
             {/* Segregated SSR Information */}
             <div className="bg-blue-50 rounded-lg p-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -519,7 +510,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
               )}
             </div>
           </div>
-        </div>
+        )}
 
         {/* Add Measurement Modal */}
         {showAddModal && (
