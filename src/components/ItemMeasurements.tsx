@@ -37,6 +37,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMeasurement, setSelectedMeasurement] = useState<ItemMeasurement | null>(null);
+  const [rateGroups, setRateGroups] = useState<{[key: string]: {rate: number, quantity: number, description?: string}}>({});
   const [currentItem, setCurrentItem] = useState<SubworkItem>(item);
   const [newMeasurement, setNewMeasurement] = useState<Partial<ItemMeasurement>>({
     no_of_units: 0,
@@ -77,6 +78,10 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     setCurrentItem(item);
   }, [item]);
 
+  useEffect(() => {
+    calculateRateGroups();
+  }, [measurements, itemRates]);
+
   const calculateQuantity = () => {
     // If manual quantity is enabled, use the manual quantity value
     if (newMeasurement.is_manual_quantity && newMeasurement.manual_quantity !== undefined) {
@@ -103,6 +108,29 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         rate = selectedRate.rate;
       }
     }
+  };
+
+  const calculateRateGroups = () => {
+    const groups: {[key: string]: {rate: number, quantity: number, description?: string}} = {};
+    
+    measurements.forEach(measurement => {
+      const rate = getSelectedRateForMeasurement(measurement);
+      const rateKey = rate.toString();
+      
+      if (!groups[rateKey]) {
+        // Find rate description from itemRates
+        const rateInfo = itemRates.find(r => r.rate === rate);
+        groups[rateKey] = {
+          rate: rate,
+          quantity: 0,
+          description: rateInfo?.description
+        };
+      }
+      
+      groups[rateKey].quantity += measurement.calculated_quantity;
+    });
+    
+    setRateGroups(groups);
   };
 
   const fetchData = async () => {
@@ -481,22 +509,49 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           </div>
 
           {/* Item Summary */}
-          <div className="bg-blue-50 rounded-md border border-blue-200 p-3 mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+          <div className="bg-blue-50 rounded-lg border border-blue-200 p-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <span className="text-blue-700 font-medium">SSR Quantity:</span>
-                <p className="text-blue-900" id="ssr-quantity-display">{currentItem.ssr_quantity.toFixed(3)} {currentItem.ssr_unit}</p>
-                <p className="text-xs text-blue-600">(Auto-calculated from measurements)</p>
+                <label className="block text-sm font-medium text-blue-900 mb-2">SSR Quantity:</label>
+                {Object.entries(rateGroups).map(([rateKey, group]) => (
+                  <div key={rateKey} className="mb-2">
+                    <p className="text-sm font-semibold text-blue-800">
+                      {group.quantity.toFixed(3)} {item.ssr_unit}
+                    </p>
+                    {group.description && (
+                      <p className="text-xs text-blue-600">({group.description})</p>
+                    )}
+                  </div>
+                ))}
+                <p className="text-xs text-blue-600 mt-1">(Auto-calculated from measurements)</p>
               </div>
+              
               <div>
-                <span className="text-blue-700 font-medium">SSR Rate:</span>
-                <p className="text-blue-900">₹{currentItem.ssr_rate.toFixed(2)}</p>
+                <label className="block text-sm font-medium text-blue-900 mb-2">SSR Rate:</label>
+                {Object.entries(rateGroups).map(([rateKey, group]) => (
+                  <div key={rateKey} className="mb-2">
+                    <p className="text-sm font-semibold text-blue-800">
+                      ₹{group.rate.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-blue-600">/{item.ssr_unit}</p>
+                  </div>
+                ))}
               </div>
+              
               <div>
-                <span className="text-blue-700 font-medium">SSR Amount:</span>
-                <p className="text-blue-900">{formatCurrency(currentItem.total_item_amount)}</p>
-                <p className="text-xs text-blue-600">(Quantity × Rate)</p>
+                <label className="block text-sm font-medium text-blue-900 mb-2">SSR Amount:</label>
+                {Object.entries(rateGroups).map(([rateKey, group]) => (
+                  <div key={rateKey} className="mb-2">
+                    <p className="text-sm font-semibold text-green-800">
+                      ₹{(group.quantity * group.rate).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      {group.quantity.toFixed(3)} × ₹{group.rate}
+                    </p>
+                  </div>
+                ))}
               </div>
+              
               <div>
                 <span className="text-blue-700 font-medium">Category:</span>
                 <p className="text-blue-900">{currentItem.category || 'N/A'}</p>
@@ -577,11 +632,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Length</th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Width</th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Height</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Rate Used
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Quantity
                           </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Amount
+                          </th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                       </thead>
@@ -594,50 +650,26 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.length}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.width_breadth}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.height_depth}</td>
-                            <td className="px-3 py-2 text-sm font-medium text-gray-900">
-                              <div className="flex items-center">
-                                <span className={measurement.is_deduction ? 'text-red-600' : 'text-gray-900'}>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm">
+                              <div className="flex flex-col">
+                                <span className={`font-medium ${measurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
                                   {measurement.is_deduction ? '-' : ''}{measurement.calculated_quantity.toFixed(3)} {measurement.unit || currentItem.ssr_unit}
                                 </span>
                                 {measurement.is_manual_quantity && (
-                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                                     Manual
                                   </span>
                                 )}
                                 {measurement.is_deduction && (
-                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
                                     Deduction
                                   </span>
                                 )}
                               </div>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {measurement.selected_rate_id ? (
-                                  <div>
-                                    <div className="font-medium text-blue-600">
-                                      ₹{availableRates.find(r => r.sr_no === measurement.selected_rate_id)?.rate.toFixed(2) || item.ssr_rate.toFixed(2)}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {availableRates.find(r => r.sr_no === measurement.selected_rate_id)?.description || 'Custom Rate'}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <div className="font-medium text-green-600">
-                                      ₹{item.ssr_rate.toFixed(2)}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      Default SSR Rate
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-2 text-sm font-medium text-gray-900">
-                              <span className={measurement.is_deduction ? 'text-red-600' : 'text-gray-900'}>
-                                {measurement.is_deduction ? '-' : ''}{formatCurrency(measurement.calculated_quantity * getSelectedRateForMeasurement(measurement))}
-                              </span>
+                            
+                            <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                              ₹{measurement.line_amount.toFixed(2)}
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center space-x-2">
