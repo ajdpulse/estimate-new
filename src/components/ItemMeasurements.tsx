@@ -13,7 +13,6 @@ import {
   Upload,
   X,
   Image as ImageIcon
-  X
 } from 'lucide-react';
 
 interface ItemMeasurementsProps {
@@ -616,22 +615,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     Total Quantity: {totalMeasurementQuantity.toFixed(3)} {currentItem.ssr_unit} | 
                     Total Amount: {formatCurrency(totalMeasurementAmount)}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <button 
-                      onClick={() => setShowAddModal(true)}
-                      className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Add Measurement
-                    </button>
-                    <button
-                      onClick={() => setShowPhotosModal(true)}
-                      className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
-                    >
-                      <Camera className="w-3 h-3 mr-1" />
-                      Design Photos ({designPhotos.length}/5)
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => setShowAddModal(true)}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Measurement
+                  </button>
                 </div>
 
                 {loading ? (
@@ -1460,6 +1450,133 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                 >
                   Update Measurement
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Design Photos Modal */}
+      {showPhotosModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Design Photos</h3>
+                <button
+                  onClick={() => {
+                    setShowPhotosModal(false);
+                    setPhotoError('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {photoError && (
+                <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+                  {photoError}
+                </div>
+              )}
+
+              {/* Upload Section */}
+              <div className="mb-6 p-4 border-2 border-dashed border-gray-300 rounded-lg">
+                <div className="text-center">
+                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="mt-4">
+                    <label htmlFor="photo-upload" className="cursor-pointer">
+                      <span className="mt-2 block text-sm font-medium text-gray-900">
+                        Upload Design Photos
+                      </span>
+                      <span className="mt-1 block text-xs text-gray-500">
+                        PNG, JPG, GIF up to 5MB each. Maximum 5 photos.
+                      </span>
+                    </label>
+                    <input
+                      id="photo-upload"
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto || designPhotos.length >= 5}
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => document.getElementById('photo-upload')?.click()}
+                      disabled={uploadingPhoto || designPhotos.length >= 5}
+                      className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingPhoto ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Choose Photos
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Photos Grid */}
+              {designPhotos.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {designPhotos.map((photo) => (
+                    <div key={photo.id} className="relative group">
+                      <div className="aspect-w-16 aspect-h-12 bg-gray-200 rounded-lg overflow-hidden">
+                        <img
+                          src={photo.photo_url}
+                          alt={photo.photo_name}
+                          className="w-full h-48 object-cover group-hover:opacity-75 transition-opacity"
+                        />
+                      </div>
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleDeletePhoto(photo.id, photo.photo_url)}
+                          className="bg-red-600 text-white rounded-full p-1 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {photo.photo_name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {(photo.file_size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(photo.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <ImageIcon className="mx-auto h-12 w-12 text-gray-300" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No photos uploaded</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Upload design photos to document this work item.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => {
+                    setShowPhotosModal(false);
+                    setPhotoError('');
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Close
                 </button>
               </div>
             </div>
