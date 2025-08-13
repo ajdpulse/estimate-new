@@ -8,7 +8,11 @@ import {
   Trash2, 
   Calculator,
   Truck,
-  Package2,
+  Calculator,
+  Camera,
+  Upload,
+  X,
+  Image as ImageIcon
   X
 } from 'lucide-react';
 
@@ -37,6 +41,10 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMeasurement, setSelectedMeasurement] = useState<ItemMeasurement | null>(null);
+  const [showPhotosModal, setShowPhotosModal] = useState(false);
+  const [designPhotos, setDesignPhotos] = useState<any[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState('');
   const [rateGroups, setRateGroups] = useState<{[key: string]: {rate: number, quantity: number, description?: string}}>({});
   const [currentItem, setCurrentItem] = useState<SubworkItem>(item);
   const [newMeasurement, setNewMeasurement] = useState<Partial<ItemMeasurement>>({
