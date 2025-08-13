@@ -15,7 +15,10 @@ import {
   FileText,
   IndianRupee,
   Calculator,
-  ChevronRight
+  ChevronRight,
+  Camera,
+  Upload,
+  X
 } from 'lucide-react';
 
 const Subworks: React.FC = () => {
@@ -42,6 +45,11 @@ const Subworks: React.FC = () => {
   // Add state for subwork totals
   const [subworkTotals, setSubworkTotals] = useState<{[key: string]: number}>({});
 
+  // Add state for design photo upload
+  const [showDesignUploadModal, setShowDesignUploadModal] = useState(false);
+  const [currentSubworkForDesign, setCurrentSubworkForDesign] = useState<{ id: string; name: string } | null>(null);
+  const [designPhotos, setDesignPhotos] = useState<{[key: string]: any[]}>({});
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   useEffect(() => {
     fetchWorks();
   }, []);
@@ -72,6 +80,7 @@ const Subworks: React.FC = () => {
   useEffect(() => {
     if (subworks.length > 0) {
       fetchSubworkTotals();
+      fetchDesignPhotos();
     }
   }, [subworks]);
 
