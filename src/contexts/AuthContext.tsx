@@ -27,11 +27,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting session:', error);
+          // Clear invalid session data
+          await supabase.auth.signOut();
         } else if (session?.user) {
           setUser(session.user as User);
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
+        // Clear any stale session data on catch
+        try {
+          await supabase.auth.signOut();
+        } catch (signOutError) {
+          console.error('Error clearing stale session:', signOutError);
+        }
       } finally {
         setLoading(false);
       }
