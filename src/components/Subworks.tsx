@@ -480,6 +480,16 @@ const Subworks: React.FC = () => {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleDesignUpload(subwork);
+                          }}
+                          className="text-blue-600 hover:text-blue-900 p-1 rounded"
+                          title={`Design Photos (${(designPhotos[subwork.subworks_id] || []).length}/5)`}
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
                             e.stopPropagation();
                             handleViewSubwork(subwork);
                           }}
