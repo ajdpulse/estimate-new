@@ -13,7 +13,6 @@ import {
   Upload,
   X,
   Image as ImageIcon
-  X
 } from 'lucide-react';
 
 interface ItemMeasurementsProps {
@@ -79,6 +78,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   useEffect(() => {
     if (isOpen && item.sr_no) {
       fetchData();
+      fetchDesignPhotos();
     }
   }, [isOpen, item.sr_no, activeTab]);
 
