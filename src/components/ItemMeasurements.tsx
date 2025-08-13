@@ -8,6 +8,7 @@ import {
   Trash2, 
   Calculator,
   Truck,
+  Calculator,
   Camera,
   Upload,
   X,
