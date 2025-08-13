@@ -39,6 +39,9 @@ const Subworks: React.FC = () => {
   const [showItemsModal, setShowItemsModal] = useState(false);
   const [currentSubworkForItems, setCurrentSubworkForItems] = useState<{ id: string; name: string } | null>(null);
 
+  // Add state for subwork totals
+  const [subworkTotals, setSubworkTotals] = useState<{[key: string]: number}>({});
+
   useEffect(() => {
     fetchWorks();
   }, []);
@@ -62,8 +65,15 @@ const Subworks: React.FC = () => {
   useEffect(() => {
     if (selectedSubworkIds.length > 0) {
       fetchItemCounts();
+      fetchSubworkTotals();
     }
   }, [selectedSubworkIds]);
+
+  useEffect(() => {
+    if (subworks.length > 0) {
+      fetchSubworkTotals();
+    }
+  }, [subworks]);
 
   const fetchWorks = async () => {
     try {
@@ -122,6 +132,29 @@ const Subworks: React.FC = () => {
       setSubworkItemCounts(counts);
     } catch (error) {
       console.error('Error fetching item counts:', error);
+    }
+  };
+
+  const fetchSubworkTotals = async () => {
+    try {
+      const totals: {[key: string]: number} = {};
+      
+      for (const subwork of subworks) {
+        const { data: items, error } = await supabase
+          .schema('estimate')
+          .from('subwork_items')
+          .select('total_item_amount')
+          .eq('subwork_id', subwork.subworks_id);
+
+        if (error) throw error;
+        
+        const total = (items || []).reduce((sum, item) => sum + (item.total_item_amount || 0), 0);
+        totals[subwork.subworks_id] = total;
+      }
+      
+      setSubworkTotals(totals);
+    } catch (error) {
+      console.error('Error fetching subwork totals:', error);
     }
   };
 
@@ -410,6 +443,14 @@ const Subworks: React.FC = () => {
                         <p className="text-sm text-gray-600 mt-1 line-clamp-2">
                           {subwork.subworks_name}
                         </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-gray-500">
+                            Items: {subworkItemCounts[subwork.subworks_id] || 0}
+                          </span>
+                          <span className="text-sm font-medium text-green-600">
+                            {formatCurrency(subworkTotals[subwork.subworks_id] || 0)}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <button 
