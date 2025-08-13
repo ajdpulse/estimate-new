@@ -591,25 +591,43 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                           <div>
-                            {itemRatesMap[item.sr_no.toString()] && itemRatesMap[item.sr_no.toString()].length > 1 ? (
+                            {itemRatesMap[item.sr_no.toString()] && itemRatesMap[item.sr_no.toString()].length > 0 ? (
                               <div className="space-y-1">
                                 {itemRatesMap[item.sr_no.toString()].map((rate, index) => (
                                   <div key={index} className="text-xs">
-                                    <span className="font-medium">₹{rate.rate.toFixed(2)}</span>
+                                    <div className="bg-gray-50 p-2 rounded border-l-2 border-blue-200">
+                                      <div className="font-medium text-gray-700">{rate.description}</div>
+                                      <div className="flex items-center justify-between mt-1">
+                                        <span className="font-medium text-blue-600">₹{rate.rate.toFixed(2)}</span>
+                                        {rate.unit && <span className="text-gray-500">per {rate.unit}</span>}
+                                      </div>
+                                    </div>
                                     {rate.unit && <span className="text-gray-500 ml-1">/{rate.unit}</span>}
                                   </div>
                                 ))}
-                                <div className="text-xs text-blue-600 font-medium border-t pt-1">
-                                  Total: ₹{itemRatesMap[item.sr_no.toString()].reduce((sum, rate) => sum + rate.rate, 0).toFixed(2)}
-                                </div>
                               </div>
                             ) : (
-                              getItemRatesDisplay(item.sr_no)
+                              <div className="text-sm text-gray-500">No rates available</div>
                             )}
                           </div>
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {formatCurrency(item.total_item_amount)}
+                          <div className="space-y-1">
+                            {itemRatesMap[item.sr_no.toString()] && itemRatesMap[item.sr_no.toString()].length > 0 ? (
+                              itemRatesMap[item.sr_no.toString()].map((rate, index) => (
+                                <div key={index} className="text-xs bg-gray-50 p-1 rounded">
+                                  <span className="font-medium text-green-600">
+                                    ₹{(item.ssr_quantity * rate.rate).toFixed(2)}
+                                  </span>
+                                  <div className="text-gray-500 text-xs">
+                                    {item.ssr_quantity} × ₹{rate.rate.toFixed(2)}
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <span className="text-gray-500">₹0.00</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center space-x-2">
