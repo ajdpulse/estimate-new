@@ -51,18 +51,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   });
 
   useEffect(() => {
-    if (isOpen && subworkItemId && subworkItemId !== 'undefined') {
+    if (isOpen && subworkItemId) {
       fetchMeasurements();
       fetchAvailableRates();
     }
   }, [isOpen, subworkItemId]);
 
   const fetchMeasurements = async () => {
-    if (!subworkItemId || subworkItemId === 'undefined') {
-      console.error('Invalid subworkItemId:', subworkItemId);
-      return;
-    }
-
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -82,17 +77,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   };
 
   const fetchAvailableRates = async () => {
-    if (!subworkItemId || subworkItemId === 'undefined') {
-      console.error('Invalid subworkItemId for rates:', subworkItemId);
-      return;
-    }
-
     try {
       const { data, error } = await supabase
         .schema('estimate')
         .from('item_rates')
         .select('*')
-        .eq('subwork_item_sr_no', parseInt(subworkItemId))
+        .eq('subwork_item_sr_no', subworkItemId)
         .order('sr_no', { ascending: true });
 
       if (error) throw error;
@@ -153,11 +143,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   };
 
   const handleAddMeasurement = async () => {
-    if (!subworkItemId || subworkItemId === 'undefined') {
-      console.error('Cannot add measurement: Invalid subworkItemId');
-      return;
-    }
-
     if (!user) return;
 
     try {
