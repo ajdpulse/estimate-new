@@ -13,6 +13,7 @@ import {
   Upload,
   X,
   Image as ImageIcon
+  X
 } from 'lucide-react';
 
 interface ItemMeasurementsProps {
@@ -78,7 +79,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   useEffect(() => {
     if (isOpen && item.sr_no) {
       fetchData();
-      fetchDesignPhotos();
     }
   }, [isOpen, item.sr_no, activeTab]);
 
@@ -616,13 +616,22 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     Total Quantity: {totalMeasurementQuantity.toFixed(3)} {currentItem.ssr_unit} | 
                     Total Amount: {formatCurrency(totalMeasurementAmount)}
                   </div>
-                  <button 
-                    onClick={() => setShowAddModal(true)}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Measurement
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      onClick={() => setShowAddModal(true)}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add Measurement
+                    </button>
+                    <button
+                      onClick={() => setShowPhotosModal(true)}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+                    >
+                      <Camera className="w-3 h-3 mr-1" />
+                      Design Photos ({designPhotos.length}/5)
+                    </button>
+                  </div>
                 </div>
 
                 {loading ? (
