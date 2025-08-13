@@ -455,6 +455,10 @@ const Subworks: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <button 
                           onClick={() => {
+                            setCurrentSubworkForItems({ id: subwork.subworks_id, name: subwork.subworks_name });
+                            setShowItemsModal(true);
+                          }}
+                          onClick={(e) => {
                             e.stopPropagation();
                             setCurrentSubworkForItems({ id: subwork.subworks_id, name: subwork.subworks_name });
                             setShowItemsModal(true);
