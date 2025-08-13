@@ -587,7 +587,24 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           {item.category || '-'}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                          {item.ssr_quantity} {item.ssr_unit}
+                          {itemRatesMap[item.sr_no.toString()] && itemRatesMap[item.sr_no.toString()].length > 0 ? (
+                            <div className="space-y-1">
+                              {itemRatesMap[item.sr_no.toString()].map((rate, index) => {
+                                // Calculate quantity for this specific rate based on measurements
+                                const rateQuantity = (item.ssr_quantity / itemRatesMap[item.sr_no.toString()].length).toFixed(3);
+                                return (
+                                  <div key={index} className="bg-gray-50 px-2 py-1 rounded text-xs">
+                                    <div className="text-gray-900 font-medium">{rateQuantity} {item.ssr_unit}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="font-medium">{item.ssr_quantity} {item.ssr_unit}</div>
+                              <div className="text-xs text-gray-500">(Auto-calculated)</div>
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                           <div>
@@ -596,11 +613,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                                 {itemRatesMap[item.sr_no.toString()].map((rate, index) => (
                                   <div key={index} className="text-xs">
                                     <div className="bg-gray-50 p-2 rounded border-l-2 border-blue-200">
-                                      <div className="font-medium text-gray-700">{rate.description}</div>
-                                      <div className="flex items-center justify-between mt-1">
-                                        <span className="font-medium text-blue-600">₹{rate.rate.toFixed(2)}</span>
-                                        {rate.unit && <span className="text-gray-500">per {rate.unit}</span>}
-                                      </div>
+                                      <div className="text-gray-900 font-medium">₹{rate.rate}</div>
                                     </div>
                                     {rate.unit && <span className="text-gray-500 ml-1">/{rate.unit}</span>}
                                   </div>
@@ -614,16 +627,20 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                           <div className="space-y-1">
                             {itemRatesMap[item.sr_no.toString()] && itemRatesMap[item.sr_no.toString()].length > 0 ? (
-                              itemRatesMap[item.sr_no.toString()].map((rate, index) => (
-                                <div key={index} className="text-xs bg-gray-50 p-1 rounded">
-                                  <span className="font-medium text-green-600">
-                                    ₹{(item.ssr_quantity * rate.rate).toFixed(2)}
-                                  </span>
-                                  <div className="text-gray-500 text-xs">
-                                    {item.ssr_quantity} × ₹{rate.rate.toFixed(2)}
+                              itemRatesMap[item.sr_no.toString()].map((rate, index) => {
+                                const rateQuantity = item.ssr_quantity / itemRatesMap[item.sr_no.toString()].length;
+                                const rateAmount = (rateQuantity * rate.rate).toFixed(2);
+                                return (
+                                  <div key={index} className="text-xs bg-gray-50 p-1 rounded">
+                                    <span className="font-medium text-green-600">
+                                      ₹{rateAmount}
+                                    </span>
+                                    <div className="text-gray-500 text-xs">
+                                      {rateQuantity.toFixed(3)} × ₹{rate.rate}
+                                    </div>
                                   </div>
-                                </div>
-                              ))
+                                );
+                              })
                             ) : (
                               <span className="text-gray-500">₹0.00</span>
                             )}
