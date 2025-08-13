@@ -51,7 +51,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   });
 
   useEffect(() => {
-    if (isOpen && subworkItemId) {
+    if (isOpen) {
       fetchMeasurements();
       fetchAvailableRates();
     }
