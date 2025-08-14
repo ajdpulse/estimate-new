@@ -560,16 +560,21 @@ const MeasurementBook: React.FC = () => {
                   <option value="approved">Approved</option>
                 </select>
               </div>
-            >
-              {reportLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4 mr-2" />
-              )}
-              Generate MB Report
-            </button>
-          </div>
-        )}
+              <button
+                onClick={generateMBReport}
+                disabled={reportLoading}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {reportLoading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Generate MB Report
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Filters and Search */}
