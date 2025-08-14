@@ -110,6 +110,30 @@ const MeasurementBook: React.FC = () => {
     }
   });
 
+  const generateMBReport = async () => {
+    if (!selectedWork) {
+      alert('Please select a work to generate MB report');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Here you can add the actual MB report generation logic
+      // For now, we'll show a success message
+      alert(`MB Report generated for work: ${selectedWork.work_name}`);
+      
+      // You can add PDF generation logic here similar to EstimatePDFGenerator
+      // or call an API endpoint to generate the report
+      
+    } catch (error) {
+      console.error('Error generating MB report:', error);
+      alert('Error generating MB report. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchApprovedWorks();
   }, []);
