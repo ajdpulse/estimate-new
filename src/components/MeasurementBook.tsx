@@ -131,12 +131,12 @@ const MeasurementBook: React.FC = () => {
             .schema('estimate')
             .from('measurement_book')
             .select('*')
-            .eq('item_id', item.id.toString())
+            .eq('item_id', item.sr_no.toString())
             .order('measurement_sr_no');
 
           if (mbMeasurements && mbMeasurements.length > 0) {
             // Map measurement book data to component format
-            measurementsData[item.id] = mbMeasurements.map(m => ({
+            measurementsData[item.sr_no] = mbMeasurements.map(m => ({
               sr_no: m.sr_no,
               work_id: m.work_id,
               subwork_id: m.subwork_id,
@@ -165,11 +165,11 @@ const MeasurementBook: React.FC = () => {
               .select('*')
               .eq('subwork_item_id', item.sr_no);
 
-            measurementsData[item.id] = (estimateMeasurements || []).map((m, index) => ({
+            measurementsData[item.sr_no] = (estimateMeasurements || []).map((m, index) => ({
               sr_no: 0, // Will be assigned by database
               work_id: workId,
               subwork_id: subwork.subworks_id,
-              item_id: item.id.toString(),
+              item_id: item.sr_no.toString(),
               measurement_sr_no: index + 1,
               description_of_items: m.description_of_items || item.description_of_item,
               no_of_units: m.no_of_units || 1,
@@ -306,7 +306,7 @@ const MeasurementBook: React.FC = () => {
       work_id: selectedWork?.works_id || '',
       subwork_id: selectedItem ? 
         Object.keys(subworkItems).find(key => 
-          subworkItems[key].some(item => item.id === selectedItem.id)
+          subworkItems[key].some(item => item.sr_no === selectedItem.sr_no)
         ) || '' : '',
       item_id: itemId.toString(),
       measurement_sr_no: existingMeasurements.length + 1,
@@ -502,11 +502,11 @@ const MeasurementBook: React.FC = () => {
                         
                         <div className="space-y-4">
                           {items.map((item) => {
-                            const itemMeasurements = measurements[item.id] || [];
-                            const totalVariance = calculateTotalVariance(item.id);
+                            const itemMeasurements = measurements[item.sr_no] || [];
+                            const totalVariance = calculateTotalVariance(item.sr_no.toString());
                             
                             return (
-                              <div key={item.id} className="border border-gray-200 rounded-lg p-4">
+                              <div key={item.sr_no} className="border border-gray-200 rounded-lg p-4">
                                 <div className="flex items-start justify-between mb-3">
                                   <div className="flex-1">
                                     <h5 className="text-sm font-medium text-gray-900">
@@ -534,7 +534,7 @@ const MeasurementBook: React.FC = () => {
                                     </button>
                                     <button
                                       onClick={() => setEditingMeasurement(
-                                        editingMeasurement === item.id ? null : item.id
+                                        editingMeasurement === item.sr_no.toString() ? null : item.sr_no.toString()
                                       )}
                                       className="text-green-600 hover:text-green-800 p-1 rounded"
                                       title="Quick Edit"
@@ -545,13 +545,13 @@ const MeasurementBook: React.FC = () => {
                                 </div>
 
                                 {/* Quick Edit Mode */}
-                                {editingMeasurement === item.id && (
+                                {editingMeasurement === item.sr_no.toString() && (
                                   <div className="mt-4 p-3 bg-gray-50 rounded border">
                                     <div className="flex items-center justify-between mb-2">
                                       <h6 className="text-sm font-medium">Quick Measurements</h6>
                                       <div className="flex items-center space-x-2">
                                         <button
-                                          onClick={() => saveMeasurements(item.id)}
+                                          onClick={() => saveMeasurements(item.sr_no.toString())}
                                           className="text-green-600 hover:text-green-800 p-1 rounded"
                                           title="Save"
                                         >
@@ -573,7 +573,7 @@ const MeasurementBook: React.FC = () => {
                                           <input
                                             type="text"
                                             value={measurement.description_of_items}
-                                            onChange={(e) => updateMeasurement(item.id, measurement.measurement_sr_no, 'description_of_items', e.target.value)}
+                                            onChange={(e) => updateMeasurement(item.sr_no.toString(), measurement.measurement_sr_no, 'description_of_items', e.target.value)}
                                             className="px-2 py-1 border border-gray-300 rounded"
                                             placeholder="Description"
                                           />
@@ -581,7 +581,7 @@ const MeasurementBook: React.FC = () => {
                                             type="number"
                                             step="0.01"
                                             value={measurement.actual_quantity || 0}
-                                            onChange={(e) => updateMeasurement(item.id, measurement.measurement_sr_no, 'actual_quantity', parseFloat(e.target.value) || 0)}
+                                            onChange={(e) => updateMeasurement(item.sr_no.toString(), measurement.measurement_sr_no, 'actual_quantity', parseFloat(e.target.value) || 0)}
                                             className="px-2 py-1 border border-gray-300 rounded"
                                             placeholder="Actual Qty"
                                           />
@@ -637,7 +637,7 @@ const MeasurementBook: React.FC = () => {
               </h3>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => addNewMeasurement(selectedItem.id)}
+                  onClick={() => addNewMeasurement(selectedItem.sr_no.toString())}
                   className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -669,14 +669,14 @@ const MeasurementBook: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {(measurements[selectedItem.id] || []).map((measurement, index) => (
+                  {(measurements[selectedItem.sr_no] || []).map((measurement, index) => (
                     <tr key={measurement.measurement_sr_no}>
                       <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
                       <td className="px-4 py-3">
                         <input
                           type="text"
                           value={measurement.description_of_items}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'description_of_items', e.target.value)}
+                          onChange={(e) => updateMeasurement(selectedItem.sr_no.toString(), measurement.measurement_sr_no, 'description_of_items', e.target.value)}
                           className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
                         />
                       </td>
@@ -685,7 +685,7 @@ const MeasurementBook: React.FC = () => {
                           type="number"
                           step="0.01"
                           value={measurement.no_of_units}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'no_of_units', parseInt(e.target.value) || 0)}
+                          onChange={(e) => updateMeasurement(selectedItem.sr_no.toString(), measurement.measurement_sr_no, 'no_of_units', parseInt(e.target.value) || 0)}
                           className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
                         />
                       </td>
@@ -694,7 +694,7 @@ const MeasurementBook: React.FC = () => {
                           type="number"
                           step="0.01"
                           value={measurement.length}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'length', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateMeasurement(selectedItem.sr_no.toString(), measurement.measurement_sr_no, 'length', parseFloat(e.target.value) || 0)}
                           className="w-20 px-2 py-1 text-sm border border-gray-300 rounded"
                         />
                       </td>
@@ -703,7 +703,7 @@ const MeasurementBook: React.FC = () => {
                           type="number"
                           step="0.01"
                           value={measurement.width_breadth}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'width_breadth', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateMeasurement(selectedItem.sr_no.toString(), measurement.measurement_sr_no, 'width_breadth', parseFloat(e.target.value) || 0)}
                           className="w-20 px-2 py-1 text-sm border border-gray-300 rounded"
                         />
                       </td>
@@ -712,7 +712,7 @@ const MeasurementBook: React.FC = () => {
                           type="number"
                           step="0.01"
                           value={measurement.height_depth}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'height_depth', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateMeasurement(selectedItem.sr_no.toString(), measurement.measurement_sr_no, 'height_depth', parseFloat(e.target.value) || 0)}
                           className="w-20 px-2 py-1 text-sm border border-gray-300 rounded"
                         />
                       </td>
@@ -724,7 +724,7 @@ const MeasurementBook: React.FC = () => {
                           type="number"
                           step="0.01"
                           value={measurement.actual_quantity || 0}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'actual_quantity', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateMeasurement(selectedItem.sr_no.toString(), measurement.measurement_sr_no, 'actual_quantity', parseFloat(e.target.value) || 0)}
                           className="w-24 px-2 py-1 text-sm border border-gray-300 rounded bg-yellow-50"
                           placeholder="Auto-calculated"
                         />
@@ -740,7 +740,7 @@ const MeasurementBook: React.FC = () => {
                         <input
                           type="text"
                           value={measurement.variance_reason || ''}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'variance_reason', e.target.value)}
+                          onChange={(e) => updateMeasurement(selectedItem.sr_no.toString(), measurement.measurement_sr_no, 'variance_reason', e.target.value)}
                           className="w-32 px-2 py-1 text-sm border border-gray-300 rounded"
                           placeholder="Reason for variance"
                         />
@@ -760,7 +760,7 @@ const MeasurementBook: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={() => saveMeasurements(selectedItem.id)}
+                onClick={() => saveMeasurements(selectedItem.sr_no.toString())}
                 className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
               >
                 Save Measurements
