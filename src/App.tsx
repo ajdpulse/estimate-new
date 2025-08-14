@@ -12,6 +12,7 @@ import Dashboard from './components/Dashboard';
 import Works from './components/Works';
 import Subworks from './components/Subworks';
 import Compare from './components/Compare';
+import MeasurementBook from './components/MeasurementBook';
 
 // Protected Route Wrapper
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -75,6 +76,19 @@ function App() {
                       <Header />
                       <main className="flex-1 max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 w-full">
                         <Compare />
+                      </main>
+                    </div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/measurement-book"
+                element={
+                  <ProtectedRoute>
+                    <div className="flex flex-col min-h-screen">
+                      <Header />
+                      <main className="flex-1 max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 w-full">
+                        <MeasurementBook />
                       </main>
                     </div>
                   </ProtectedRoute>

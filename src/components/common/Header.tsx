@@ -15,6 +15,7 @@ const Header: React.FC = () => {
     { key: 'works', path: '/works', label: t('nav.works') },
     { key: 'subworks', path: '/subworks', label: t('nav.subworks') },
     { key: 'compare', path: '/compare', label: t('nav.compare') },
+    { key: 'measurement-book', path: '/measurement-book', label: 'Measurement Book' },
   ];
 
   const handleSignOut = async () => {

@@ -10,6 +10,7 @@ const resources = {
       'nav.works': 'कामे',
       'nav.subworks': 'उपकामे',
       'nav.compare': 'तुलना',
+      'nav.measurementBook': 'मापन पुस्तक',
       'nav.signOut': 'साइन आउट',
       
       // Dashboard
@@ -97,6 +98,7 @@ const resources = {
       'nav.works': 'Works',
       'nav.subworks': 'Sub Works',
       'nav.compare': 'Compare',
+      'nav.measurementBook': 'Measurement Book',
       'nav.signOut': 'Sign Out',
       
       // Dashboard
