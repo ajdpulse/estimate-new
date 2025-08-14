@@ -3,24 +3,25 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Work, SubWork, SubworkItem } from '../types';
-import { Search, Eye, Edit2, Calculator, FileText, AlertTriangle, CheckCircle, Download, Loader2 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { 
   Search, 
+  Eye, 
   Edit2, 
+  Calculator, 
+  FileText, 
+  AlertTriangle, 
+  CheckCircle, 
+  Download, 
+  Loader2,
   Save, 
   X, 
   Plus,
-  Calculator,
-  CheckCircle,
   Clock,
   AlertCircle,
-  Eye,
-  Ruler,
-  Download,
-  Loader2,
-  FileText
+  Ruler
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface MBWork extends Work {
   mb_status: 'pending' | 'in_progress' | 'completed';
@@ -68,6 +69,7 @@ interface DocumentSettings {
     marginBottom: number;
   };
 }
+
 const MeasurementBook: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -83,7 +85,6 @@ const MeasurementBook: React.FC = () => {
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SubworkItem | null>(null);
   const [selectedWorkId, setSelectedWorkId] = useState<string>('');
-  const [loading, setLoading] = useState(false);
   const [showPDFGenerator, setShowPDFGenerator] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const printRef = React.useRef<HTMLDivElement>(null);
@@ -414,6 +415,49 @@ const MeasurementBook: React.FC = () => {
     const matchesStatus = statusFilter === 'all' || work.mb_status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    // Implementation for status change
+  };
+
+  const generateMBPDF = async () => {
+    // Implementation for PDF generation
+  };
+
+  const calculateActualTotalEstimate = () => {
+    // Implementation for calculating actual total estimate
+    return 0;
+  };
+
+  const LoadingSpinner = ({ text }: { text: string }) => (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-center">
+        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+        <p className="text-gray-500">{text}</p>
+      </div>
+    </div>
+  );
+
+  const PageHeader = ({ pageNumber }: { pageNumber: number }) => (
+    <div className="text-center mb-4">
+      <h1 className="text-lg font-bold">{documentSettings.header.zilla}</h1>
+      <p className="text-sm">{documentSettings.header.division}</p>
+      <p className="text-sm">{documentSettings.header.subDivision}</p>
+      {documentSettings.pageSettings.showPageNumbers && (
+        <p className="text-xs mt-2">Page {pageNumber}</p>
+      )}
+    </div>
+  );
+
+  const PageFooter = ({ pageNumber }: { pageNumber: number }) => (
+    <div className="text-center mt-4 text-xs">
+      <p>{documentSettings.footer.preparedBy}</p>
+      <p>{documentSettings.footer.designation}</p>
+      {documentSettings.pageSettings.showPageNumbers && documentSettings.pageSettings.pageNumberPosition === 'bottom' && (
+        <p className="mt-2">Page {pageNumber}</p>
+      )}
+    </div>
+  );
 
   if (loading) {
     return <LoadingSpinner text="Loading Measurement Book..." />;
@@ -853,7 +897,6 @@ const MeasurementBook: React.FC = () => {
                 </tbody>
               </table>
             </div>
-
 
             <div className="flex justify-end space-x-3 mt-6">
               <button
