@@ -449,20 +449,6 @@ const MeasurementBook: React.FC = () => {
 
           {/* Status Filter */}
           <div className="flex items-center space-x-2">
-            {selectedWork && (
-              <button
-                onClick={() => setShowPDFGenerator(true)}
-                disabled={pdfLoading}
-                className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
-              >
-                {pdfLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4 mr-2" />
-                )}
-                Generate MB Report
-              </button>
-            )}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -826,6 +812,364 @@ const MeasurementBook: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* MB PDF Generator Modal */}
+      {showPDFGenerator && selectedWork && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-4 mx-auto p-5 border w-11/12 max-w-7xl shadow-lg rounded-md bg-white min-h-[90vh]">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Generate Measurement Book Report</h3>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={generateMBPDF}
+                  disabled={pdfLoading}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {pdfLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  Generate PDF
+                </button>
+                <button
+                  onClick={() => setShowPDFGenerator(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[70vh] overflow-y-auto">
+              <div ref={printRef} className="bg-white">
+                
+                {/* Page 1: Cover Page */}
+                <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                  <PageHeader pageNumber={1} />
+                  
+                  <div className="flex-1 flex flex-col justify-center">
+                    <div className="text-center border-2 border-black p-8">
+                      <h1 className="text-2xl font-bold underline mb-8">{documentSettings.header.title}</h1>
+                      
+                      <div className="mb-6">
+                        <p className="text-lg font-semibold mb-2">{selectedWork.work_name}</p>
+                        <p className="text-base">Tah: Chandrapur, Dist:- Chandrapur</p>
+                      </div>
+                      
+                      <div className="mb-8">
+                        <p className="text-lg mb-2">( 2024-25)</p>
+                        <p className="text-xl font-bold">ACTUAL MEASURED COST. Rs. {calculateActualTotalEstimate().toLocaleString('hi-IN')}</p>
+                        <p className="text-sm mt-2 text-gray-600">Based on Actual Field Measurements</p>
+                      </div>
+                      
+                      <div className="mt-12">
+                        <p className="text-lg font-semibold mb-6">OFFICE OF THE</p>
+                        <div className="flex justify-center space-x-8">
+                          <div className="border border-black p-4 text-center min-w-[200px]">
+                            <p className="font-medium">Sub Divisional Engineer</p>
+                            <p className="text-sm">Rural Water Supply(Z.P.) Sub-</p>
+                            <p className="text-sm">Division, Chandrapur.</p>
+                          </div>
+                          <div className="border border-black p-4 text-center min-w-[200px]">
+                            <p className="font-medium">Executive Engineer</p>
+                            <p className="text-sm">Rural Water Supply Dn.</p>
+                            <p className="text-sm">Z.P, Chandrapur.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <PageFooter pageNumber={1} />
+                </div>
+
+                {/* Page 2: Details Page */}
+                <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                  <PageHeader pageNumber={2} />
+                  
+                  <div className="flex-1">
+                    <div className="text-center mb-6">
+                      <h3 className="text-xl font-bold underline">{documentSettings.header.title}</h3>
+                      <p className="mt-2">{selectedWork.work_name}</p>
+                      <p>Tah: Chandrapur, Dist:- Chandrapur</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6 mb-8 text-sm">
+                      <div className="space-y-3">
+                        <div className="flex">
+                          <span className="w-40 font-medium">Name of Division</span>
+                          <span className="mr-2">:-</span>
+                          <span>{selectedWork.division || 'Rural Water Supply, Division, Z.P. Chandrapur'}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="w-40 font-medium">Name of Sub- Division</span>
+                          <span className="mr-2">:-</span>
+                          <span>{selectedWork.sub_division || 'Rural Water Supply Sub-Division Chandrapur'}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="w-40 font-medium">Fund Head</span>
+                          <span className="mr-2">:-</span>
+                          <span>{selectedWork.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="w-40 font-medium">Major Head</span>
+                          <span className="mr-2">:-</span>
+                          <span className="italic">{selectedWork.major_head || '"SBM (G.) Phase-II & 15th Finance Commission - 2024-25"'}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="w-40 font-medium">Minor Head</span>
+                          <span className="mr-2">:-</span>
+                          <span>{selectedWork.minor_head || '-'}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="w-40 font-medium">Service Head</span>
+                          <span className="mr-2">:-</span>
+                          <span>{selectedWork.service_head || '-'}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="w-40 font-medium">Departmental Head</span>
+                          <span className="mr-2">:-</span>
+                          <span>{selectedWork.departmental_head || '-'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-8">
+                      <div className="grid grid-cols-2 gap-8 text-lg mb-6">
+                        <div>
+                          <span className="font-bold">Original Estimated Cost Rs.</span>
+                          <span className="ml-4">{selectedWork.total_estimated_cost.toLocaleString('hi-IN')}</span>
+                        </div>
+                        <div>
+                          <span className="font-bold">Actual Measured Cost Rs.</span>
+                          <span className="ml-4">{calculateActualTotalEstimate().toLocaleString('hi-IN')}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 gap-4 text-sm">
+                        <div className="space-y-2">
+                          <div className="flex">
+                            <span className="w-48 font-medium">Administrative Approval No.</span>
+                            <span className="mr-2">:-</span>
+                            <span>-</span>
+                          </div>
+                          <div className="flex">
+                            <span className="w-48 font-medium">Technically Sanctioned under</span>
+                            <span className="mr-2">:-</span>
+                            <span>-</span>
+                          </div>
+                          <div className="flex">
+                            <span className="w-48 font-medium">Measurements Recorded By</span>
+                            <span className="mr-2">:-</span>
+                            <span>{documentSettings.footer.preparedBy}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="w-48 font-medium">Measurement Date</span>
+                            <span className="mr-2">:-</span>
+                            <span>{new Date().toLocaleDateString('hi-IN')}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="w-48 font-medium">Variance</span>
+                            <span className="mr-2">:-</span>
+                            <span className={calculateActualTotalEstimate() - selectedWork.total_estimated_cost > 0 ? 'text-red-600' : 'text-green-600'}>
+                              Rs. {(calculateActualTotalEstimate() - selectedWork.total_estimated_cost).toLocaleString('hi-IN')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-center mb-6">
+                      <h4 className="font-bold text-base">Measurement Details</h4>
+                      <p className="mt-2">------------------------- Attached Separately -------------------------</p>
+                    </div>
+                  </div>
+                  
+                  <PageFooter pageNumber={2} />
+                </div>
+
+                {/* Page 3: Recapitulation Sheet with Actual Values */}
+                <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                  <PageHeader pageNumber={3} />
+                  
+                  <div className="flex-1">
+                    <div className="text-center mb-6">
+                      <p className="text-sm">Fund Head :- {selectedWork.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
+                      <p className="text-sm font-semibold">NAME OF WORK: {selectedWork.work_name}</p>
+                      <p className="text-sm">Village :- Nakoda, GP :- Nakoda, Tah :- Chandrapur</p>
+                      <h3 className="text-lg font-bold mt-4">MEASUREMENT BOOK RECAPITULATION SHEET</h3>
+                      <p className="text-xs text-red-600 mt-2">(Based on Actual Field Measurements)</p>
+                    </div>
+
+                    <table className="w-full border-collapse border border-black text-xs mb-6">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-black p-2 text-center">Sr. No</th>
+                          <th className="border border-black p-2">Type of work</th>
+                          <th className="border border-black p-2">Item of Work</th>
+                          <th className="border border-black p-2">Estimated Qty</th>
+                          <th className="border border-black p-2">Actual Qty</th>
+                          <th className="border border-black p-2">Variance</th>
+                          <th className="border border-black p-2">Rate per unit (Rs.)</th>
+                          <th className="border border-black p-2">Actual Amount (Rs.)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {subworks.map((subwork, index) => {
+                          const items = subworkItems[subwork.subworks_id] || [];
+                          return items.map((item, itemIndex) => {
+                            const itemMeasurements = measurements[item.sr_no.toString()] || [];
+                            const actualQuantity = itemMeasurements.reduce((sum, m) => sum + (m.actual_quantity || 0), 0);
+                            const variance = actualQuantity - (item.ssr_quantity || 0);
+                            const actualAmount = actualQuantity * (item.ssr_rate || 0);
+                            
+                            return (
+                              <tr key={`${subwork.subworks_id}-${item.sr_no}`}>
+                                <td className="border border-black p-2 text-center">{index + 1}.{itemIndex + 1}</td>
+                                <td className="border border-black p-2">Solid waste management</td>
+                                <td className="border border-black p-2">{item.description_of_item}</td>
+                                <td className="border border-black p-2 text-center">{item.ssr_quantity || 0} {item.ssr_unit}</td>
+                                <td className="border border-black p-2 text-center">{actualQuantity.toFixed(2)} {item.ssr_unit}</td>
+                                <td className={`border border-black p-2 text-center ${variance > 0 ? 'text-red-600' : variance < 0 ? 'text-green-600' : ''}`}>
+                                  {variance > 0 ? '+' : ''}{variance.toFixed(2)}
+                                </td>
+                                <td className="border border-black p-2 text-right">{(item.ssr_rate || 0).toFixed(2)}</td>
+                                <td className="border border-black p-2 text-right">{actualAmount.toFixed(2)}</td>
+                              </tr>
+                            );
+                          });
+                        })}
+                        
+                        {/* Total */}
+                        <tr className="font-bold bg-gray-100">
+                          <td colSpan={7} className="border border-black p-2 text-right">Total Actual Amount</td>
+                          <td className="border border-black p-2 text-right">{calculateActualTotalEstimate().toFixed(2)}</td>
+                        </tr>
+
+                        {/* Variance Summary */}
+                        <tr className="font-bold">
+                          <td colSpan={7} className="border border-black p-2 text-right">Original Estimate</td>
+                          <td className="border border-black p-2 text-right">{selectedWork.total_estimated_cost.toFixed(2)}</td>
+                        </tr>
+                        <tr className={`font-bold ${calculateActualTotalEstimate() - selectedWork.total_estimated_cost > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          <td colSpan={7} className="border border-black p-2 text-right">
+                            Total Variance ({calculateActualTotalEstimate() > selectedWork.total_estimated_cost ? 'Over' : 'Under'} Estimate)
+                          </td>
+                          <td className="border border-black p-2 text-right">
+                            {(calculateActualTotalEstimate() - selectedWork.total_estimated_cost).toFixed(2)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <PageFooter pageNumber={3} />
+                </div>
+
+                {/* Detailed Measurement Pages */}
+                {subworks.map((subwork, subworkIndex) => {
+                  const items = subworkItems[subwork.subworks_id] || [];
+                  if (items.length === 0) return null;
+
+                  return (
+                    <div key={subwork.subworks_id} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                      <PageHeader pageNumber={4 + subworkIndex} />
+                      
+                      <div className="flex-1">
+                        <div className="text-center mb-6">
+                          <p className="text-sm">Fund Head :- {selectedWork.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
+                          <p className="text-sm">Village :- Nakoda, GP :- Nakoda, Tah :- Chandrapur</p>
+                          <h3 className="text-lg font-bold mt-4">Sub-work Measurements: {subwork.subworks_name}</h3>
+                        </div>
+
+                        {items.map((item) => {
+                          const itemMeasurements = measurements[item.sr_no.toString()] || [];
+                          
+                          if (itemMeasurements.length === 0) return null;
+
+                          return (
+                            <div key={item.sr_no} className="mb-8">
+                              <h4 className="font-bold mb-3 text-sm">Item: {item.description_of_item}</h4>
+                              
+                              <table className="w-full border-collapse border border-black text-xs mb-4">
+                                <thead>
+                                  <tr className="bg-gray-100">
+                                    <th className="border border-black p-1">Sr.</th>
+                                    <th className="border border-black p-1">Description</th>
+                                    <th className="border border-black p-1">Units</th>
+                                    <th className="border border-black p-1">Length</th>
+                                    <th className="border border-black p-1">Width</th>
+                                    <th className="border border-black p-1">Height</th>
+                                    <th className="border border-black p-1">Est. Qty</th>
+                                    <th className="border border-black p-1">Actual Qty</th>
+                                    <th className="border border-black p-1">Variance</th>
+                                    <th className="border border-black p-1">Reason</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {itemMeasurements.map((measurement, idx) => (
+                                    <tr key={measurement.measurement_sr_no}>
+                                      <td className="border border-black p-1 text-center">{idx + 1}</td>
+                                      <td className="border border-black p-1">{measurement.description_of_items}</td>
+                                      <td className="border border-black p-1 text-center">{measurement.no_of_units}</td>
+                                      <td className="border border-black p-1 text-center">{measurement.length}</td>
+                                      <td className="border border-black p-1 text-center">{measurement.width_breadth}</td>
+                                      <td className="border border-black p-1 text-center">{measurement.height_depth}</td>
+                                      <td className="border border-black p-1 text-center">{measurement.estimated_quantity.toFixed(2)}</td>
+                                      <td className="border border-black p-1 text-center">{measurement.actual_quantity.toFixed(2)}</td>
+                                      <td className={`border border-black p-1 text-center ${
+                                        measurement.variance > 0 ? 'text-red-600' : measurement.variance < 0 ? 'text-green-600' : ''
+                                      }`}>
+                                        {measurement.variance > 0 ? '+' : ''}{measurement.variance.toFixed(2)}
+                                      </td>
+                                      <td className="border border-black p-1 text-xs">{measurement.variance_reason || '-'}</td>
+                                    </tr>
+                                  ))}
+                                  <tr className="font-bold bg-gray-100">
+                                    <td colSpan={6} className="border border-black p-1 text-center">Total for Item</td>
+                                    <td className="border border-black p-1 text-center">
+                                      {itemMeasurements.reduce((sum, m) => sum + (m.estimated_quantity || 0), 0).toFixed(2)}
+                                    </td>
+                                    <td className="border border-black p-1 text-center">
+                                      {itemMeasurements.reduce((sum, m) => sum + (m.actual_quantity || 0), 0).toFixed(2)}
+                                    </td>
+                                    <td className="border border-black p-1 text-center">
+                                      {itemMeasurements.reduce((sum, m) => sum + (m.variance || 0), 0).toFixed(2)}
+                                    </td>
+                                    <td className="border border-black p-1"></td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      <PageFooter pageNumber={4 + subworkIndex} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <style jsx>{`
+            @media print {
+              .pdf-page {
+                page-break-after: always;
+                min-height: 297mm;
+                width: 210mm;
+              }
+            }
+            
+            .pdf-page {
+              box-shadow: 0 0 10px rgba(0,0,0,0.1);
+              margin-bottom: 20px;
+            }
+          `}</style>
         </div>
       )}
     </div>
