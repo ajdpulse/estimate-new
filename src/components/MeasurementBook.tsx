@@ -449,6 +449,20 @@ const MeasurementBook: React.FC = () => {
 
           {/* Status Filter */}
           <div className="flex items-center space-x-2">
+            {selectedWork && (
+              <button
+                onClick={() => setShowPDFGenerator(true)}
+                disabled={pdfLoading}
+                className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
+              >
+                {pdfLoading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Generate MB Report
+              </button>
+            )}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -819,4 +833,3 @@ const MeasurementBook: React.FC = () => {
 };
 
 export default MeasurementBook;
-
