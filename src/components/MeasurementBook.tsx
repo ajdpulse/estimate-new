@@ -3,7 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Work, SubWork, SubworkItem } from '../types';
-import LoadingSpinner from './common/LoadingSpinner';
+import { Search, Eye, Edit2, Calculator, FileText, AlertTriangle, CheckCircle, Download, Loader2 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { 
