@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Work, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial } from '../types';
-import { FileText, Download, Loader2, Eye } from 'lucide-react';
+import { FileText, Download, Loader2, Eye, Edit2, Settings } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -13,6 +13,25 @@ interface EstimateData {
   measurements: { [itemId: string]: ItemMeasurement[] };
   leads: { [itemId: string]: ItemLead[] };
   materials: { [itemId: string]: ItemMaterial[] };
+}
+
+interface DocumentSettings {
+  header: {
+    zilla: string;
+    division: string;
+    subDivision: string;
+    title: string;
+  };
+  footer: {
+    preparedBy: string;
+    designation: string;
+  };
+  pageSettings: {
+    showPageNumbers: boolean;
+    pageNumberPosition: 'top' | 'bottom';
+    marginTop: number;
+    marginBottom: number;
+  };
 }
 
 interface EstimatePDFGeneratorProps {
@@ -30,20 +49,29 @@ const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
   const [loading, setLoading] = useState(false);
   const [estimateData, setEstimateData] = useState<EstimateData | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Document constants from the provided format
-  const DOCUMENT_HEADER = {
-    zilla: "ZILLA PARISHAD, CHANDRAPUR",
-    division: "RURAL WATER SUPPLY DIVISION, Z.P., CHANDRAPUR",
-    subDivision: "RURAL WATER SUPPLY SUB-DIVISION (Z.P.), CHANDRAPUR",
-    title: "ESTIMATE"
-  };
-
-  const DOCUMENT_FOOTER = {
-    preparedBy: "Pragati Bahu Uddeshiya Sanstha, Warora, Tah.- Chandrapur",
-    designation: "Sub Divisional Engineer Z.P Rural Water supply Sub-Division, Chandrapur"
-  };
+  // Default document settings
+  const [documentSettings, setDocumentSettings] = useState<DocumentSettings>({
+    header: {
+      zilla: "ZILLA PARISHAD, CHANDRAPUR",
+      division: "RURAL WATER SUPPLY DIVISION, Z.P., CHANDRAPUR",
+      subDivision: "RURAL WATER SUPPLY SUB-DIVISION (Z.P.), CHANDRAPUR",
+      title: "ESTIMATE"
+    },
+    footer: {
+      preparedBy: "Pragati Bahu Uddeshiya Sanstha, Warora, Tah.- Chandrapur",
+      designation: "Sub Divisional Engineer Z.P Rural Water supply Sub-Division, Chandrapur"
+    },
+    pageSettings: {
+      showPageNumbers: true,
+      pageNumberPosition: 'bottom',
+      marginTop: 20,
+      marginBottom: 20
+    }
+  });
 
   React.useEffect(() => {
     if (isOpen && workId) {
@@ -64,6 +92,18 @@ const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
         .single();
 
       if (workError) throw workError;
+
+      // Update document settings with work data
+      if (work) {
+        setDocumentSettings(prev => ({
+          ...prev,
+          header: {
+            ...prev.header,
+            division: work.division || prev.header.division,
+            subDivision: work.sub_division || prev.header.subDivision
+          }
+        }));
+      }
 
       // Fetch subworks
       const { data: subworks, error: subworksError } = await supabase
@@ -148,30 +188,52 @@ const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     try {
       setLoading(true);
       
-      const element = printRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true
-      });
-
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 10;
+      const contentWidth = pageWidth - (margin * 2);
+      const contentHeight = pageHeight - (margin * 2);
+
+      // Get all page elements
+      const pages = printRef.current.querySelectorAll('.pdf-page');
       
-      const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      for (let i = 0; i < pages.length; i++) {
+        if (i > 0) {
+          pdf.addPage();
+        }
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+        const pageElement = pages[i] as HTMLElement;
+        const canvas = await html2canvas(pageElement, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          width: pageElement.scrollWidth,
+          height: pageElement.scrollHeight
+        });
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = contentWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        // Add image to PDF
+        pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, Math.min(imgHeight, contentHeight));
+
+        // Add page number if enabled
+        if (documentSettings.pageSettings.showPageNumbers) {
+          const pageNum = i + 1;
+          const totalPages = pages.length;
+          const pageText = `Page ${pageNum} of ${totalPages}`;
+          
+          pdf.setFontSize(10);
+          pdf.setTextColor(100);
+          
+          if (documentSettings.pageSettings.pageNumberPosition === 'bottom') {
+            pdf.text(pageText, pageWidth / 2, pageHeight - 5, { align: 'center' });
+          } else {
+            pdf.text(pageText, pageWidth / 2, 10, { align: 'center' });
+          }
+        }
       }
 
       const fileName = `Estimate_${estimateData.work.works_id}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -184,16 +246,51 @@ const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     }
   };
 
+  const PageHeader: React.FC<{ pageNumber?: number }> = ({ pageNumber }) => (
+    <div className="text-center mb-6 pb-4 border-b-2 border-gray-300">
+      <h1 className="text-lg font-bold text-red-600 mb-2">{documentSettings.header.zilla}</h1>
+      <h2 className="text-base font-semibold text-blue-600 mb-1">{documentSettings.header.division}</h2>
+      <h3 className="text-sm font-medium text-blue-600 mb-3">{documentSettings.header.subDivision}</h3>
+      {pageNumber && documentSettings.pageSettings.showPageNumbers && documentSettings.pageSettings.pageNumberPosition === 'top' && (
+        <div className="text-xs text-gray-500">Page {pageNumber}</div>
+      )}
+    </div>
+  );
+
+  const PageFooter: React.FC<{ pageNumber?: number }> = ({ pageNumber }) => (
+    <div className="mt-8 pt-4 border-t-2 border-gray-300">
+      <div className="flex justify-between items-end">
+        <div className="text-left">
+          <p className="text-sm font-medium">Prepared By:</p>
+          <p className="text-xs mt-2">{documentSettings.footer.preparedBy}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-medium">{documentSettings.footer.designation}</p>
+        </div>
+      </div>
+      {pageNumber && documentSettings.pageSettings.showPageNumbers && documentSettings.pageSettings.pageNumberPosition === 'bottom' && (
+        <div className="text-center text-xs text-gray-500 mt-2">Page {pageNumber}</div>
+      )}
+    </div>
+  );
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-4 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white min-h-[90vh]">
+      <div className="relative top-4 mx-auto p-5 border w-11/12 max-w-7xl shadow-lg rounded-md bg-white min-h-[90vh]">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-medium text-gray-900">Generate Estimate Report</h3>
           <div className="flex items-center space-x-2">
             {estimateData && (
               <>
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </button>
                 <button
                   onClick={() => setShowPreview(!showPreview)}
                   className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -224,6 +321,103 @@ const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
           </div>
         </div>
 
+        {/* Settings Panel */}
+        {showSettings && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+            <h4 className="text-md font-medium text-gray-900 mb-4">Document Settings</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-2">Header Settings</h5>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Zilla Parishad"
+                    value={documentSettings.header.zilla}
+                    onChange={(e) => setDocumentSettings(prev => ({
+                      ...prev,
+                      header: { ...prev.header, zilla: e.target.value }
+                    }))}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Division"
+                    value={documentSettings.header.division}
+                    onChange={(e) => setDocumentSettings(prev => ({
+                      ...prev,
+                      header: { ...prev.header, division: e.target.value }
+                    }))}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Sub Division"
+                    value={documentSettings.header.subDivision}
+                    onChange={(e) => setDocumentSettings(prev => ({
+                      ...prev,
+                      header: { ...prev.header, subDivision: e.target.value }
+                    }))}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                  />
+                </div>
+              </div>
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-2">Footer Settings</h5>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Prepared By"
+                    value={documentSettings.footer.preparedBy}
+                    onChange={(e) => setDocumentSettings(prev => ({
+                      ...prev,
+                      footer: { ...prev.footer, preparedBy: e.target.value }
+                    }))}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Designation"
+                    value={documentSettings.footer.designation}
+                    onChange={(e) => setDocumentSettings(prev => ({
+                      ...prev,
+                      footer: { ...prev.footer, designation: e.target.value }
+                    }))}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                  />
+                </div>
+              </div>
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-2">Page Settings</h5>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={documentSettings.pageSettings.showPageNumbers}
+                      onChange={(e) => setDocumentSettings(prev => ({
+                        ...prev,
+                        pageSettings: { ...prev.pageSettings, showPageNumbers: e.target.checked }
+                      }))}
+                      className="mr-2"
+                    />
+                    <span className="text-xs">Show Page Numbers</span>
+                  </label>
+                  <select
+                    value={documentSettings.pageSettings.pageNumberPosition}
+                    onChange={(e) => setDocumentSettings(prev => ({
+                      ...prev,
+                      pageSettings: { ...prev.pageSettings, pageNumberPosition: e.target.value as 'top' | 'bottom' }
+                    }))}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                  >
+                    <option value="bottom">Page Numbers at Bottom</option>
+                    <option value="top">Page Numbers at Top</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {loading && !estimateData && (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -232,403 +426,388 @@ const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
         )}
 
         {estimateData && showPreview && (
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <div ref={printRef} className="bg-white p-8" style={{ fontFamily: 'Arial, sans-serif' }}>
-              {/* Cover Page */}
-              <div className="text-center mb-8 page-break-after">
-                <div className="border-2 border-black p-6">
-                  <h1 className="text-xl font-bold text-red-600 mb-4">{DOCUMENT_HEADER.zilla}</h1>
-                  <h2 className="text-lg font-semibold text-blue-600 mb-2">{DOCUMENT_HEADER.division}</h2>
-                  <h3 className="text-base font-medium text-blue-600 mb-6">{DOCUMENT_HEADER.subDivision}</h3>
-                  
-                  <h1 className="text-2xl font-bold underline mb-6">{DOCUMENT_HEADER.title}</h1>
-                  
-                  <div className="mb-4">
-                    <p className="font-semibold">{estimateData.work.work_name}</p>
+          <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[70vh] overflow-y-auto">
+            <div ref={printRef} className="bg-white">
+              
+              {/* Page 1: Cover Page */}
+              <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                <PageHeader pageNumber={1} />
+                
+                <div className="flex-1 flex flex-col justify-center">
+                  <div className="text-center border-2 border-black p-8">
+                    <h1 className="text-2xl font-bold underline mb-8">{documentSettings.header.title}</h1>
+                    
+                    <div className="mb-6">
+                      <p className="text-lg font-semibold mb-2">{estimateData.work.work_name}</p>
+                      <p className="text-base">Tah: Chandrapur, Dist:- Chandrapur</p>
+                    </div>
+                    
+                    <div className="mb-8">
+                      <p className="text-lg mb-2">( 2024-25)</p>
+                      <p className="text-xl font-bold">ESTIMATED COST. Rs. {calculateTotalEstimate().toLocaleString('hi-IN')}</p>
+                    </div>
+                    
+                    <div className="mt-12">
+                      <p className="text-lg font-semibold mb-6">OFFICE OF THE</p>
+                      <div className="flex justify-center space-x-8">
+                        <div className="border border-black p-4 text-center min-w-[200px]">
+                          <p className="font-medium">Sub Divisional Engineer</p>
+                          <p className="text-sm">Rural Water Supply(Z.P.) Sub-</p>
+                          <p className="text-sm">Division, Chandrapur.</p>
+                        </div>
+                        <div className="border border-black p-4 text-center min-w-[200px]">
+                          <p className="font-medium">Executive Engineer</p>
+                          <p className="text-sm">Rural Water Supply Dn.</p>
+                          <p className="text-sm">Z.P, Chandrapur.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <PageFooter pageNumber={1} />
+              </div>
+
+              {/* Page 2: Details Page */}
+              <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                <PageHeader pageNumber={2} />
+                
+                <div className="flex-1">
+                  <div className="text-center mb-6">
+                    <h3 className="text-xl font-bold underline">{documentSettings.header.title}</h3>
+                    <p className="mt-2">{estimateData.work.work_name}</p>
                     <p>Tah: Chandrapur, Dist:- Chandrapur</p>
                   </div>
-                  
-                  <div className="mb-6">
-                    <p className="text-lg">( 2024-25)</p>
-                    <p className="font-semibold">ESTIMATED COST. Rs. {calculateTotalEstimate().toLocaleString('hi-IN')}</p>
-                  </div>
-                  
-                  <div className="mt-8">
-                    <p className="font-semibold mb-4">OFFICE OF THE</p>
-                    <div className="flex justify-center space-x-8">
-                      <div className="border border-black p-3 text-center">
-                        <p className="font-medium">Sub Divisional Engineer</p>
-                        <p className="text-sm">Rural Water Supply(Z.P.) Sub-</p>
-                        <p className="text-sm">Division, Chandrapur.</p>
+
+                  <div className="grid grid-cols-2 gap-6 mb-8 text-sm">
+                    <div className="space-y-3">
+                      <div className="flex">
+                        <span className="w-40 font-medium">Name of Division</span>
+                        <span className="mr-2">:-</span>
+                        <span>{estimateData.work.division || 'Rural Water Supply, Division, Z.P. Chandrapur'}</span>
                       </div>
-                      <div className="border border-black p-3 text-center">
-                        <p className="font-medium">Executive Engineer</p>
-                        <p className="text-sm">Rural Water Supply Dn.</p>
-                        <p className="text-sm">Z.P, Chandrapur.</p>
+                      <div className="flex">
+                        <span className="w-40 font-medium">Name of Sub- Division</span>
+                        <span className="mr-2">:-</span>
+                        <span>{estimateData.work.sub_division || 'Rural Water Supply Sub-Division Chandrapur'}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="w-40 font-medium">Fund Head</span>
+                        <span className="mr-2">:-</span>
+                        <span>{estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="w-40 font-medium">Major Head</span>
+                        <span className="mr-2">:-</span>
+                        <span className="italic">{estimateData.work.major_head || '"SBM (G.) Phase-II & 15th Finance Commission - 2024-25"'}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="w-40 font-medium">Minor Head</span>
+                        <span className="mr-2">:-</span>
+                        <span>{estimateData.work.minor_head || '-'}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="w-40 font-medium">Service Head</span>
+                        <span className="mr-2">:-</span>
+                        <span>{estimateData.work.service_head || '-'}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="w-40 font-medium">Departmental Head</span>
+                        <span className="mr-2">:-</span>
+                        <span>{estimateData.work.departmental_head || '-'}</span>
                       </div>
                     </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Details Page */}
-              <div className="mb-8 page-break-before">
-                <div className="text-center mb-6">
-                  <h1 className="font-bold">{DOCUMENT_HEADER.zilla}</h1>
-                  <h2 className="font-semibold">{DOCUMENT_HEADER.division}</h2>
-                  <p>{estimateData.work.work_name}</p>
-                  <p>Tah: Chandrapur, Dist:- Chandrapur</p>
-                  <h3 className="font-bold text-lg mt-4">{DOCUMENT_HEADER.title}</h3>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-                  <div>
-                    <div className="flex mb-2">
-                      <span className="w-32">Name of Division</span>
-                      <span className="mr-2">:-</span>
-                      <span>{estimateData.work.division || 'Rural Water Supply, Division, Z.P. Chandrapur'}</span>
-                    </div>
-                    <div className="flex mb-2">
-                      <span className="w-32">Name of Sub- Division</span>
-                      <span className="mr-2">:-</span>
-                      <span>{estimateData.work.sub_division || 'Rural Water Supply Sub-Division Chandrapur'}</span>
-                    </div>
-                    <div className="flex mb-2">
-                      <span className="w-32">Sanction Estimate No.</span>
-                      <span className="mr-2">:-</span>
-                      <span></span>
-                    </div>
-                    <div className="flex mb-2">
-                      <span className="w-32">Fund Head</span>
-                      <span className="mr-2">:-</span>
-                      <span>{estimateData.work.fund_head}</span>
-                    </div>
-                    <div className="flex mb-2">
-                      <span className="w-32">Major Head</span>
-                      <span className="mr-2">:-</span>
-                      <span className="italic">{estimateData.work.major_head || '"SBM (G.) Phase-II & 15th Finance Commission - 2024-25"'}</span>
-                    </div>
-                    <div className="flex mb-2">
-                      <span className="w-32">Minor Head</span>
-                      <span className="mr-2">:-</span>
-                      <span>{estimateData.work.minor_head}</span>
-                    </div>
-                    <div className="flex mb-2">
-                      <span className="w-32">Service Head</span>
-                      <span className="mr-2">:-</span>
-                      <span>{estimateData.work.service_head}</span>
-                    </div>
-                    <div className="flex mb-2">
-                      <span className="w-32">Departmental Head</span>
-                      <span className="mr-2">:-</span>
-                      <span>{estimateData.work.departmental_head}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-justify">
-                      Estimate is framed in the Office of the Sub Divisional Engineer, Rural Water Supply, Sub Division (Z.P.), 
-                      Narkhed for probable expenditure that will be incurred under Estimate For {estimateData.work.work_name}. 
-                      At :- Nakoda, Taluka :- Chandrapur, District Chandrapur.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="font-bold">Estimated Cost Rs.</span>
-                    <span className="font-bold">{calculateTotalEstimate().toLocaleString('hi-IN')}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <div className="flex mb-2">
-                        <span className="w-40">Administrative Approval No.</span>
-                        <span className="mr-2">:-</span>
-                        <span></span>
-                      </div>
-                      <div className="flex mb-2">
-                        <span className="w-40">Technically Sanctioned under</span>
-                        <span className="mr-2">:-</span>
-                        <span></span>
-                      </div>
-                      <div className="flex mb-2">
-                        <span className="w-40">Estimate Prepared By</span>
-                        <span className="mr-2">:-</span>
-                        <span>{DOCUMENT_FOOTER.preparedBy}</span>
-                      </div>
-                      <div className="flex mb-2">
-                        <span className="w-40">Checked By.</span>
-                        <span className="mr-2">:-</span>
-                        <span></span>
+                      <p className="text-justify text-sm leading-relaxed">
+                        Estimate is framed in the Office of the Sub Divisional Engineer, Rural Water Supply, Sub Division (Z.P.), 
+                        Chandrapur for probable expenditure that will be incurred under Estimate For {estimateData.work.work_name}. 
+                        At :- Nakoda, Taluka :- Chandrapur, District Chandrapur.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mb-8">
+                    <div className="flex justify-between items-center mb-6 text-lg">
+                      <span className="font-bold">Estimated Cost Rs.</span>
+                      <span className="font-bold">{calculateTotalEstimate().toLocaleString('hi-IN')}</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <div className="flex">
+                          <span className="w-48 font-medium">Administrative Approval No.</span>
+                          <span className="mr-2">:-</span>
+                          <span>-</span>
+                        </div>
+                        <div className="flex">
+                          <span className="w-48 font-medium">Technically Sanctioned under</span>
+                          <span className="mr-2">:-</span>
+                          <span>-</span>
+                        </div>
+                        <div className="flex">
+                          <span className="w-48 font-medium">Estimate Prepared By</span>
+                          <span className="mr-2">:-</span>
+                          <span>{documentSettings.footer.preparedBy}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="w-48 font-medium">Checked By.</span>
+                          <span className="mr-2">:-</span>
+                          <span>-</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="text-center mb-4">
-                  <h4 className="font-bold">General Description</h4>
-                  <p>------------------------- Attached Separately -------------------------</p>
-                </div>
-
-                <div className="text-right mt-8">
-                  <p className="font-medium">Sub Divisional Engineer</p>
-                  <p>Rural Water Supply Sub-Division</p>
-                  <p>Chandrapur</p>
-                </div>
-              </div>
-
-              {/* Recapitulation Sheet */}
-              <div className="mb-8 page-break-before">
-                <div className="text-center mb-6">
-                  <h1 className="font-bold">{DOCUMENT_HEADER.zilla}</h1>
-                  <h2 className="font-semibold">{DOCUMENT_HEADER.division}</h2>
-                  <p>Fund Head :- {estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
-                  <p>NAME OF WORK: {estimateData.work.work_name}</p>
-                  <p>Village :- Nakoda, GP :- Nakoda, Tah :- Chandrapur</p>
-                  <h3 className="font-bold text-lg mt-4">RECAPITULATION SHEET</h3>
-                </div>
-
-                <table className="w-full border-collapse border border-black text-xs">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border border-black p-2">Sr. No</th>
-                      <th className="border border-black p-2">Type of work</th>
-                      <th className="border border-black p-2">Item of Work</th>
-                      <th className="border border-black p-2">No. of unit</th>
-                      <th className="border border-black p-2">Amount per unit (Rs.)</th>
-                      <th className="border border-black p-2">Total Amount (Rs.)</th>
-                      <th className="border border-black p-2">SBM (G) (70%) (Rs.)</th>
-                      <th className="border border-black p-2">Source of Fund Convergence-15th Finance Commission (30%) (Rs.)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {estimateData.subworks.map((subwork, index) => {
-                      const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                      const subworkTotal = items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0);
-                      
-                      return (
-                        <tr key={subwork.subworks_id}>
-                          <td className="border border-black p-2 text-center">{index + 1}</td>
-                          <td className="border border-black p-2">{subwork.subworks_name}</td>
-                          <td className="border border-black p-2">
-                            {items.map(item => item.description_of_item).join(', ')}
-                          </td>
-                          <td className="border border-black p-2 text-center">
-                            {items.reduce((sum, item) => sum + (item.ssr_quantity || 0), 0)}
-                          </td>
-                          <td className="border border-black p-2 text-right">
-                            {subworkTotal.toLocaleString('hi-IN')}
-                          </td>
-                          <td className="border border-black p-2 text-right">
-                            {subworkTotal.toLocaleString('hi-IN')}
-                          </td>
-                          <td className="border border-black p-2 text-right">
-                            {(subworkTotal * 0.7).toLocaleString('hi-IN')}
-                          </td>
-                          <td className="border border-black p-2 text-right">
-                            {(subworkTotal * 0.3).toLocaleString('hi-IN')}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    <tr className="font-bold bg-gray-100">
-                      <td colSpan={5} className="border border-black p-2 text-center">Total</td>
-                      <td className="border border-black p-2 text-right">
-                        {calculateTotalEstimate().toLocaleString('hi-IN')}
-                      </td>
-                      <td className="border border-black p-2 text-right">
-                        {(calculateTotalEstimate() * 0.7).toLocaleString('hi-IN')}
-                      </td>
-                      <td className="border border-black p-2 text-right">
-                        {(calculateTotalEstimate() * 0.3).toLocaleString('hi-IN')}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <div className="flex justify-between mt-8">
-                  <div>
-                    <p className="font-medium">Prepared By -</p>
-                    <p className="mt-4">{DOCUMENT_FOOTER.preparedBy}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{DOCUMENT_FOOTER.designation}</p>
+                  <div className="text-center mb-6">
+                    <h4 className="font-bold text-base">General Description</h4>
+                    <p className="mt-2">------------------------- Attached Separately -------------------------</p>
                   </div>
                 </div>
+                
+                <PageFooter pageNumber={2} />
               </div>
 
-              {/* Sub-work Details Pages */}
-              {estimateData.subworks.map((subwork) => {
+              {/* Page 3: Recapitulation Sheet */}
+              <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                <PageHeader pageNumber={3} />
+                
+                <div className="flex-1">
+                  <div className="text-center mb-6">
+                    <p className="text-sm">Fund Head :- {estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
+                    <p className="text-sm font-semibold">NAME OF WORK: {estimateData.work.work_name}</p>
+                    <p className="text-sm">Village :- Nakoda, GP :- Nakoda, Tah :- Chandrapur</p>
+                    <h3 className="text-lg font-bold mt-4">RECAPITULATION SHEET</h3>
+                  </div>
+
+                  <table className="w-full border-collapse border border-black text-xs mb-6">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-black p-2 text-center">Sr. No</th>
+                        <th className="border border-black p-2">Type of work</th>
+                        <th className="border border-black p-2">Item of Work</th>
+                        <th className="border border-black p-2">No. of unit</th>
+                        <th className="border border-black p-2">Amount per unit (Rs.)</th>
+                        <th className="border border-black p-2">Total Amount (Rs.)</th>
+                        <th className="border border-black p-2">SBM (G) (70%) (Rs.)</th>
+                        <th className="border border-black p-2">Source of Fund Convergence-15th Finance Commission (30%) (Rs.)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {estimateData.subworks.map((subwork, index) => {
+                        const items = estimateData.subworkItems[subwork.subworks_id] || [];
+                        const subworkTotal = items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0);
+                        
+                        return (
+                          <tr key={subwork.subworks_id}>
+                            <td className="border border-black p-2 text-center">{index + 1}</td>
+                            <td className="border border-black p-2">{subwork.subworks_name}</td>
+                            <td className="border border-black p-2">
+                              {items.map(item => item.description_of_item).join(', ')}
+                            </td>
+                            <td className="border border-black p-2 text-center">
+                              {items.reduce((sum, item) => sum + (item.ssr_quantity || 0), 0)}
+                            </td>
+                            <td className="border border-black p-2 text-right">
+                              {subworkTotal.toLocaleString('hi-IN')}
+                            </td>
+                            <td className="border border-black p-2 text-right">
+                              {subworkTotal.toLocaleString('hi-IN')}
+                            </td>
+                            <td className="border border-black p-2 text-right">
+                              {(subworkTotal * 0.7).toLocaleString('hi-IN')}
+                            </td>
+                            <td className="border border-black p-2 text-right">
+                              {(subworkTotal * 0.3).toLocaleString('hi-IN')}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr className="font-bold bg-gray-100">
+                        <td colSpan={5} className="border border-black p-2 text-center">Total</td>
+                        <td className="border border-black p-2 text-right">
+                          {calculateTotalEstimate().toLocaleString('hi-IN')}
+                        </td>
+                        <td className="border border-black p-2 text-right">
+                          {(calculateTotalEstimate() * 0.7).toLocaleString('hi-IN')}
+                        </td>
+                        <td className="border border-black p-2 text-right">
+                          {(calculateTotalEstimate() * 0.3).toLocaleString('hi-IN')}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                
+                <PageFooter pageNumber={3} />
+              </div>
+
+              {/* Sub-work Detail Pages */}
+              {estimateData.subworks.map((subwork, subworkIndex) => {
                 const items = estimateData.subworkItems[subwork.subworks_id] || [];
                 if (items.length === 0) return null;
 
                 return (
-                  <div key={subwork.subworks_id} className="mb-8 page-break-before">
-                    <div className="text-center mb-6">
-                      <h1 className="font-bold">{DOCUMENT_HEADER.zilla}</h1>
-                      <h2 className="font-semibold">{DOCUMENT_HEADER.division}</h2>
-                      <p>Fund Head :- {estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
-                      <p>Village :- Nakoda, GP :- Nakoda, Tah :- Chandrapur</p>
-                      <h3 className="font-bold text-lg mt-4">Sub-work: {subwork.subworks_name}</h3>
-                    </div>
+                  <div key={subwork.subworks_id} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                    <PageHeader pageNumber={4 + subworkIndex} />
+                    
+                    <div className="flex-1">
+                      <div className="text-center mb-6">
+                        <p className="text-sm">Fund Head :- {estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
+                        <p className="text-sm">Village :- Nakoda, GP :- Nakoda, Tah :- Chandrapur</p>
+                        <h3 className="text-lg font-bold mt-4">Sub-work: {subwork.subworks_name}</h3>
+                      </div>
 
-                    <table className="w-full border-collapse border border-black text-xs mb-6">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="border border-black p-2">Sr. No</th>
-                          <th className="border border-black p-2">Description of Sub Work</th>
-                          <th className="border border-black p-2">No.</th>
-                          <th className="border border-black p-2">Unit</th>
-                          <th className="border border-black p-2">Amount (Rs.)</th>
-                          <th className="border border-black p-2">Total Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((item, index) => (
-                          <tr key={item.id}>
-                            <td className="border border-black p-2 text-center">{index + 1}</td>
-                            <td className="border border-black p-2">{item.description_of_item}</td>
-                            <td className="border border-black p-2 text-center">{item.ssr_quantity}</td>
-                            <td className="border border-black p-2 text-center">{item.ssr_unit}</td>
+                      <table className="w-full border-collapse border border-black text-xs mb-6">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="border border-black p-2">Sr. No</th>
+                            <th className="border border-black p-2">Description of Sub Work</th>
+                            <th className="border border-black p-2">No.</th>
+                            <th className="border border-black p-2">Unit</th>
+                            <th className="border border-black p-2">Amount (Rs.)</th>
+                            <th className="border border-black p-2">Total Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((item, index) => (
+                            <tr key={item.id}>
+                              <td className="border border-black p-2 text-center">{index + 1}</td>
+                              <td className="border border-black p-2">{item.description_of_item}</td>
+                              <td className="border border-black p-2 text-center">{item.ssr_quantity}</td>
+                              <td className="border border-black p-2 text-center">{item.ssr_unit}</td>
+                              <td className="border border-black p-2 text-right">
+                                {(item.ssr_rate || 0).toLocaleString('hi-IN')}
+                              </td>
+                              <td className="border border-black p-2 text-right">
+                                {(item.total_item_amount || 0).toLocaleString('hi-IN')}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="font-bold bg-gray-100">
+                            <td colSpan={5} className="border border-black p-2 text-center">Total Rs</td>
                             <td className="border border-black p-2 text-right">
-                              {(item.ssr_rate || 0).toLocaleString('hi-IN')}
-                            </td>
-                            <td className="border border-black p-2 text-right">
-                              {(item.total_item_amount || 0).toLocaleString('hi-IN')}
+                              {items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0).toLocaleString('hi-IN')}
                             </td>
                           </tr>
-                        ))}
-                        <tr className="font-bold bg-gray-100">
-                          <td colSpan={5} className="border border-black p-2 text-center">Total Rs</td>
-                          <td className="border border-black p-2 text-right">
-                            {items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0).toLocaleString('hi-IN')}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                        </tbody>
+                      </table>
 
-                    {/* Item Details */}
-                    {items.map((item) => {
-                      const itemMeasurements = estimateData.measurements[item.id] || [];
-                      const itemLeads = estimateData.leads[item.id] || [];
-                      const itemMaterials = estimateData.materials[item.id] || [];
-                      
-                      const hasDetails = itemMeasurements.length > 0 || itemLeads.length > 0 || itemMaterials.length > 0;
-                      
-                      if (!hasDetails) return null;
+                      {/* Item Details */}
+                      {items.map((item) => {
+                        const itemMeasurements = estimateData.measurements[item.id] || [];
+                        const itemLeads = estimateData.leads[item.id] || [];
+                        const itemMaterials = estimateData.materials[item.id] || [];
+                        
+                        const hasDetails = itemMeasurements.length > 0 || itemLeads.length > 0 || itemMaterials.length > 0;
+                        
+                        if (!hasDetails) return null;
 
-                      return (
-                        <div key={item.id} className="mb-6">
-                          <h4 className="font-bold mb-3">Item: {item.description_of_item}</h4>
-                          
-                          {/* Measurements */}
-                          {itemMeasurements.length > 0 && (
-                            <div className="mb-4">
-                              <h5 className="font-semibold mb-2">Measurements:</h5>
-                              <table className="w-full border-collapse border border-black text-xs">
-                                <thead>
-                                  <tr className="bg-gray-100">
-                                    <th className="border border-black p-1">Sr. No</th>
-                                    <th className="border border-black p-1">Description</th>
-                                    <th className="border border-black p-1">No. of Units</th>
-                                    <th className="border border-black p-1">Length</th>
-                                    <th className="border border-black p-1">Width</th>
-                                    <th className="border border-black p-1">Height</th>
-                                    <th className="border border-black p-1">Quantity</th>
-                                    <th className="border border-black p-1">Unit</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {itemMeasurements.map((measurement, idx) => (
-                                    <tr key={measurement.id}>
-                                      <td className="border border-black p-1 text-center">{idx + 1}</td>
-                                      <td className="border border-black p-1">{measurement.description_of_items}</td>
-                                      <td className="border border-black p-1 text-center">{measurement.no_of_units}</td>
-                                      <td className="border border-black p-1 text-center">{measurement.length}</td>
-                                      <td className="border border-black p-1 text-center">{measurement.width_breadth}</td>
-                                      <td className="border border-black p-1 text-center">{measurement.height_depth}</td>
-                                      <td className="border border-black p-1 text-center">{measurement.calculated_quantity}</td>
-                                      <td className="border border-black p-1 text-center">{measurement.unit}</td>
+                        return (
+                          <div key={item.id} className="mb-6">
+                            <h4 className="font-bold mb-3 text-sm">Item: {item.description_of_item}</h4>
+                            
+                            {/* Measurements */}
+                            {itemMeasurements.length > 0 && (
+                              <div className="mb-4">
+                                <h5 className="font-semibold mb-2 text-xs">Measurements:</h5>
+                                <table className="w-full border-collapse border border-black text-xs">
+                                  <thead>
+                                    <tr className="bg-gray-100">
+                                      <th className="border border-black p-1">Sr. No</th>
+                                      <th className="border border-black p-1">Description</th>
+                                      <th className="border border-black p-1">No. of Units</th>
+                                      <th className="border border-black p-1">Length</th>
+                                      <th className="border border-black p-1">Width</th>
+                                      <th className="border border-black p-1">Height</th>
+                                      <th className="border border-black p-1">Quantity</th>
+                                      <th className="border border-black p-1">Unit</th>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
+                                  </thead>
+                                  <tbody>
+                                    {itemMeasurements.map((measurement, idx) => (
+                                      <tr key={measurement.id}>
+                                        <td className="border border-black p-1 text-center">{idx + 1}</td>
+                                        <td className="border border-black p-1">{measurement.description_of_items}</td>
+                                        <td className="border border-black p-1 text-center">{measurement.no_of_units}</td>
+                                        <td className="border border-black p-1 text-center">{measurement.length}</td>
+                                        <td className="border border-black p-1 text-center">{measurement.width_breadth}</td>
+                                        <td className="border border-black p-1 text-center">{measurement.height_depth}</td>
+                                        <td className="border border-black p-1 text-center">{measurement.calculated_quantity}</td>
+                                        <td className="border border-black p-1 text-center">{measurement.unit}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
 
-                          {/* Leads */}
-                          {itemLeads.length > 0 && (
-                            <div className="mb-4">
-                              <h5 className="font-semibold mb-2">Lead Charges:</h5>
-                              <table className="w-full border-collapse border border-black text-xs">
-                                <thead>
-                                  <tr className="bg-gray-100">
-                                    <th className="border border-black p-1">Sr. No</th>
-                                    <th className="border border-black p-1">Material</th>
-                                    <th className="border border-black p-1">Location of Quarry</th>
-                                    <th className="border border-black p-1">Lead (Km)</th>
-                                    <th className="border border-black p-1">Lead Charges</th>
-                                    <th className="border border-black p-1">Net Lead Charges</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {itemLeads.map((lead, idx) => (
-                                    <tr key={lead.id}>
-                                      <td className="border border-black p-1 text-center">{idx + 1}</td>
-                                      <td className="border border-black p-1">{lead.material}</td>
-                                      <td className="border border-black p-1">{lead.location_of_quarry}</td>
-                                      <td className="border border-black p-1 text-center">{lead.lead_in_km}</td>
-                                      <td className="border border-black p-1 text-right">{lead.lead_charges.toLocaleString('hi-IN')}</td>
-                                      <td className="border border-black p-1 text-right">{lead.net_lead_charges.toLocaleString('hi-IN')}</td>
+                            {/* Leads */}
+                            {itemLeads.length > 0 && (
+                              <div className="mb-4">
+                                <h5 className="font-semibold mb-2 text-xs">Lead Charges:</h5>
+                                <table className="w-full border-collapse border border-black text-xs">
+                                  <thead>
+                                    <tr className="bg-gray-100">
+                                      <th className="border border-black p-1">Sr. No</th>
+                                      <th className="border border-black p-1">Material</th>
+                                      <th className="border border-black p-1">Location of Quarry</th>
+                                      <th className="border border-black p-1">Lead (Km)</th>
+                                      <th className="border border-black p-1">Lead Charges</th>
+                                      <th className="border border-black p-1">Net Lead Charges</th>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
+                                  </thead>
+                                  <tbody>
+                                    {itemLeads.map((lead, idx) => (
+                                      <tr key={lead.id}>
+                                        <td className="border border-black p-1 text-center">{idx + 1}</td>
+                                        <td className="border border-black p-1">{lead.material}</td>
+                                        <td className="border border-black p-1">{lead.location_of_quarry}</td>
+                                        <td className="border border-black p-1 text-center">{lead.lead_in_km}</td>
+                                        <td className="border border-black p-1 text-right">{lead.lead_charges.toLocaleString('hi-IN')}</td>
+                                        <td className="border border-black p-1 text-right">{lead.net_lead_charges.toLocaleString('hi-IN')}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
 
-                          {/* Materials */}
-                          {itemMaterials.length > 0 && (
-                            <div className="mb-4">
-                              <h5 className="font-semibold mb-2">Materials:</h5>
-                              <table className="w-full border-collapse border border-black text-xs">
-                                <thead>
-                                  <tr className="bg-gray-100">
-                                    <th className="border border-black p-1">Sr. No</th>
-                                    <th className="border border-black p-1">Material Name</th>
-                                    <th className="border border-black p-1">Required Quantity</th>
-                                    <th className="border border-black p-1">Unit</th>
-                                    <th className="border border-black p-1">Rate per Unit</th>
-                                    <th className="border border-black p-1">Total Cost</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {itemMaterials.map((material, idx) => (
-                                    <tr key={material.id}>
-                                      <td className="border border-black p-1 text-center">{idx + 1}</td>
-                                      <td className="border border-black p-1">{material.material_name}</td>
-                                      <td className="border border-black p-1 text-center">{material.required_quantity}</td>
-                                      <td className="border border-black p-1 text-center">{material.unit}</td>
-                                      <td className="border border-black p-1 text-right">{material.rate_per_unit.toLocaleString('hi-IN')}</td>
-                                      <td className="border border-black p-1 text-right">{material.total_material_cost.toLocaleString('hi-IN')}</td>
+                            {/* Materials */}
+                            {itemMaterials.length > 0 && (
+                              <div className="mb-4">
+                                <h5 className="font-semibold mb-2 text-xs">Materials:</h5>
+                                <table className="w-full border-collapse border border-black text-xs">
+                                  <thead>
+                                    <tr className="bg-gray-100">
+                                      <th className="border border-black p-1">Sr. No</th>
+                                      <th className="border border-black p-1">Material Name</th>
+                                      <th className="border border-black p-1">Required Quantity</th>
+                                      <th className="border border-black p-1">Unit</th>
+                                      <th className="border border-black p-1">Rate per Unit</th>
+                                      <th className="border border-black p-1">Total Cost</th>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-
-                    <div className="flex justify-between mt-8">
-                      <div>
-                        <p className="font-medium">Prepared By -</p>
-                        <p className="mt-4">{DOCUMENT_FOOTER.preparedBy}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{DOCUMENT_FOOTER.designation}</p>
-                      </div>
+                                  </thead>
+                                  <tbody>
+                                    {itemMaterials.map((material, idx) => (
+                                      <tr key={material.id}>
+                                        <td className="border border-black p-1 text-center">{idx + 1}</td>
+                                        <td className="border border-black p-1">{material.material_name}</td>
+                                        <td className="border border-black p-1 text-center">{material.required_quantity}</td>
+                                        <td className="border border-black p-1 text-center">{material.unit}</td>
+                                        <td className="border border-black p-1 text-right">{material.rate_per_unit.toLocaleString('hi-IN')}</td>
+                                        <td className="border border-black p-1 text-right">{material.total_material_cost.toLocaleString('hi-IN')}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
+                    
+                    <PageFooter pageNumber={4 + subworkIndex} />
                   </div>
                 );
               })}
@@ -649,12 +828,16 @@ const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
       <style jsx>{`
         @media print {
-          .page-break-before {
-            page-break-before: always;
-          }
-          .page-break-after {
+          .pdf-page {
             page-break-after: always;
+            min-height: 297mm;
+            width: 210mm;
           }
+        }
+        
+        .pdf-page {
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          margin-bottom: 20px;
         }
       `}</style>
     </div>
