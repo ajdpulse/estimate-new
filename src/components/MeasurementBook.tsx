@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
-import { Work, SubWork, SubworkItem, ItemMeasurement } from '../types';
+import { Work, SubWork, SubworkItem } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
 import { 
   FileText, 
@@ -25,12 +25,26 @@ interface MBWork extends Work {
   mb_completed_at?: string;
 }
 
-interface MBMeasurement extends ItemMeasurement {
-  actual_quantity?: number;
-  variance?: number;
-  variance_reason?: string;
-  measured_by?: string;
-  measured_at?: string;
+interface MBMeasurement {
+  sr_no: number;
+  work_id: string;
+  subwork_id: string;
+  item_id: string;
+  measurement_sr_no: number;
+  description_of_items: string;
+  no_of_units: number;
+  length: number;
+  width_breadth: number;
+  height_depth: number;
+  estimated_quantity: number;
+  actual_quantity: number;
+  variance: number;
+  variance_reason: string;
+  unit: string;
+  measured_by: string;
+  measured_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const MeasurementBook: React.FC = () => {
@@ -97,7 +111,7 @@ const MeasurementBook: React.FC = () => {
       if (subworksError) throw subworksError;
       setSubworks(subworksData || []);
 
-      // Fetch subwork items and measurements
+      // Fetch subwork items
       const itemsData: { [subworkId: string]: SubworkItem[] } = {};
       const measurementsData: { [itemId: string]: MBMeasurement[] } = {};
 
@@ -111,22 +125,48 @@ const MeasurementBook: React.FC = () => {
 
         itemsData[subwork.subworks_id] = items || [];
 
-        // Fetch measurements for each item
+        // Fetch measurements from measurement_book table
         for (const item of items || []) {
-          const { data: itemMeasurements } = await supabase
+          const { data: mbMeasurements } = await supabase
             .schema('estimate')
-            .from('item_measurements')
+            .from('measurement_book')
             .select('*')
-            .eq('subwork_item_id', item.sr_no);
+            .eq('item_id', item.id)
+            .order('measurement_sr_no');
 
-          measurementsData[item.id] = (itemMeasurements || []).map(m => ({
-            ...m,
-            actual_quantity: m.calculated_quantity, // Default to estimated
-            variance: 0,
-            variance_reason: '',
-            measured_by: user?.email || '',
-            measured_at: new Date().toISOString()
-          }));
+          if (mbMeasurements && mbMeasurements.length > 0) {
+            // Use existing measurement book data
+            measurementsData[item.id] = mbMeasurements;
+          } else {
+            // Create default measurements from estimate data
+            const { data: estimateMeasurements } = await supabase
+              .schema('estimate')
+              .from('item_measurements')
+              .select('*')
+              .eq('subwork_item_id', item.sr_no);
+
+            measurementsData[item.id] = (estimateMeasurements || []).map((m, index) => ({
+              sr_no: 0, // Will be assigned by database
+              work_id: workId,
+              subwork_id: subwork.subworks_id,
+              item_id: item.id,
+              measurement_sr_no: index + 1,
+              description_of_items: m.description_of_items || item.description_of_item,
+              no_of_units: m.no_of_units || 1,
+              length: m.length || 0,
+              width_breadth: m.width_breadth || 0,
+              height_depth: m.height_depth || 0,
+              estimated_quantity: m.calculated_quantity || 0,
+              actual_quantity: m.calculated_quantity || 0,
+              variance: 0,
+              variance_reason: '',
+              unit: m.unit || item.ssr_unit || '',
+              measured_by: user?.email || '',
+              measured_at: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }));
+          }
         }
       }
 
@@ -137,11 +177,11 @@ const MeasurementBook: React.FC = () => {
     }
   };
 
-  const updateMeasurement = (itemId: string, measurementId: string, field: string, value: any) => {
+  const updateMeasurement = (itemId: string, measurementSrNo: number, field: string, value: any) => {
     setMeasurements(prev => ({
       ...prev,
       [itemId]: prev[itemId].map(m => {
-        if (m.id === measurementId) {
+        if (m.measurement_sr_no === measurementSrNo) {
           const updated = { ...m, [field]: value };
           
           // Auto-calculate quantity if dimensions change
@@ -151,16 +191,18 @@ const MeasurementBook: React.FC = () => {
             const width = field === 'width_breadth' ? value : updated.width_breadth;
             const height = field === 'height_depth' ? value : updated.height_depth;
             
-            updated.calculated_quantity = units * length * width * height;
-            updated.actual_quantity = updated.calculated_quantity;
-            updated.variance = updated.calculated_quantity - m.calculated_quantity;
+            const calculatedQty = units * length * width * height;
+            updated.estimated_quantity = calculatedQty;
+            updated.actual_quantity = calculatedQty;
+            updated.variance = calculatedQty - m.estimated_quantity;
           }
           
           // Calculate variance if actual_quantity is manually updated
           if (field === 'actual_quantity') {
-            updated.variance = value - m.calculated_quantity;
+            updated.variance = value - m.estimated_quantity;
           }
           
+          updated.updated_at = new Date().toISOString();
           return updated;
         }
         return m;
@@ -173,15 +215,65 @@ const MeasurementBook: React.FC = () => {
       const itemMeasurements = measurements[itemId] || [];
       
       for (const measurement of itemMeasurements) {
-        // In a real implementation, you'd save to a measurement_book table
-        console.log('Saving measurement:', measurement);
+        if (measurement.sr_no === 0) {
+          // Insert new measurement
+          const { error } = await supabase
+            .schema('estimate')
+            .from('measurement_book')
+            .insert({
+              work_id: measurement.work_id,
+              subwork_id: measurement.subwork_id,
+              item_id: measurement.item_id,
+              measurement_sr_no: measurement.measurement_sr_no,
+              description_of_items: measurement.description_of_items,
+              no_of_units: measurement.no_of_units,
+              length: measurement.length,
+              width_breadth: measurement.width_breadth,
+              height_depth: measurement.height_depth,
+              estimated_quantity: measurement.estimated_quantity,
+              actual_quantity: measurement.actual_quantity,
+              variance: measurement.variance,
+              variance_reason: measurement.variance_reason,
+              unit: measurement.unit,
+              measured_by: measurement.measured_by
+            });
+          
+          if (error) throw error;
+        } else {
+          // Update existing measurement
+          const { error } = await supabase
+            .schema('estimate')
+            .from('measurement_book')
+            .update({
+              description_of_items: measurement.description_of_items,
+              no_of_units: measurement.no_of_units,
+              length: measurement.length,
+              width_breadth: measurement.width_breadth,
+              height_depth: measurement.height_depth,
+              estimated_quantity: measurement.estimated_quantity,
+              actual_quantity: measurement.actual_quantity,
+              variance: measurement.variance,
+              variance_reason: measurement.variance_reason,
+              unit: measurement.unit,
+              measured_by: measurement.measured_by,
+              updated_at: new Date().toISOString()
+            })
+            .eq('sr_no', measurement.sr_no);
+          
+          if (error) throw error;
+        }
+      }
+      
+      // Refresh data after saving
+      if (selectedWork) {
+        await fetchWorkDetails(selectedWork.works_id);
       }
       
       setEditingMeasurement(null);
       alert('Measurements saved successfully!');
     } catch (error) {
       console.error('Error saving measurements:', error);
-      alert('Error saving measurements');
+      alert('Error saving measurements: ' + error.message);
     }
   };
 
@@ -190,25 +282,28 @@ const MeasurementBook: React.FC = () => {
     const lastMeasurement = existingMeasurements[existingMeasurements.length - 1];
     
     const newMeasurement: MBMeasurement = {
-      id: `temp_${Date.now()}`,
-      subwork_item_id: parseInt(selectedItem?.sr_no || '0'),
+      sr_no: 0, // Will be assigned by database
+      work_id: selectedWork?.works_id || '',
+      subwork_id: selectedItem ? 
+        Object.keys(subworkItems).find(key => 
+          subworkItems[key].some(item => item.id === selectedItem.id)
+        ) || '' : '',
+      item_id: itemId,
       measurement_sr_no: existingMeasurements.length + 1,
-      description_of_items: lastMeasurement?.description_of_items || selectedItem?.description_of_item || 'New measurement',
+      description_of_items: lastMeasurement?.description_of_items || selectedItem?.description_of_item || '',
       no_of_units: lastMeasurement?.no_of_units || 1,
       length: lastMeasurement?.length || 0,
       width_breadth: lastMeasurement?.width_breadth || 0,
       height_depth: lastMeasurement?.height_depth || 0,
-      calculated_quantity: 0,
+      estimated_quantity: 0,
       actual_quantity: 0,
       variance: 0,
+      variance_reason: '',
       unit: selectedItem?.ssr_unit || '',
-      is_deduction: false,
-      is_manual_quantity: false,
-      line_amount: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
       measured_by: user?.email || '',
-      measured_at: new Date().toISOString()
+      measured_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     setMeasurements(prev => ({
@@ -454,11 +549,11 @@ const MeasurementBook: React.FC = () => {
                                     
                                     <div className="space-y-2">
                                       {itemMeasurements.slice(0, 3).map((measurement) => (
-                                        <div key={measurement.id} className="grid grid-cols-4 gap-2 text-xs">
+                                        <div key={measurement.measurement_sr_no} className="grid grid-cols-4 gap-2 text-xs">
                                           <input
                                             type="text"
                                             value={measurement.description_of_items}
-                                            onChange={(e) => updateMeasurement(item.id, measurement.id, 'description_of_items', e.target.value)}
+                                            onChange={(e) => updateMeasurement(item.id, measurement.measurement_sr_no, 'description_of_items', e.target.value)}
                                             className="px-2 py-1 border border-gray-300 rounded"
                                             placeholder="Description"
                                           />
@@ -466,7 +561,7 @@ const MeasurementBook: React.FC = () => {
                                             type="number"
                                             step="0.01"
                                             value={measurement.actual_quantity || 0}
-                                            onChange={(e) => updateMeasurement(item.id, measurement.id, 'actual_quantity', parseFloat(e.target.value) || 0)}
+                                            onChange={(e) => updateMeasurement(item.id, measurement.measurement_sr_no, 'actual_quantity', parseFloat(e.target.value) || 0)}
                                             className="px-2 py-1 border border-gray-300 rounded"
                                             placeholder="Actual Qty"
                                           />
@@ -555,13 +650,13 @@ const MeasurementBook: React.FC = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {(measurements[selectedItem.id] || []).map((measurement, index) => (
-                    <tr key={measurement.id}>
+                    <tr key={measurement.measurement_sr_no}>
                       <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
                       <td className="px-4 py-3">
                         <input
                           type="text"
                           value={measurement.description_of_items}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.id, 'description_of_items', e.target.value)}
+                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'description_of_items', e.target.value)}
                           className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
                         />
                       </td>
@@ -570,7 +665,7 @@ const MeasurementBook: React.FC = () => {
                           type="number"
                           step="0.01"
                           value={measurement.no_of_units}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.id, 'no_of_units', parseInt(e.target.value) || 0)}
+                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'no_of_units', parseInt(e.target.value) || 0)}
                           className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
                         />
                       </td>
@@ -579,7 +674,7 @@ const MeasurementBook: React.FC = () => {
                           type="number"
                           step="0.01"
                           value={measurement.length}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.id, 'length', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'length', parseFloat(e.target.value) || 0)}
                           className="w-20 px-2 py-1 text-sm border border-gray-300 rounded"
                         />
                       </td>
@@ -588,7 +683,7 @@ const MeasurementBook: React.FC = () => {
                           type="number"
                           step="0.01"
                           value={measurement.width_breadth}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.id, 'width_breadth', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'width_breadth', parseFloat(e.target.value) || 0)}
                           className="w-20 px-2 py-1 text-sm border border-gray-300 rounded"
                         />
                       </td>
@@ -597,19 +692,19 @@ const MeasurementBook: React.FC = () => {
                           type="number"
                           step="0.01"
                           value={measurement.height_depth}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.id, 'height_depth', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'height_depth', parseFloat(e.target.value) || 0)}
                           className="w-20 px-2 py-1 text-sm border border-gray-300 rounded"
                         />
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {measurement.calculated_quantity.toFixed(2)}
+                        {measurement.estimated_quantity.toFixed(2)}
                       </td>
                       <td className="px-4 py-3">
                         <input
                           type="number"
                           step="0.01"
                           value={measurement.actual_quantity || 0}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.id, 'actual_quantity', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'actual_quantity', parseFloat(e.target.value) || 0)}
                           className="w-24 px-2 py-1 text-sm border border-gray-300 rounded bg-yellow-50"
                           placeholder="Auto-calculated"
                         />
@@ -625,7 +720,7 @@ const MeasurementBook: React.FC = () => {
                         <input
                           type="text"
                           value={measurement.variance_reason || ''}
-                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.id, 'variance_reason', e.target.value)}
+                          onChange={(e) => updateMeasurement(selectedItem.id, measurement.measurement_sr_no, 'variance_reason', e.target.value)}
                           className="w-32 px-2 py-1 text-sm border border-gray-300 rounded"
                           placeholder="Reason for variance"
                         />
@@ -640,8 +735,8 @@ const MeasurementBook: React.FC = () => {
             <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <h4 className="text-sm font-medium text-blue-900 mb-2">📋 Data Storage Information</h4>
               <div className="text-xs text-blue-700 space-y-1">
-                <p><strong>Current Implementation:</strong> Measurements are stored in memory during editing session</p>
-                <p><strong>Production Setup:</strong> Will be saved to <code>measurement_book</code> table in database</p>
+                <p><strong>Database Storage:</strong> Measurements are saved to <code>estimate.measurement_book</code> table</p>
+                <p><strong>Data Source:</strong> Shows estimate measurements initially, then measurement book data after editing</p>
                 <p><strong>Fields Tracked:</strong> Actual quantities, variances, reasons, measured by, timestamp</p>
                 <p><strong>Audit Trail:</strong> All changes logged with user and timestamp information</p>
               </div>
