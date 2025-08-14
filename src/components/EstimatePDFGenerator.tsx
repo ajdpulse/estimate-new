@@ -518,11 +518,7 @@ const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                       </div>
                     </div>
                     <div>
-                      <p className="text-justify text-sm leading-relaxed">
-                        Estimate is framed in the Office of the Sub Divisional Engineer, Rural Water Supply, Sub Division (Z.P.), 
-                        Chandrapur for probable expenditure that will be incurred under Estimate For {estimateData.work.work_name}. 
-                        At :- Nakoda, Taluka :- Chandrapur, District Chandrapur.
-                      </p>
+                      {/* Additional content can be added here if needed */}
                     </div>
                   </div>
 
