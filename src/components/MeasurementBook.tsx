@@ -731,16 +731,6 @@ const MeasurementBook: React.FC = () => {
               </table>
             </div>
 
-            {/* Data Storage Information */}
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">📋 Data Storage Information</h4>
-              <div className="text-xs text-blue-700 space-y-1">
-                <p><strong>Database Storage:</strong> Measurements are saved to <code>estimate.measurement_book</code> table</p>
-                <p><strong>Data Source:</strong> Shows estimate measurements initially, then measurement book data after editing</p>
-                <p><strong>Fields Tracked:</strong> Actual quantities, variances, reasons, measured by, timestamp</p>
-                <p><strong>Audit Trail:</strong> All changes logged with user and timestamp information</p>
-              </div>
-            </div>
 
             <div className="flex justify-end space-x-3 mt-6">
               <button
