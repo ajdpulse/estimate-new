@@ -88,7 +88,6 @@ const MeasurementBook: React.FC = () => {
   const [showPDFGenerator, setShowPDFGenerator] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
-  const [reportLoading, setReportLoading] = useState(false);
   const printRef = React.useRef<HTMLDivElement>(null);
 
   // Default document settings
@@ -118,7 +117,7 @@ const MeasurementBook: React.FC = () => {
     }
 
     try {
-      setReportLoading(true);
+      setLoading(true);
       
       // Here you can add the actual MB report generation logic
       // For now, we'll show a success message
@@ -131,7 +130,7 @@ const MeasurementBook: React.FC = () => {
       console.error('Error generating MB report:', error);
       alert('Error generating MB report. Please try again.');
     } finally {
-      setReportLoading(false);
+      setLoading(false);
     }
   };
 
@@ -802,22 +801,23 @@ const MeasurementBook: React.FC = () => {
                                             className="px-2 py-1 border border-gray-300 rounded"
                                             placeholder="Actual Qty"
                                           />
-                                          <input
-                                            type="text"
-                                            value={measurement.variance_reason || ''}
-                                            onChange={(e) => updateMeasurement(item.sr_no.toString(), measurement.measurement_sr_no, 'variance_reason', e.target.value)}
-                                            className="px-2 py-1 border border-gray-300 rounded"
-                                            placeholder="Variance Reason"
-                                          />
-                                          <span className={`px-2 py-1 text-center ${
-                                            (measurement.variance || 0) > 0 ? 'text-red-600' : 
-                                            (measurement.variance || 0) < 0 ? 'text-green-600' : 
-                                            'text-gray-900'
+                                          <span className="px-2 py-1 bg-gray-100 rounded text-center">
+                                            {measurement.unit}
+                                          </span>
+                                          <span className={`px-2 py-1 rounded text-center ${
+                                            (measurement.variance || 0) > 0 ? 'bg-red-100 text-red-800' : 
+                                            (measurement.variance || 0) < 0 ? 'bg-green-100 text-green-800' : 
+                                            'bg-gray-100'
                                           }`}>
-                                            {(measurement.variance || 0) > 0 ? '+' : ''}{(measurement.variance || 0).toFixed(2)}
+                                            {measurement.variance || 0}
                                           </span>
                                         </div>
                                       ))}
+                                      {itemMeasurements.length > 3 && (
+                                        <div className="text-xs text-gray-500 text-center">
+                                          +{itemMeasurements.length - 3} more measurements...
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 )}
@@ -832,31 +832,16 @@ const MeasurementBook: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-              <Calculator className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Work</h3>
-              <p className="text-gray-500">Choose an approved work from the list to start recording measurements</p>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+              <Calculator className="mx-auto h-12 w-12 text-gray-300" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Select a work to view measurements</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Choose an approved work from the list to start recording measurements.
+              </p>
             </div>
           )}
         </div>
       </div>
-
-      {selectedWork && (
-        <div className="mt-4 sm:mt-0 flex items-center space-x-3">
-          <button
-            onClick={generateMBReport}
-            disabled={reportLoading}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {reportLoading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4 mr-2" />
-            )}
-            Generate MB Report
-          </button>
-        </div>
-      )}
 
       {/* Detailed Measurement Modal */}
       {showMeasurementModal && selectedItem && (
