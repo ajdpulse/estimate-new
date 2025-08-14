@@ -15,10 +15,7 @@ import {
   FileText,
   IndianRupee,
   Calculator,
-  ChevronRight,
-  Camera,
-  Upload,
-  X
+  ChevronRight
 } from 'lucide-react';
 
 const Subworks: React.FC = () => {
@@ -45,11 +42,6 @@ const Subworks: React.FC = () => {
   // Add state for subwork totals
   const [subworkTotals, setSubworkTotals] = useState<{[key: string]: number}>({});
 
-  // Add state for design photo upload
-  const [showDesignUploadModal, setShowDesignUploadModal] = useState(false);
-  const [currentSubworkForDesign, setCurrentSubworkForDesign] = useState<{ id: string; name: string } | null>(null);
-  const [designPhotos, setDesignPhotos] = useState<{[key: string]: any[]}>({});
-  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   useEffect(() => {
     fetchWorks();
   }, []);
@@ -80,7 +72,6 @@ const Subworks: React.FC = () => {
   useEffect(() => {
     if (subworks.length > 0) {
       fetchSubworkTotals();
-      fetchDesignPhotos();
     }
   }, [subworks]);
 
@@ -553,101 +544,6 @@ const Subworks: React.FC = () => {
           isOpen={showItemsModal}
           onClose={() => setShowItemsModal(false)}
         />
-      )}
-
-      {/* Design Photo Upload Modal */}
-      {showDesignUploadModal && currentSubworkForDesign && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Design Photos - {currentSubworkForDesign.name}
-                </h3>
-                <button
-                  onClick={() => setShowDesignUploadModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Upload Area */}
-              <div className="mb-6">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={(e) => e.target.files && handlePhotoUpload(e.target.files)}
-                    className="hidden"
-                    id="photo-upload"
-                    disabled={uploadingPhotos}
-                  />
-                  <label htmlFor="photo-upload" className="cursor-pointer">
-                    <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-lg font-medium text-gray-900 mb-2">
-                      {uploadingPhotos ? 'Uploading...' : 'Upload Design Photos'}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Drag and drop or click to select images (Max 5 photos, 5MB each)
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Current: {(designPhotos[currentSubworkForDesign.id] || []).length}/5 photos
-                    </p>
-                  </label>
-                </div>
-              </div>
-
-              {/* Photo Grid */}
-              {designPhotos[currentSubworkForDesign.id] && designPhotos[currentSubworkForDesign.id].length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-                  {designPhotos[currentSubworkForDesign.id].map((photo) => (
-                    <div key={photo.id} className="relative group">
-                      <img
-                        src={photo.photo_url}
-                        alt={photo.photo_name}
-                        className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 rounded-lg flex items-center justify-center">
-                        <button
-                          onClick={() => handleDeletePhoto(photo.id, photo.photo_url)}
-                          className="opacity-0 group-hover:opacity-100 bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-all duration-200"
-                          title="Delete Photo"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <div className="mt-2">
-                        <p className="text-xs text-gray-600 truncate">{photo.photo_name}</p>
-                        <p className="text-xs text-gray-400">
-                          {(photo.file_size / 1024 / 1024).toFixed(1)} MB
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Empty State */}
-              {(!designPhotos[currentSubworkForDesign.id] || designPhotos[currentSubworkForDesign.id].length === 0) && (
-                <div className="text-center py-8">
-                  <Camera className="mx-auto h-12 w-12 text-gray-300" />
-                  <p className="mt-2 text-sm text-gray-500">No design photos uploaded yet</p>
-                </div>
-              )}
-
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setShowDesignUploadModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Add Subwork Modal */}
