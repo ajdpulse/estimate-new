@@ -488,7 +488,7 @@ const MeasurementBook: React.FC = () => {
                   <option value="completed">Completed</option>
                   <option value="approved">Approved</option>
                 </select>
-              </div>
+            {selectedWork && (
               <button
                 onClick={generateMBPDF}
                 disabled={loading}
