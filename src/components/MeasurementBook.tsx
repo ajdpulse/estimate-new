@@ -7,7 +7,6 @@ import { Search, Eye, Edit2, Calculator, FileText, AlertTriangle, CheckCircle, D
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { 
-  FileText, 
   Search, 
   Edit2, 
   Save, 
@@ -20,7 +19,8 @@ import {
   Eye,
   Ruler,
   Download,
-  Loader2
+  Loader2,
+  FileText
 } from 'lucide-react';
 
 interface MBWork extends Work {
