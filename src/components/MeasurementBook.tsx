@@ -83,6 +83,7 @@ const MeasurementBook: React.FC = () => {
   const [editingMeasurement, setEditingMeasurement] = useState<string | null>(null);
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SubworkItem | null>(null);
+  const [selectedWorkId, setSelectedWorkId] = useState<string>('');
   const [showPDFGenerator, setShowPDFGenerator] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const printRef = React.useRef<HTMLDivElement>(null);
