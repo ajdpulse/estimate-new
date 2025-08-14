@@ -125,18 +125,38 @@ const MeasurementBook: React.FC = () => {
 
         itemsData[subwork.subworks_id] = items || [];
 
-        // Fetch measurements from measurement_book table
+        // Fetch measurements from measurement_book table first
         for (const item of items || []) {
           const { data: mbMeasurements } = await supabase
             .schema('estimate')
             .from('measurement_book')
             .select('*')
-            .eq('item_id', item.id)
+            .eq('item_id', item.id.toString())
             .order('measurement_sr_no');
 
           if (mbMeasurements && mbMeasurements.length > 0) {
-            // Use existing measurement book data
-            measurementsData[item.id] = mbMeasurements;
+            // Map measurement book data to component format
+            measurementsData[item.id] = mbMeasurements.map(m => ({
+              sr_no: m.sr_no,
+              work_id: m.work_id,
+              subwork_id: m.subwork_id,
+              item_id: m.item_id,
+              measurement_sr_no: m.measurement_sr_no,
+              description_of_items: m.description_of_items || item.description_of_item,
+              no_of_units: m.no_of_units || 1,
+              length: parseFloat(m.length?.toString() || '0'),
+              width_breadth: parseFloat(m.width_breadth?.toString() || '0'),
+              height_depth: parseFloat(m.height_depth?.toString() || '0'),
+              estimated_quantity: parseFloat(m.estimated_quantity?.toString() || '0'),
+              actual_quantity: parseFloat(m.actual_quantity?.toString() || '0'),
+              variance: parseFloat(m.variance?.toString() || '0'),
+              variance_reason: m.variance_reason || '',
+              unit: m.unit || item.ssr_unit || '',
+              measured_by: m.measured_by || user?.email || '',
+              measured_at: m.measured_at || new Date().toISOString(),
+              created_at: m.created_at || new Date().toISOString(),
+              updated_at: m.updated_at || new Date().toISOString()
+            }));
           } else {
             // Create default measurements from estimate data
             const { data: estimateMeasurements } = await supabase
@@ -149,15 +169,15 @@ const MeasurementBook: React.FC = () => {
               sr_no: 0, // Will be assigned by database
               work_id: workId,
               subwork_id: subwork.subworks_id,
-              item_id: item.id,
+              item_id: item.id.toString(),
               measurement_sr_no: index + 1,
               description_of_items: m.description_of_items || item.description_of_item,
               no_of_units: m.no_of_units || 1,
-              length: m.length || 0,
-              width_breadth: m.width_breadth || 0,
-              height_depth: m.height_depth || 0,
-              estimated_quantity: m.calculated_quantity || 0,
-              actual_quantity: m.calculated_quantity || 0,
+              length: parseFloat(m.length?.toString() || '0'),
+              width_breadth: parseFloat(m.width_breadth?.toString() || '0'),
+              height_depth: parseFloat(m.height_depth?.toString() || '0'),
+              estimated_quantity: parseFloat(m.calculated_quantity?.toString() || '0'),
+              actual_quantity: parseFloat(m.calculated_quantity?.toString() || '0'),
               variance: 0,
               variance_reason: '',
               unit: m.unit || item.ssr_unit || '',
@@ -223,7 +243,7 @@ const MeasurementBook: React.FC = () => {
             .insert({
               work_id: measurement.work_id,
               subwork_id: measurement.subwork_id,
-              item_id: measurement.item_id,
+              item_id: itemId,
               measurement_sr_no: measurement.measurement_sr_no,
               description_of_items: measurement.description_of_items,
               no_of_units: measurement.no_of_units,
@@ -288,7 +308,7 @@ const MeasurementBook: React.FC = () => {
         Object.keys(subworkItems).find(key => 
           subworkItems[key].some(item => item.id === selectedItem.id)
         ) || '' : '',
-      item_id: itemId,
+      item_id: itemId.toString(),
       measurement_sr_no: existingMeasurements.length + 1,
       description_of_items: lastMeasurement?.description_of_items || selectedItem?.description_of_item || '',
       no_of_units: lastMeasurement?.no_of_units || 1,
