@@ -4,6 +4,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Work, SubWork, SubworkItem } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { 
   FileText, 
   Search, 
@@ -16,7 +18,9 @@ import {
   Clock,
   AlertCircle,
   Eye,
-  Ruler
+  Ruler,
+  Download,
+  Loader2
 } from 'lucide-react';
 
 interface MBWork extends Work {
@@ -47,6 +51,24 @@ interface MBMeasurement {
   updated_at: string;
 }
 
+interface DocumentSettings {
+  header: {
+    zilla: string;
+    division: string;
+    subDivision: string;
+    title: string;
+  };
+  footer: {
+    preparedBy: string;
+    designation: string;
+  };
+  pageSettings: {
+    showPageNumbers: boolean;
+    pageNumberPosition: 'top' | 'bottom';
+    marginTop: number;
+    marginBottom: number;
+  };
+}
 const MeasurementBook: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -61,6 +83,29 @@ const MeasurementBook: React.FC = () => {
   const [editingMeasurement, setEditingMeasurement] = useState<string | null>(null);
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SubworkItem | null>(null);
+  const [showPDFGenerator, setShowPDFGenerator] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const printRef = React.useRef<HTMLDivElement>(null);
+
+  // Default document settings
+  const [documentSettings, setDocumentSettings] = useState<DocumentSettings>({
+    header: {
+      zilla: "ZILLA PARISHAD, CHANDRAPUR",
+      division: "RURAL WATER SUPPLY DIVISION, Z.P., CHANDRAPUR",
+      subDivision: "RURAL WATER SUPPLY SUB-DIVISION (Z.P.), CHANDRAPUR",
+      title: "MEASUREMENT BOOK"
+    },
+    footer: {
+      preparedBy: "Pragati Bahu Uddeshiya Sanstha, Warora, Tah.- Chandrapur",
+      designation: "Sub Divisional Engineer Z.P Rural Water supply Sub-Division, Chandrapur"
+    },
+    pageSettings: {
+      showPageNumbers: true,
+      pageNumberPosition: 'bottom',
+      marginTop: 20,
+      marginBottom: 20
+    }
+  });
 
   useEffect(() => {
     fetchApprovedWorks();
