@@ -6,7 +6,6 @@ import { Work, SubWork, SubworkItem } from '../types';
 import { Search, Eye, Edit2, Calculator, FileText, AlertTriangle, CheckCircle, Download, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { 
   Search, 
   Edit2, 
   Save, 
