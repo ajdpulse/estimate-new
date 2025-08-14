@@ -89,7 +89,6 @@ const MeasurementBook: React.FC = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
-  const [showStatusModal, setShowStatusModal] = useState(false);
   const printRef = React.useRef<HTMLDivElement>(null);
 
   // Default document settings
@@ -561,18 +560,44 @@ const MeasurementBook: React.FC = () => {
                 </select>
               </div>
               <button
-                onClick={generateMBReport}
-                disabled={reportLoading}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleStatusChange}
+                disabled={statusLoading}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
               >
-                {reportLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {statusLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
                 ) : (
-                  <Download className="w-4 h-4 mr-2" />
+                  <>
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Change Status
+                  </>
                 )}
-                Generate MB Report
               </button>
             </>
+          )}
+        </div>
+        <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+          {selectedWorkId && (
+            <button
+              onClick={generateMBPDF}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Generate MB Report
+                </>
+              )}
+            </button>
           )}
         </div>
       </div>
