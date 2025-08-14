@@ -161,28 +161,6 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const fetchDesignPhotos = async () => {
-    try {
-      const photos: {[key: string]: any[]} = {};
-      
-      for (const subwork of subworks) {
-        const { data, error } = await supabase
-          .schema('estimate')
-          .from('subwork_design_photos')
-          .select('*')
-          .eq('subwork_id', subwork.subworks_id)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        photos[subwork.subworks_id] = data || [];
-      }
-      
-      setDesignPhotos(photos);
-    } catch (error) {
-      console.error('Error fetching design photos:', error);
-    }
-  };
-
   useEffect(() => {
     fetchWorks();
   }, []);
