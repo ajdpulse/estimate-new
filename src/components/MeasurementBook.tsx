@@ -801,44 +801,19 @@ const MeasurementBook: React.FC = () => {
                                             className="px-2 py-1 border border-gray-300 rounded"
                                             placeholder="Actual Qty"
                                           />
-                                          <span className="px-2 py-1 bg-gray-100 rounded text-center">
-                                            {measurement.unit}
-                                          </span>
-                                          <span className={`px-2 py-1 rounded text-center ${
-                                            (measurement.variance || 0) > 0 ? 'bg-red-100 text-red-800' : 
-                                            (measurement.variance || 0) < 0 ? 'bg-green-100 text-green-800' : 
-                                            'bg-gray-100'
-                                          }`}>
-                                            {measurement.variance || 0}
-                                          </span>
-                                        </div>
-                                      ))}
-                                      {itemMeasurements.length > 3 && (
-                                        <div className="text-xs text-gray-500 text-center">
-                                          +{itemMeasurements.length - 3} more measurements...
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-              <Calculator className="mx-auto h-12 w-12 text-gray-300" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Select a work to view measurements</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Choose an approved work from the list to start recording measurements.
-              </p>
-            </div>
+          {selectedWork && (
+            <button
+              onClick={generateMBReport}
+              disabled={reportLoading}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {reportLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              Generate MB Report
+            </button>
           )}
         </div>
       </div>
