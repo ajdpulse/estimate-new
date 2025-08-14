@@ -669,3 +669,5 @@ const MeasurementBook: React.FC = () => {
 };
 
 export default MeasurementBook;
+
+export default MeasurementBook
