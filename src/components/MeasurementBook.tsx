@@ -144,7 +144,19 @@ const MeasurementBook: React.FC = () => {
         if (m.id === measurementId) {
           const updated = { ...m, [field]: value };
           
-          // Calculate variance if actual_quantity is updated
+          // Auto-calculate quantity if dimensions change
+          if (['no_of_units', 'length', 'width_breadth', 'height_depth'].includes(field)) {
+            const units = field === 'no_of_units' ? value : updated.no_of_units;
+            const length = field === 'length' ? value : updated.length;
+            const width = field === 'width_breadth' ? value : updated.width_breadth;
+            const height = field === 'height_depth' ? value : updated.height_depth;
+            
+            updated.calculated_quantity = units * length * width * height;
+            updated.actual_quantity = updated.calculated_quantity;
+            updated.variance = updated.calculated_quantity - m.calculated_quantity;
+          }
+          
+          // Calculate variance if actual_quantity is manually updated
           if (field === 'actual_quantity') {
             updated.variance = value - m.calculated_quantity;
           }
@@ -174,15 +186,18 @@ const MeasurementBook: React.FC = () => {
   };
 
   const addNewMeasurement = (itemId: string) => {
+    const existingMeasurements = measurements[itemId] || [];
+    const lastMeasurement = existingMeasurements[existingMeasurements.length - 1];
+    
     const newMeasurement: MBMeasurement = {
       id: `temp_${Date.now()}`,
       subwork_item_id: parseInt(selectedItem?.sr_no || '0'),
-      measurement_sr_no: (measurements[itemId]?.length || 0) + 1,
-      description_of_items: 'New measurement',
-      no_of_units: 1,
-      length: 0,
-      width_breadth: 0,
-      height_depth: 0,
+      measurement_sr_no: existingMeasurements.length + 1,
+      description_of_items: lastMeasurement?.description_of_items || selectedItem?.description_of_item || 'New measurement',
+      no_of_units: lastMeasurement?.no_of_units || 1,
+      length: lastMeasurement?.length || 0,
+      width_breadth: lastMeasurement?.width_breadth || 0,
+      height_depth: lastMeasurement?.height_depth || 0,
       calculated_quantity: 0,
       actual_quantity: 0,
       variance: 0,
@@ -449,6 +464,7 @@ const MeasurementBook: React.FC = () => {
                                           />
                                           <input
                                             type="number"
+                                            step="0.01"
                                             value={measurement.actual_quantity || 0}
                                             onChange={(e) => updateMeasurement(item.id, measurement.id, 'actual_quantity', parseFloat(e.target.value) || 0)}
                                             className="px-2 py-1 border border-gray-300 rounded"
@@ -466,6 +482,11 @@ const MeasurementBook: React.FC = () => {
                                           </span>
                                         </div>
                                       ))}
+                                      {itemMeasurements.length > 3 && (
+                                        <div className="text-xs text-gray-500 text-center">
+                                          +{itemMeasurements.length - 3} more measurements...
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 )}
@@ -547,6 +568,7 @@ const MeasurementBook: React.FC = () => {
                       <td className="px-4 py-3">
                         <input
                           type="number"
+                          step="0.01"
                           value={measurement.no_of_units}
                           onChange={(e) => updateMeasurement(selectedItem.id, measurement.id, 'no_of_units', parseInt(e.target.value) || 0)}
                           className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
@@ -588,7 +610,8 @@ const MeasurementBook: React.FC = () => {
                           step="0.01"
                           value={measurement.actual_quantity || 0}
                           onChange={(e) => updateMeasurement(selectedItem.id, measurement.id, 'actual_quantity', parseFloat(e.target.value) || 0)}
-                          className="w-24 px-2 py-1 text-sm border border-gray-300 rounded"
+                          className="w-24 px-2 py-1 text-sm border border-gray-300 rounded bg-yellow-50"
+                          placeholder="Auto-calculated"
                         />
                       </td>
                       <td className={`px-4 py-3 text-sm font-medium ${
@@ -611,6 +634,17 @@ const MeasurementBook: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Data Storage Information */}
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <h4 className="text-sm font-medium text-blue-900 mb-2">📋 Data Storage Information</h4>
+              <div className="text-xs text-blue-700 space-y-1">
+                <p><strong>Current Implementation:</strong> Measurements are stored in memory during editing session</p>
+                <p><strong>Production Setup:</strong> Will be saved to <code>measurement_book</code> table in database</p>
+                <p><strong>Fields Tracked:</strong> Actual quantities, variances, reasons, measured by, timestamp</p>
+                <p><strong>Audit Trail:</strong> All changes logged with user and timestamp information</p>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-3 mt-6">
