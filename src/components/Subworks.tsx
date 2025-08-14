@@ -50,117 +50,6 @@ const Subworks: React.FC = () => {
   const [currentSubworkForDesign, setCurrentSubworkForDesign] = useState<{ id: string; name: string } | null>(null);
   const [designPhotos, setDesignPhotos] = useState<{[key: string]: any[]}>({});
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
-  const handlePhotoUpload = async (files: FileList) => {
-    if (!currentSubworkForDesign || !user) return;
-
-    const currentPhotos = designPhotos[currentSubworkForDesign.id] || [];
-    if (currentPhotos.length + files.length > 5) {
-      alert('Maximum 5 photos allowed per subwork');
-      return;
-    }
-
-    setUploadingPhotos(true);
-
-    try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        // Validate file
-        if (!file.type.startsWith('image/')) {
-          throw new Error(`${file.name} is not an image file`);
-        }
-        if (file.size > 5 * 1024 * 1024) {
-          throw new Error(`${file.name} is larger than 5MB`);
-        }
-
-        // Generate unique filename
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${currentSubworkForDesign.id}_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-        // Upload to Supabase storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('estimate-designs')
-          .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('estimate-designs')
-          .getPublicUrl(fileName);
-
-        // Save to database
-        const { data: dbData, error: dbError } = await supabase
-          .schema('estimate')
-          .from('subwork_design_photos')
-          .insert([{
-            subwork_id: currentSubworkForDesign.id,
-            photo_url: publicUrl,
-            photo_name: file.name,
-            file_size: file.size,
-            created_by: user.id
-          }])
-          .select()
-          .single();
-
-        if (dbError) throw dbError;
-
-        return dbData;
-      });
-
-      const uploadedPhotos = await Promise.all(uploadPromises);
-      
-      // Update local state
-      setDesignPhotos(prev => ({
-        ...prev,
-        [currentSubworkForDesign.id]: [...(prev[currentSubworkForDesign.id] || []), ...uploadedPhotos]
-      }));
-
-    } catch (error) {
-      console.error('Error uploading photos:', error);
-      alert(`Error uploading photos: ${error.message}`);
-    } finally {
-      setUploadingPhotos(false);
-    }
-  };
-
-  const handleDeletePhoto = async (photoId: string, photoUrl: string) => {
-    if (!confirm('Are you sure you want to delete this photo?')) return;
-
-    try {
-      // Extract filename from URL
-      const fileName = photoUrl.split('/').pop();
-      
-      // Delete from storage
-      if (fileName) {
-        const { error: storageError } = await supabase.storage
-          .from('estimate-designs')
-          .remove([fileName]);
-        
-        if (storageError) throw storageError;
-      }
-
-      // Delete from database
-      const { error: dbError } = await supabase
-        .schema('estimate')
-        .from('subwork_design_photos')
-        .delete()
-        .eq('id', photoId);
-
-      if (dbError) throw dbError;
-
-      // Update local state
-      if (currentSubworkForDesign) {
-        setDesignPhotos(prev => ({
-          ...prev,
-          [currentSubworkForDesign.id]: (prev[currentSubworkForDesign.id] || []).filter(photo => photo.id !== photoId)
-        }));
-      }
-
-    } catch (error) {
-      console.error('Error deleting photo:', error);
-      alert(`Error deleting photo: ${error.message}`);
-    }
-  };
-
   useEffect(() => {
     fetchWorks();
   }, []);
@@ -539,7 +428,7 @@ const Subworks: React.FC = () => {
                     key={subwork.sr_no}
                     onClick={() => handleSubworkCheckbox(subwork.subworks_id)}
                     className={`p-4 hover:bg-gray-50 transition-colors ${
-                      selectedSubworkIds.includes(subwork.subworks_id) ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                      selectedSubworkIds.includes(subwork.id) ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                     }`}
                   >
                     <div className="flex items-center justify-between">
