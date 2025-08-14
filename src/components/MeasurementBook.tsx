@@ -478,6 +478,50 @@ const MeasurementBook: React.FC = () => {
           {selectedWork && (
             <>
               <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-700">MB Status:</span>
+                <select
+                  value={selectedWork.status}
+                  onChange={handleStatusChange}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="approved">Approved</option>
+                </select>
+                <button
+                  onClick={() => setShowStatusModal(true)}
+                  className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                  title="Change Status"
+                >
+                  <Edit2 className="w-3 h-3 mr-1" />
+                  Change Status
+                </button>
+              </div>
+              <button
+                onClick={generateMBReport}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    Generate MB Report
+                  </>
+                )}
+              </button>
+            </>
+          )}
+        </div>
+        <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+          {selectedWork && (
+            <>
+              <div className="flex items-center space-x-2">
                 <label className="text-sm font-medium text-gray-700">MB Status:</label>
                 <select
                   value={selectedWork.status}
