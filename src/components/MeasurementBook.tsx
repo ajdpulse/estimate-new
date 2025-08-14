@@ -560,27 +560,6 @@ const MeasurementBook: React.FC = () => {
                   <option value="approved">Approved</option>
                 </select>
               </div>
-              <button
-                onClick={handleStatusChange}
-                disabled={statusLoading}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                {statusLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                Update Status
-              </button>
-            </>
-          )}
-        </div>
-        {selectedWork && (
-          <div className="mt-4 sm:mt-0">
-            <button
-              onClick={generateMBReport}
-              disabled={reportLoading}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
             >
               {reportLoading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
