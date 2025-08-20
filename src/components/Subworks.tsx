@@ -105,7 +105,7 @@ const Subworks: React.FC = () => {
         .from('subworks')
         .select('*')
         .eq('works_id', workId)
-        .order('sr_no', { ascending: false });
+        .order('sr_no', { ascending: true });
 
       if (error) throw error;
       setSubworks(data || []);
