@@ -98,7 +98,7 @@ const resources = {
       'nav.works': 'Works',
       'nav.subworks': 'Sub Works',
       'nav.compare': 'Compare',
-      'nav.measurementBook': 'Measurement Book',
+      'nav.measurementBook': 'Measurement Book (MB)',
       'nav.signOut': 'Sign Out',
       
       // Dashboard

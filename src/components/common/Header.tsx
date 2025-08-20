@@ -11,11 +11,11 @@ const Header: React.FC = () => {
   const { t } = useLanguage();
 
   const navigationItems = [
-    { key: 'dashboard', path: '/dashboard', label: t('nav.dashboard') },
+    { key: 'dashboard', path: '/dashboard', label: 'E-Estimate' },
     { key: 'works', path: '/works', label: t('nav.works') },
     { key: 'subworks', path: '/subworks', label: t('nav.subworks') },
     { key: 'compare', path: '/compare', label: t('nav.compare') },
-    { key: 'measurement-book', path: '/measurement-book', label: 'Measurement Book' },
+    { key: 'measurement-book', path: '/measurement-book', label: 'Measurement Book (MB)' },
   ];
 
   const handleSignOut = async () => {
