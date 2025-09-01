@@ -355,7 +355,7 @@ const Works: React.FC = () => {
                     <td className="px-4 py-2 whitespace-nowrap">
                       <div className="flex items-center text-sm font-medium text-gray-900">
                         <IndianRupee className="w-4 h-4 mr-1" />
-                        {formatCurrency(1546000)}
+                        {formatCurrency(work.total_estimated_cost)}
                       </div>
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
