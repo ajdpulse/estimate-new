@@ -35,6 +35,17 @@ interface ComparisonResult {
   difference: number;
   percentageVariance: number;
   status: 'over' | 'under' | 'equal';
+  subworkDetails: SubworkComparison[];
+}
+
+interface SubworkComparison {
+  subworkId: string;
+  subworkName: string;
+  estimateAmount: number;
+  measurementAmount: number;
+  difference: number;
+  percentageVariance: number;
+  status: 'over' | 'under' | 'equal';
 }
 
 const Compare: React.FC = () => {
@@ -44,6 +55,7 @@ const Compare: React.FC = () => {
   const [comparisonResults, setComparisonResults] = useState<ComparisonResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [comparing, setComparing] = useState(false);
+  const [expandedWork, setExpandedWork] = useState<string | null>(null);
 
   useEffect(() => {
     fetchWorks();
@@ -118,17 +130,17 @@ const Compare: React.FC = () => {
     }
   };
 
-  const fetchMeasurementData = async (worksId: string): Promise<MeasurementData | null> => {
+  const fetchMeasurementData = async (worksId: string): Promise<{ totalAmount: number; subworkAmounts: { [subworkId: string]: number } } | null> => {
     try {
-      // Fetch all measurements for this works ID
-      const { data: measurements, error } = await supabase
+      // Fetch all measurements for this works ID with subwork details
+      const { data: measurementsWithSubworks, error } = await supabase
         .schema('estimate')
         .from('item_measurements')
         .select(`
           *,
-          subwork_items!inner(
+          subwork_items!inner (
             subwork_id,
-            subworks!inner(
+            subworks!inner (
               works_id
             )
           )
@@ -136,18 +148,28 @@ const Compare: React.FC = () => {
         .eq('subwork_items.subworks.works_id', worksId);
 
       if (error) {
-        console.error('Error fetching measurements:', error);
+        console.error('Error fetching measurement data:', error);
         return null;
       }
 
-      const totalMeasurementAmount = (measurements || []).reduce(
-        (sum, measurement) => sum + (measurement.line_amount || 0), 
-        0
-      );
+      // Group measurements by subwork
+      const subworkAmounts: { [subworkId: string]: number } = {};
+      let totalAmount = 0;
+
+      (measurementsWithSubworks || []).forEach(measurement => {
+        const subworkId = measurement.subwork_items.subwork_id;
+        const amount = measurement.line_amount || 0;
+        
+        if (!subworkAmounts[subworkId]) {
+          subworkAmounts[subworkId] = 0;
+        }
+        subworkAmounts[subworkId] += amount;
+        totalAmount += amount;
+      });
 
       return {
-        measurements: measurements || [],
-        totalMeasurementAmount
+        totalAmount,
+        subworkAmounts
       };
     } catch (error) {
       console.error('Error fetching measurement data:', error);
@@ -174,14 +196,41 @@ const Compare: React.FC = () => {
           fetchMeasurementData(worksId)
         ]);
 
-        const estimateAmount = estimateData?.totalEstimateAmount || 0;
-        const measurementAmount = measurementData?.totalMeasurementAmount || 0;
+        if (!estimateData) continue;
+
+        const estimateAmount = estimateData.totalEstimateAmount;
+        const measurementAmount = measurementData?.totalAmount || 0;
         const difference = measurementAmount - estimateAmount;
         const percentageVariance = estimateAmount > 0 ? (difference / estimateAmount) * 100 : 0;
 
         let status: 'over' | 'under' | 'equal' = 'equal';
         if (difference > 0) status = 'over';
         else if (difference < 0) status = 'under';
+
+        // Calculate subwork-level comparisons
+        const subworkDetails: SubworkComparison[] = [];
+        
+        for (const subwork of estimateData.subworks) {
+          const subworkItems = estimateData.subworkItems[subwork.subworks_id] || [];
+          const subworkEstimateAmount = subworkItems.reduce((sum, item) => sum + (item.total_item_amount || 0), 0);
+          const subworkMeasurementAmount = measurementData?.subworkAmounts[subwork.subworks_id] || 0;
+          const subworkDifference = subworkMeasurementAmount - subworkEstimateAmount;
+          const subworkPercentageVariance = subworkEstimateAmount > 0 ? (subworkDifference / subworkEstimateAmount) * 100 : 0;
+          
+          let subworkStatus: 'over' | 'under' | 'equal' = 'equal';
+          if (subworkDifference > 0) subworkStatus = 'over';
+          else if (subworkDifference < 0) subworkStatus = 'under';
+
+          subworkDetails.push({
+            subworkId: subwork.subworks_id,
+            subworkName: subwork.subworks_name,
+            estimateAmount: subworkEstimateAmount,
+            measurementAmount: subworkMeasurementAmount,
+            difference: subworkDifference,
+            percentageVariance: subworkPercentageVariance,
+            status: subworkStatus
+          });
+        }
 
         results.push({
           worksId,
@@ -190,7 +239,8 @@ const Compare: React.FC = () => {
           measurementAmount,
           difference,
           percentageVariance,
-          status
+          status,
+          subworkDetails
         });
       }
 
@@ -398,11 +448,77 @@ const Compare: React.FC = () => {
                          result.status === 'under' ? ' under estimate' : ' exact match'}
                       </p>
                     </div>
+                    
+                    {/* Show subwork count */}
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <button
+                        onClick={() => setExpandedWork(expandedWork === result.worksId ? null : result.worksId)}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        {expandedWork === result.worksId ? 'Hide' : 'Show'} Subwork Details ({result.subworkDetails.length})
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
+
+          {/* Expanded Subwork Details */}
+          {expandedWork && (
+            <div className="bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="px-6 py-4 bg-gradient-to-r from-teal-500 to-cyan-600">
+                <h3 className="text-lg font-semibold text-white">
+                  Subwork Details - {comparisonResults.find(r => r.worksId === expandedWork)?.worksId}
+                </h3>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {comparisonResults
+                    .find(r => r.worksId === expandedWork)
+                    ?.subworkDetails.map((subwork) => (
+                    <div key={subwork.subworkId} className="bg-gradient-to-r from-gray-50 to-slate-100 rounded-xl p-4 border border-gray-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-bold text-gray-900">{subwork.subworkId}</h4>
+                        <div className="flex items-center">
+                          {getVarianceIcon(subwork.status)}
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-gray-600 mb-3 line-clamp-1">{subwork.subworkName}</p>
+                      
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <p className="text-gray-500">Estimate</p>
+                          <p className="font-bold text-blue-600">{formatCurrency(subwork.estimateAmount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Measurement</p>
+                          <p className="font-bold text-purple-600">{formatCurrency(subwork.measurementAmount)}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Variance</span>
+                          <div className="flex items-center">
+                            <span className={`text-xs font-bold ${getVarianceColor(subwork.status)}`}>
+                              {subwork.percentageVariance > 0 ? '+' : ''}{subwork.percentageVariance.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                        <p className={`text-xs mt-1 font-medium ${getVarianceColor(subwork.status)}`}>
+                          {formatCurrency(Math.abs(subwork.difference))} 
+                          {subwork.status === 'over' ? ' over' : 
+                           subwork.status === 'under' ? ' under' : ' exact'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Detailed Comparison Table */}
           <div className="bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border border-slate-200 overflow-hidden">
@@ -430,6 +546,9 @@ const Compare: React.FC = () => {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                       Variance %
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                      Subworks
                     </th>
                   </tr>
                 </thead>
@@ -459,6 +578,14 @@ const Compare: React.FC = () => {
                               {result.percentageVariance > 0 ? '+' : ''}{result.percentageVariance.toFixed(1)}%
                             </span>
                           </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => setExpandedWork(expandedWork === result.worksId ? null : result.worksId)}
+                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            View ({result.subworkDetails.length})
+                          </button>
                         </td>
                       </tr>
                     );
