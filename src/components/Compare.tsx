@@ -527,14 +527,14 @@ const Compare: React.FC = () => {
                         </p>
                       </div>
                       
-                      {/* Show measurement details button if there are differences */}
-                      {subwork.measurementDetails && subwork.measurementDetails.length > 0 && (
+                      {/* Show measurement details button if there are measurements */}
+                      {subwork.measurementAmount > 0 && (
                         <div className="mt-3 pt-3 border-t border-gray-200">
                           <button
                             onClick={() => setExpandedSubwork(expandedSubwork === subwork.subworkId ? null : subwork.subworkId)}
                             className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
                           >
-                            {expandedSubwork === subwork.subworkId ? 'Hide' : 'Show'} Measurement Details ({subwork.measurementDetails.length})
+                            {expandedSubwork === subwork.subworkId ? 'Hide' : 'Show'} Measurement Details
                           </button>
                         </div>
                       )}
