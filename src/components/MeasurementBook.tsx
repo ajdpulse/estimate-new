@@ -426,34 +426,6 @@ const MeasurementBook: React.FC = () => {
                                 </div>
                               </div>
 
-                              {/* Measurement Summary */}
-                              {itemMeasurements.length > 0 && (
-                                <div className="mt-4 p-4 bg-gradient-to-r from-gray-50 to-slate-100 rounded-xl border border-gray-200">
-                                  <h5 className="text-sm font-bold text-gray-700 mb-2">Recent Measurements:</h5>
-                                  <div className="space-y-2">
-                                    {itemMeasurements.slice(0, 3).map((measurement) => (
-                                      <div key={measurement.id} className="flex items-center justify-between text-xs">
-                                        <span className="text-gray-600 truncate">
-                                          {measurement.description_of_items || 'Measurement'}
-                                        </span>
-                                        <div className="flex items-center space-x-2">
-                                          <span className="text-gray-500">
-                                            {measurement.calculated_quantity} {measurement.unit}
-                                          </span>
-                                          <span className="font-bold text-green-600">
-                                            {formatCurrency(measurement.line_amount)}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                    {itemMeasurements.length > 3 && (
-                                      <div className="text-xs text-gray-500 text-center">
-                                        +{itemMeasurements.length - 3} more measurements
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
                             </div>
                             
                             <div className="ml-6">
@@ -462,8 +434,8 @@ const MeasurementBook: React.FC = () => {
                                 className={`inline-flex items-center px-4 py-2 border border-transparent rounded-2xl shadow-lg text-sm font-bold text-white bg-gradient-to-r ${colorScheme.gradient} hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-4 focus:ring-opacity-50 transition-all duration-300`}
                                 style={{ focusRingColor: colorScheme.gradient.split(' ')[1] }}
                               >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add Measurement
+                                <Edit2 className="w-4 h-4 mr-2" />
+                                {measurementStatus.count > 0 ? 'Update Measurements' : 'Add Measurements'}
                               </button>
                             </div>
                           </div>
