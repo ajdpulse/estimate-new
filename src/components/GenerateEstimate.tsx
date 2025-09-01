@@ -312,7 +312,6 @@ const GenerateEstimate: React.FC = () => {
               .schema('estimate')
               .from('item_measurements')
               .insert([{
-                subwork_item_id: createdItem.id,
                 subwork_item_id: createdItem.sr_no,
                 measurement_sr_no: measurement.measurement_sr_no,
                 ssr_reference: measurement.ssr_reference,
@@ -343,7 +342,6 @@ const GenerateEstimate: React.FC = () => {
               .schema('estimate')
               .from('item_leads')
               .insert([{
-                subwork_item_id: createdItem.id,
                 subwork_item_id: createdItem.sr_no,
                 sr_no: lead.sr_no,
                 material: lead.material,
@@ -364,7 +362,6 @@ const GenerateEstimate: React.FC = () => {
               .schema('estimate')
               .from('item_materials')
               .insert([{
-                subwork_item_id: createdItem.id,
                 subwork_item_id: createdItem.sr_no,
                 material_name: material.material_name,
                 required_quantity: material.required_quantity,
