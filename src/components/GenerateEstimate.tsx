@@ -203,8 +203,8 @@ const GenerateEstimate: React.FC = () => {
       const { data, error } = await supabase
         .schema('estimate')
         .from('works')
-        .select('works_id')
-        .order('sr_no', { ascending: false })
+        .select('works_id, sr_no')
+        .order('works_id', { ascending: false })
         .limit(1);
 
       if (error) throw error;
@@ -236,9 +236,19 @@ const GenerateEstimate: React.FC = () => {
 
       // Create new work
       const newWork = {
-        ...templateData.work,
+        // Don't copy sr_no - let database auto-generate it
         works_id: newWorksId,
         work_name: `${templateData.work.work_name} (From Template)`,
+        type: templateData.work.type,
+        division: templateData.work.division,
+        sub_division: templateData.work.sub_division,
+        major_head: templateData.work.major_head,
+        minor_head: templateData.work.minor_head,
+        service_head: templateData.work.service_head,
+        departmental_head: templateData.work.departmental_head,
+        fund_head: templateData.work.fund_head,
+        sanctioning_authority: templateData.work.sanctioning_authority,
+        ssr: templateData.work.ssr,
         status: 'draft' as const,
         created_by: user.id,
         total_estimated_cost: 0 // Will be recalculated
@@ -263,6 +273,7 @@ const GenerateEstimate: React.FC = () => {
           .schema('estimate')
           .from('subworks')
           .insert([{
+            // Don't copy sr_no - let database auto-generate it
             works_id: newWorksId,
             subworks_id: newSubworkId,
             subworks_name: subwork.subworks_name,
@@ -278,6 +289,7 @@ const GenerateEstimate: React.FC = () => {
             .schema('estimate')
             .from('subwork_items')
             .insert([{
+              // Don't copy sr_no - let database auto-generate it
               subwork_id: newSubworkId,
               item_number: item.item_number,
               category: item.category,
@@ -300,6 +312,7 @@ const GenerateEstimate: React.FC = () => {
               .schema('estimate')
               .from('item_measurements')
               .insert([{
+                // Don't copy id - let database auto-generate it
                 subwork_item_id: createdItem.sr_no,
                 measurement_sr_no: measurement.measurement_sr_no,
                 ssr_reference: measurement.ssr_reference,
@@ -330,6 +343,7 @@ const GenerateEstimate: React.FC = () => {
               .schema('estimate')
               .from('item_leads')
               .insert([{
+                // Don't copy id - let database auto-generate it
                 subwork_item_id: createdItem.sr_no,
                 sr_no: lead.sr_no,
                 material: lead.material,
@@ -350,6 +364,7 @@ const GenerateEstimate: React.FC = () => {
               .schema('estimate')
               .from('item_materials')
               .insert([{
+                // Don't copy id - let database auto-generate it
                 subwork_item_id: createdItem.sr_no,
                 material_name: material.material_name,
                 required_quantity: material.required_quantity,
