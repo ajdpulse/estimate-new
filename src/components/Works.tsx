@@ -4,7 +4,6 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Work } from '../types';
-import LoadingSpinner from './common/LoadingSpinner';
 import { 
   Plus, 
   Search, 
@@ -16,9 +15,7 @@ import {
   IndianRupee,
   Calendar,
   Building,
-  Download
 } from 'lucide-react';
-import EstimatePDFGenerator from './EstimatePDFGenerator';
 
 const Works: React.FC = () => {
   const { t } = useLanguage();
@@ -35,8 +32,6 @@ const Works: React.FC = () => {
   const [newWork, setNewWork] = useState<Partial<Work>>({
     type: 'Technical Sanction'
   });
-  const [showPDFGenerator, setShowPDFGenerator] = useState(false);
-  const [selectedWorkForPDF, setSelectedWorkForPDF] = useState<string>('');
 
   useEffect(() => {
     fetchWorks();
@@ -149,11 +144,6 @@ const Works: React.FC = () => {
     } catch (error) {
       console.error('Error deleting work:', error);
     }
-  };
-
-  const handleGeneratePDF = (work: Work) => {
-    setSelectedWorkForPDF(work.works_id);
-    setShowPDFGenerator(true);
   };
 
   const handleWorksIdClick = (worksId: string) => {
@@ -383,13 +373,6 @@ const Works: React.FC = () => {
                           title="Delete Work"
                         >
                           <Trash2 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleGeneratePDF(work)}
-                          className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                          title="Generate PDF Report"
-                        >
-                          <Download className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -953,17 +936,6 @@ const Works: React.FC = () => {
         </div>
       )}
 
-      {/* PDF Generator Modal */}
-      {showPDFGenerator && (
-        <EstimatePDFGenerator
-          workId={selectedWorkForPDF}
-          isOpen={showPDFGenerator}
-          onClose={() => {
-            setShowPDFGenerator(false);
-            setSelectedWorkForPDF('');
-          }}
-        />
-      )}
     </div>
   );
 };

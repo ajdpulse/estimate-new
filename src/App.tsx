@@ -12,6 +12,7 @@ import Dashboard from './components/Dashboard';
 import Works from './components/Works';
 import Subworks from './components/Subworks';
 import Compare from './components/Compare';
+import GenerateEstimate from './components/GenerateEstimate';
 import MeasurementBook from './components/MeasurementBook';
 
 // Protected Route Wrapper
@@ -63,6 +64,19 @@ function App() {
                       <Header />
                       <main className="flex-1 max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 w-full">
                         <Subworks />
+                      </main>
+                    </div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/generate-estimate"
+                element={
+                  <ProtectedRoute>
+                    <div className="flex flex-col min-h-screen">
+                      <Header />
+                      <main className="flex-1 max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 w-full">
+                        <GenerateEstimate />
                       </main>
                     </div>
                   </ProtectedRoute>
