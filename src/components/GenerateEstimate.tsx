@@ -65,6 +65,7 @@ const GenerateEstimate: React.FC = () => {
   const fetchTemplates = async () => {
     try {
       const { data, error } = await supabase
+        .schema('estimate')
         .from('estimate_templates')
         .select('*')
         .order('created_at', { ascending: false })
@@ -171,6 +172,7 @@ const GenerateEstimate: React.FC = () => {
 
       // Save template
       const { error } = await supabase
+        .schema('estimate')
         .from('estimate_templates')
         .insert([{
           template_name: templateName.trim(),
@@ -376,6 +378,7 @@ const GenerateEstimate: React.FC = () => {
 
     try {
       const { error } = await supabase
+        .schema('estimate')
         .from('estimate_templates')
         .delete()
         .eq('id', templateId);
