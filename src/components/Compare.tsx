@@ -526,6 +526,18 @@ const Compare: React.FC = () => {
                            subwork.status === 'under' ? ' under' : ' exact'}
                         </p>
                       </div>
+                      
+                      {/* Show measurement details button if there are differences */}
+                      {subwork.measurementDetails && subwork.measurementDetails.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <button
+                            onClick={() => setExpandedSubwork(expandedSubwork === subwork.subworkId ? null : subwork.subworkId)}
+                            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                          >
+                            {expandedSubwork === subwork.subworkId ? 'Hide' : 'Show'} Measurement Details ({subwork.measurementDetails.length})
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -533,6 +545,67 @@ const Compare: React.FC = () => {
             </div>
           )}
 
+          {/* Expanded Measurement Details */}
+          {expandedSubwork && (
+            <div className="bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-600">
+                <h3 className="text-lg font-semibold text-white">
+                  Measurement Details - {comparisonResults
+                    .flatMap(r => r.subworkDetails)
+                    .find(s => s.subworkId === expandedSubwork)?.subworkId}
+                </h3>
+              </div>
+              <div className="p-6">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gradient-to-r from-gray-50 to-slate-100">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Item Description
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Measurement Description
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Quantity
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Unit
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Amount
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {comparisonResults
+                        .flatMap(r => r.subworkDetails)
+                        .find(s => s.subworkId === expandedSubwork)
+                        ?.measurementDetails?.map((measurement) => (
+                        <tr key={measurement.id} className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200">
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {measurement.itemDescription}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {measurement.description}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 text-center">
+                            {measurement.quantity.toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 text-center">
+                            {measurement.unit}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-bold text-purple-600">
+                            {formatCurrency(measurement.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Detailed Comparison Table */}
           <div className="bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 bg-gradient-to-r from-indigo-500 to-blue-600">
