@@ -40,8 +40,8 @@ const Header: React.FC = () => {
               </div>
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">
-                {t('dashboard.title')}
+              <h1 className="text-xl font-bold text-gray-900 tracking-wide" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
+                E-Estimate and MB
               </h1>
               <p className="text-xs text-gray-500">ZP Chandrapur</p>
             </div>
@@ -73,12 +73,12 @@ const Header: React.FC = () => {
       {/* Navigation Bar */}
       <div className="border-t border-slate-200 bg-gradient-to-r from-slate-100 to-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-1 py-1">
+          <nav className="flex space-x-2 py-2">
             {navigationItems.map((item) => (
               <button
                 key={item.key}
                 onClick={() => navigate(item.path)}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                className={`px-6 py-3 rounded-xl text-base font-bold transition-all duration-300 ${
                   location.pathname === item.path
                     ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg scale-105`
                     : 'text-gray-700 hover:text-gray-900 hover:bg-white/60 hover:scale-105 hover:shadow-md'
@@ -93,12 +93,12 @@ const Header: React.FC = () => {
 
       {/* Mobile Navigation */}
       <div className="md:hidden border-t border-slate-200 bg-gradient-to-r from-slate-100 to-gray-200">
-        <div className="px-2 py-2 space-y-1">
+        <div className="px-2 py-3 space-y-2">
           {navigationItems.map((item) => (
             <button
               key={item.key}
               onClick={() => navigate(item.path)}
-              className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
+              className={`block w-full text-left px-6 py-3 rounded-xl text-base font-bold transition-all duration-300 ${
                 location.pathname === item.path
                   ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
                   : 'text-gray-700 hover:text-gray-900 hover:bg-white/60 hover:shadow-md'
