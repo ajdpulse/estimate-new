@@ -24,12 +24,20 @@ import {
 const GenerateEstimate: React.FC = () => {
   const { user } = useAuth();
   const [works, setWorks] = useState<Work[]>([]);
+  const [templates, setTemplates] = useState<EstimateTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showPDFGenerator, setShowPDFGenerator] = useState(false);
   const [selectedWorkForPDF, setSelectedWorkForPDF] = useState<string>('');
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [creatingFromTemplate, setCreatingFromTemplate] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [selectedWorkForTemplate, setSelectedWorkForTemplate] = useState<Work | null>(null);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   useEffect(() => {
     fetchWorks();
@@ -695,6 +703,95 @@ const GenerateEstimate: React.FC = () => {
             setSelectedWorkForPDF('');
           }}
         />
+      )}
+
+      {/* Save Template Modal */}
+      {showSaveTemplate && selectedWorkForTemplate && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Save as Template</h3>
+                <button
+                  onClick={() => setShowSaveTemplate(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Close</span>
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Template Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-emerald-500 focus:border-emerald-500"
+                    placeholder="Enter template name"
+                    maxLength={100}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    value={templateDescription}
+                    onChange={(e) => setTemplateDescription(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-emerald-500 focus:border-emerald-500"
+                    placeholder="Enter template description"
+                    rows={3}
+                    maxLength={500}
+                  />
+                </div>
+
+                <div className="bg-emerald-50 p-3 rounded-md">
+                  <p className="text-sm text-emerald-700">
+                    <strong>Original Work:</strong> {selectedWorkForTemplate.works_id}
+                  </p>
+                  <p className="text-sm text-emerald-600 mt-1">
+                    This will save the complete estimate including all subworks, items, measurements, leads, and materials.
+                  </p>
+                </div>
+
+                <div className="text-xs text-gray-500">
+                  Templates: {templates.length}/10 (Maximum 10 templates allowed)
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowSaveTemplate(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveTemplate}
+                  disabled={!templateName.trim() || savingTemplate}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingTemplate ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2 inline-block" />
+                      Save Template
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
