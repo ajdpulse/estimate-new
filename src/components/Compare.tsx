@@ -46,6 +46,17 @@ interface SubworkComparison {
   difference: number;
   percentageVariance: number;
   status: 'over' | 'under' | 'equal';
+  measurementDetails?: MeasurementDetail[];
+}
+
+interface MeasurementDetail {
+  id: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  rate: number;
+  amount: number;
+  itemDescription: string;
 }
 
 const Compare: React.FC = () => {
@@ -56,6 +67,7 @@ const Compare: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [comparing, setComparing] = useState(false);
   const [expandedWork, setExpandedWork] = useState<string | null>(null);
+  const [expandedSubwork, setExpandedSubwork] = useState<string | null>(null);
 
   useEffect(() => {
     fetchWorks();
@@ -140,6 +152,7 @@ const Compare: React.FC = () => {
           *,
           subwork_items!inner (
             subwork_id,
+            description_of_item,
             subworks!inner (
               works_id
             )
