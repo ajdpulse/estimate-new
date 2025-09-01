@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Work, SubWork, SubworkItem, ItemMeasurement } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
 import ItemMeasurements from './ItemMeasurements';
+import FullEstimateEditor from './FullEstimateEditor';
 import { 
   BookOpen, 
   Search, 
@@ -47,6 +48,8 @@ const MeasurementBook: React.FC = () => {
     subworkId: string;
     subworkName: string;
   } | null>(null);
+  const [showFullEstimateEdit, setShowFullEstimateEdit] = useState(false);
+  const [editMode, setEditMode] = useState<'measurements' | 'full_estimate'>('measurements');
 
   useEffect(() => {
     fetchWorks();
@@ -301,7 +304,44 @@ const MeasurementBook: React.FC = () => {
 
       {/* Selected Work Info */}
       {measurementData && (
-        <div className="bg-gradient-to-r from-indigo-50 via-blue-50 to-purple-100 rounded-2xl border border-indigo-200 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]">
+        <div className="space-y-4">
+          {/* Mode Selection */}
+          <div className="bg-gradient-to-r from-slate-50 to-gray-100 rounded-2xl shadow-lg border border-slate-200 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Select Edit Mode</h3>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => setEditMode('measurements')}
+                className={`flex-1 px-6 py-4 rounded-xl font-bold transition-all duration-300 ${
+                  editMode === 'measurements'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg scale-105'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:scale-105'
+                }`}
+              >
+                <div className="flex items-center justify-center">
+                  <Ruler className="w-5 h-5 mr-2" />
+                  Edit Measurements Only
+                </div>
+                <p className="text-xs mt-1 opacity-80">Update measurement book entries</p>
+              </button>
+              <button
+                onClick={() => setEditMode('full_estimate')}
+                className={`flex-1 px-6 py-4 rounded-xl font-bold transition-all duration-300 ${
+                  editMode === 'full_estimate'
+                    ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg scale-105'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:scale-105'
+                }`}
+              >
+                <div className="flex items-center justify-center">
+                  <FileText className="w-5 h-5 mr-2" />
+                  Edit Full Estimate
+                </div>
+                <p className="text-xs mt-1 opacity-80">Edit complete estimate as draft</p>
+              </button>
+            </div>
+          </div>
+
+          {/* Work Info */}
+          <div className="bg-gradient-to-r from-indigo-50 via-blue-50 to-purple-100 rounded-2xl border border-indigo-200 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center mb-3">
@@ -331,11 +371,12 @@ const MeasurementBook: React.FC = () => {
               {getStatusBadge(measurementData.work.status)}
             </div>
           </div>
+          </div>
         </div>
       )}
 
       {/* Measurement Book Content */}
-      {measurementData ? (
+      {measurementData && editMode === 'measurements' ? (
         <div className="space-y-6">
           {measurementData.subworks.map((subwork, subworkIndex) => {
             const items = measurementData.subworkItems[subwork.subworks_id] || [];
@@ -474,6 +515,49 @@ const MeasurementBook: React.FC = () => {
             Choose a work from the dropdown above to start recording measurements.
           </p>
         </div>
+      )}
+
+      {/* Full Estimate Edit */}
+      {measurementData && editMode === 'full_estimate' && (
+        <div className="bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-lg mr-3">
+                <FileText className="h-5 w-5 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Full Estimate Editor</h3>
+            </div>
+            <button
+              onClick={() => setShowFullEstimateEdit(true)}
+              className="inline-flex items-center px-6 py-3 border border-transparent rounded-2xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-violet-300 transition-all duration-300"
+            >
+              <Edit2 className="w-4 h-4 mr-2" />
+              Open Full Estimate Editor
+            </button>
+          </div>
+          
+          <div className="bg-gradient-to-r from-violet-50 to-purple-100 rounded-xl p-4 border border-violet-200">
+            <p className="text-violet-800 text-sm">
+              <strong>Full Estimate Editor:</strong> Edit the complete estimate including subworks, items, measurements, leads, and materials. 
+              All changes will be saved as a draft version that can be reviewed and finalized.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Full Estimate Editor Modal */}
+      {showFullEstimateEdit && selectedWorkId && (
+        <FullEstimateEditor
+          workId={selectedWorkId}
+          isOpen={showFullEstimateEdit}
+          onClose={() => setShowFullEstimateEdit(false)}
+          onSave={() => {
+            // Refresh measurement data after saving
+            if (selectedWorkId) {
+              fetchMeasurementData(selectedWorkId);
+            }
+          }}
+        />
       )}
 
       {/* Item Measurements Modal */}
