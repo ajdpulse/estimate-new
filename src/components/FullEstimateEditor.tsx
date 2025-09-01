@@ -13,13 +13,10 @@ import {
   Package,
   Ruler,
   Truck,
-  Settings,
-  ChevronDown,
-  ChevronRight,
+  X,
   IndianRupee,
   AlertCircle,
-  CheckCircle,
-  X
+  CheckCircle
 } from 'lucide-react';
 
 interface FullEstimateEditorProps {
@@ -48,8 +45,6 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
   const [estimateData, setEstimateData] = useState<EstimateData | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [expandedSubworks, setExpandedSubworks] = useState<Set<string>>(new Set());
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [editingWork, setEditingWork] = useState(false);
   const [workFormData, setWorkFormData] = useState<Partial<Work>>({});
   const [hasChanges, setHasChanges] = useState(false);
@@ -64,7 +59,6 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
     try {
       setLoading(true);
 
-      // Fetch work details
       const { data: work, error: workError } = await supabase
         .schema('estimate')
         .from('works')
@@ -74,10 +68,8 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
 
       if (workError) throw workError;
 
-      // Initialize work form data
       setWorkFormData(work);
 
-      // Fetch subworks
       const { data: subworks, error: subworksError } = await supabase
         .schema('estimate')
         .from('subworks')
@@ -87,7 +79,6 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
 
       if (subworksError) throw subworksError;
 
-      // Fetch all related data
       const subworkItems: { [subworkId: string]: SubworkItem[] } = {};
       const measurements: { [itemId: string]: ItemMeasurement[] } = {};
       const leads: { [itemId: string]: ItemLead[] } = {};
@@ -103,7 +94,6 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
 
         subworkItems[subwork.subworks_id] = items || [];
 
-        // Fetch measurements, leads, and materials for each item
         for (const item of items || []) {
           const [measurementsRes, leadsRes, materialsRes] = await Promise.all([
             supabase.schema('estimate').from('item_measurements').select('*').eq('subwork_item_id', item.sr_no),
@@ -139,13 +129,12 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
     try {
       setSaving(true);
 
-      // Update work details
       const { error: workError } = await supabase
         .schema('estimate')
         .from('works')
         .update({
           ...workFormData,
-          status: 'draft', // Always save as draft
+          status: 'draft',
           updated_at: new Date().toISOString()
         })
         .eq('works_id', workId);
@@ -165,26 +154,6 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
     } finally {
       setSaving(false);
     }
-  };
-
-  const toggleSubworkExpansion = (subworkId: string) => {
-    const newExpanded = new Set(expandedSubworks);
-    if (newExpanded.has(subworkId)) {
-      newExpanded.delete(subworkId);
-    } else {
-      newExpanded.add(subworkId);
-    }
-    setExpandedSubworks(newExpanded);
-  };
-
-  const toggleItemExpansion = (itemId: string) => {
-    const newExpanded = new Set(expandedItems);
-    if (newExpanded.has(itemId)) {
-      newExpanded.delete(itemId);
-    } else {
-      newExpanded.add(itemId);
-    }
-    setExpandedItems(newExpanded);
   };
 
   const formatCurrency = (amount: number) => {
@@ -211,18 +180,18 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-4 mx-auto p-5 border w-11/12 max-w-7xl shadow-lg rounded-md bg-white min-h-[90vh]">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-hidden">
+      <div className="h-full flex flex-col bg-white">
         
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl mr-4 shadow-lg">
-              <FileText className="h-8 w-8 text-white" />
+        {/* Excel-like Header */}
+        <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <FileText className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Full Estimate Editor</h1>
-              <p className="text-sm text-gray-500 mt-1">Edit complete estimate as draft</p>
+              <h1 className="text-lg font-semibold text-gray-900">Full Estimate Editor</h1>
+              <p className="text-sm text-gray-500">Excel-like editing interface</p>
             </div>
           </div>
           
@@ -237,7 +206,7 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
             <button
               onClick={handleSaveEstimate}
               disabled={saving || !hasChanges}
-              className="inline-flex items-center px-6 py-3 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all duration-300 disabled:opacity-50"
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
             >
               {saving ? (
                 <>
@@ -254,346 +223,260 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
             
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-all duration-200"
+              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex-1 flex items-center justify-center">
             <LoadingSpinner text="Loading estimate data..." />
           </div>
         ) : estimateData ? (
-          <div className="space-y-6">
+          <div className="flex-1 overflow-auto">
             
-            {/* Work Details Section */}
-            <div className="bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border border-slate-200 overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-indigo-500 to-blue-600">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-white/20 rounded-lg mr-3">
-                      <Settings className="h-5 w-5 text-white" />
-                    </div>
-                    <h2 className="text-lg font-semibold text-white">Work Details</h2>
-                  </div>
-                  <button
-                    onClick={() => setEditingWork(!editingWork)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-white/20 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all duration-200 hover:scale-105"
-                  >
-                    <Edit2 className="w-4 h-4 mr-2" />
-                    {editingWork ? 'Cancel' : 'Edit Work'}
-                  </button>
-                </div>
+            {/* Work Details Table */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Work Details</h2>
+                <button
+                  onClick={() => setEditingWork(!editingWork)}
+                  className="inline-flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                >
+                  <Edit2 className="w-4 h-4 mr-1" />
+                  {editingWork ? 'Cancel' : 'Edit'}
+                </button>
               </div>
               
-              <div className="p-6">
-                {editingWork ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Work Name</label>
-                      <input
-                        type="text"
-                        value={workFormData.work_name || ''}
-                        onChange={(e) => {
-                          setWorkFormData({...workFormData, work_name: e.target.value});
-                          setHasChanges(true);
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Division</label>
-                      <input
-                        type="text"
-                        value={workFormData.division || ''}
-                        onChange={(e) => {
-                          setWorkFormData({...workFormData, division: e.target.value});
-                          setHasChanges(true);
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Total Estimated Cost</label>
-                      <input
-                        type="number"
-                        value={workFormData.total_estimated_cost || 0}
-                        onChange={(e) => {
-                          setWorkFormData({...workFormData, total_estimated_cost: parseFloat(e.target.value) || 0});
-                          setHasChanges(true);
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                      <select
-                        value={workFormData.status || 'draft'}
-                        onChange={(e) => {
-                          setWorkFormData({...workFormData, status: e.target.value as Work['status']});
-                          setHasChanges(true);
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="draft">Draft</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                      </select>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Work ID</h3>
-                      <p className="text-lg font-bold text-gray-900">{estimateData.work.works_id}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Division</h3>
-                      <p className="text-lg font-bold text-gray-900">{estimateData.work.division || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Total Estimate</h3>
-                      <p className="text-lg font-bold text-green-600">{formatCurrency(calculateTotalEstimate())}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {editingWork ? (
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="min-w-full">
+                    <tbody className="divide-y divide-gray-200">
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50 w-48">Work Name</td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="text"
+                            value={workFormData.work_name || ''}
+                            onChange={(e) => {
+                              setWorkFormData({...workFormData, work_name: e.target.value});
+                              setHasChanges(true);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50">Division</td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="text"
+                            value={workFormData.division || ''}
+                            onChange={(e) => {
+                              setWorkFormData({...workFormData, division: e.target.value});
+                              setHasChanges(true);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50">Total Estimated Cost</td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            value={workFormData.total_estimated_cost || 0}
+                            onChange={(e) => {
+                              setWorkFormData({...workFormData, total_estimated_cost: parseFloat(e.target.value) || 0});
+                              setHasChanges(true);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50">Status</td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={workFormData.status || 'draft'}
+                            onChange={(e) => {
+                              setWorkFormData({...workFormData, status: e.target.value as Work['status']});
+                              setHasChanges(true);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="draft">Draft</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="min-w-full">
+                    <tbody className="divide-y divide-gray-200">
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50 w-48">Work ID</td>
+                        <td className="px-4 py-3 text-sm text-gray-900">{estimateData.work.works_id}</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50">Work Name</td>
+                        <td className="px-4 py-3 text-sm text-gray-900">{estimateData.work.work_name}</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50">Division</td>
+                        <td className="px-4 py-3 text-sm text-gray-900">{estimateData.work.division || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50">Total Estimate</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-green-600">{formatCurrency(calculateTotalEstimate())}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
-            {/* Subworks Section */}
-            <div className="space-y-4">
+            {/* Subworks Excel-like Table */}
+            <div className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Subworks & Items</h2>
+              
               {estimateData.subworks.map((subwork, subworkIndex) => {
                 const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                const isExpanded = expandedSubworks.has(subwork.subworks_id);
                 
-                // Color schemes for different subworks
-                const colorSchemes = [
-                  { gradient: 'from-emerald-500 to-teal-600', bg: 'from-emerald-50 to-teal-100', border: 'border-emerald-200' },
-                  { gradient: 'from-purple-500 to-pink-600', bg: 'from-purple-50 to-pink-100', border: 'border-purple-200' },
-                  { gradient: 'from-orange-500 to-red-600', bg: 'from-orange-50 to-red-100', border: 'border-orange-200' },
-                  { gradient: 'from-indigo-500 to-blue-600', bg: 'from-indigo-50 to-blue-100', border: 'border-indigo-200' },
-                  { gradient: 'from-green-500 to-emerald-600', bg: 'from-green-50 to-emerald-100', border: 'border-green-200' }
-                ];
-                
-                const colorScheme = colorSchemes[subworkIndex % colorSchemes.length];
-
                 return (
-                  <div key={subwork.subworks_id} className={`bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border ${colorScheme.border} overflow-hidden`}>
-                    <div 
-                      className={`px-6 py-4 bg-gradient-to-r ${colorScheme.gradient} cursor-pointer`}
-                      onClick={() => toggleSubworkExpansion(subwork.subworks_id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="p-2 bg-white/20 rounded-lg mr-3">
-                            <Calculator className="h-5 w-5 text-white" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-bold text-white">
-                              {subwork.subworks_id} - {subwork.subworks_name}
-                            </h3>
-                            <p className="text-white/80 text-sm">
-                              {items.length} items
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center">
-                          {isExpanded ? (
-                            <ChevronDown className="w-6 h-6 text-white" />
-                          ) : (
-                            <ChevronRight className="w-6 h-6 text-white" />
-                          )}
-                        </div>
-                      </div>
+                  <div key={subwork.subworks_id} className="mb-8">
+                    {/* Subwork Header */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-t-lg px-4 py-3">
+                      <h3 className="font-semibold text-blue-900">
+                        {subwork.subworks_id} - {subwork.subworks_name}
+                      </h3>
                     </div>
 
-                    {isExpanded && (
-                      <div className="p-6">
-                        {items.length > 0 ? (
-                          <div className="space-y-4">
-                            {items.map((item) => {
-                              const itemMeasurements = estimateData.measurements[item.id] || [];
-                              const itemLeads = estimateData.leads[item.id] || [];
-                              const itemMaterials = estimateData.materials[item.id] || [];
-                              const isItemExpanded = expandedItems.has(item.id);
-
-                              return (
-                                <div key={item.id} className="border border-gray-200 rounded-xl overflow-hidden">
-                                  <div 
-                                    className="p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors duration-200"
-                                    onClick={() => toggleItemExpansion(item.id)}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex-1">
-                                        <div className="flex items-center space-x-3 mb-2">
-                                          <span className="text-sm font-bold text-gray-500">Item #{item.item_number}</span>
-                                          <div className="flex items-center space-x-2">
-                                            {itemMeasurements.length > 0 && (
-                                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                                                <Ruler className="w-3 h-3 mr-1" />
-                                                {itemMeasurements.length} measurements
-                                              </span>
-                                            )}
-                                            {itemLeads.length > 0 && (
-                                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
-                                                <Truck className="w-3 h-3 mr-1" />
-                                                {itemLeads.length} leads
-                                              </span>
-                                            )}
-                                            {itemMaterials.length > 0 && (
-                                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
-                                                <Package className="w-3 h-3 mr-1" />
-                                                {itemMaterials.length} materials
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                        
-                                        <h4 className="text-base font-bold text-gray-900 mb-2">
-                                          {item.description_of_item}
-                                        </h4>
-                                        
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                          <div className="flex items-center text-gray-600">
-                                            <Package className="w-4 h-4 mr-2 text-blue-500" />
-                                            <span>Qty: {item.ssr_quantity} {item.ssr_unit}</span>
-                                          </div>
-                                          <div className="flex items-center text-gray-600">
-                                            <IndianRupee className="w-4 h-4 mr-2 text-green-500" />
-                                            <span>Rate: {formatCurrency(item.ssr_rate || 0)}</span>
-                                          </div>
-                                          <div className="flex items-center text-gray-600">
-                                            <Calculator className="w-4 h-4 mr-2 text-purple-500" />
-                                            <span>Total: {formatCurrency(item.total_item_amount || 0)}</span>
-                                          </div>
-                                          <div className="flex items-center text-gray-600">
-                                            {isItemExpanded ? (
-                                              <ChevronDown className="w-4 h-4 mr-2 text-gray-400" />
-                                            ) : (
-                                              <ChevronRight className="w-4 h-4 mr-2 text-gray-400" />
-                                            )}
-                                            <span>Details</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
+                    {/* Items Table */}
+                    <div className="bg-white border-l border-r border-b border-gray-200 rounded-b-lg overflow-hidden">
+                      <table className="min-w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                              Item #
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                              Description
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                              Quantity
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                              Unit
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                              Rate (₹)
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                              Amount (₹)
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Details
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {items.map((item) => {
+                            const itemMeasurements = estimateData.measurements[item.id] || [];
+                            const itemLeads = estimateData.leads[item.id] || [];
+                            const itemMaterials = estimateData.materials[item.id] || [];
+                            
+                            return (
+                              <tr key={item.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                                  {item.item_number}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200 max-w-xs">
+                                  <div className="truncate" title={item.description_of_item}>
+                                    {item.description_of_item}
                                   </div>
-
-                                  {isItemExpanded && (
-                                    <div className="p-4 bg-white border-t border-gray-200">
-                                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                        
-                                        {/* Measurements */}
-                                        <div>
-                                          <h5 className="font-bold text-gray-900 mb-3 flex items-center">
-                                            <Ruler className="w-4 h-4 mr-2 text-green-500" />
-                                            Measurements ({itemMeasurements.length})
-                                          </h5>
-                                          {itemMeasurements.length > 0 ? (
-                                            <div className="space-y-2 max-h-40 overflow-y-auto">
-                                              {itemMeasurements.map((measurement) => (
-                                                <div key={measurement.id} className="p-2 bg-green-50 rounded-lg text-xs">
-                                                  <p className="font-medium">{measurement.description_of_items}</p>
-                                                  <p className="text-gray-600">
-                                                    Qty: {measurement.calculated_quantity} {measurement.unit}
-                                                  </p>
-                                                  <p className="text-green-600 font-bold">
-                                                    Amount: {formatCurrency(measurement.line_amount)}
-                                                  </p>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          ) : (
-                                            <p className="text-gray-500 text-sm">No measurements</p>
-                                          )}
-                                        </div>
-
-                                        {/* Leads */}
-                                        <div>
-                                          <h5 className="font-bold text-gray-900 mb-3 flex items-center">
-                                            <Truck className="w-4 h-4 mr-2 text-blue-500" />
-                                            Lead Charges ({itemLeads.length})
-                                          </h5>
-                                          {itemLeads.length > 0 ? (
-                                            <div className="space-y-2 max-h-40 overflow-y-auto">
-                                              {itemLeads.map((lead) => (
-                                                <div key={lead.id} className="p-2 bg-blue-50 rounded-lg text-xs">
-                                                  <p className="font-medium">{lead.material}</p>
-                                                  <p className="text-gray-600">
-                                                    Lead: {lead.lead_in_km} km
-                                                  </p>
-                                                  <p className="text-blue-600 font-bold">
-                                                    Charges: {formatCurrency(lead.net_lead_charges)}
-                                                  </p>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          ) : (
-                                            <p className="text-gray-500 text-sm">No lead charges</p>
-                                          )}
-                                        </div>
-
-                                        {/* Materials */}
-                                        <div>
-                                          <h5 className="font-bold text-gray-900 mb-3 flex items-center">
-                                            <Package className="w-4 h-4 mr-2 text-purple-500" />
-                                            Materials ({itemMaterials.length})
-                                          </h5>
-                                          {itemMaterials.length > 0 ? (
-                                            <div className="space-y-2 max-h-40 overflow-y-auto">
-                                              {itemMaterials.map((material) => (
-                                                <div key={material.id} className="p-2 bg-purple-50 rounded-lg text-xs">
-                                                  <p className="font-medium">{material.material_name}</p>
-                                                  <p className="text-gray-600">
-                                                    Qty: {material.required_quantity} {material.unit}
-                                                  </p>
-                                                  <p className="text-purple-600 font-bold">
-                                                    Cost: {formatCurrency(material.total_material_cost)}
-                                                  </p>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          ) : (
-                                            <p className="text-gray-500 text-sm">No materials</p>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8">
-                            <Package className="mx-auto h-12 w-12 text-gray-300" />
-                            <h3 className="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-                            <p className="mt-1 text-sm text-gray-500">
-                              No items available in this subwork.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                                  {item.ssr_quantity}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                                  {item.ssr_unit}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
+                                  {(item.ssr_rate || 0).toLocaleString('hi-IN')}
+                                </td>
+                                <td className="px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-200">
+                                  {(item.total_item_amount || 0).toLocaleString('hi-IN')}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-500">
+                                  <div className="flex items-center space-x-2">
+                                    {itemMeasurements.length > 0 && (
+                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                        <Ruler className="w-3 h-3 mr-1" />
+                                        {itemMeasurements.length}
+                                      </span>
+                                    )}
+                                    {itemLeads.length > 0 && (
+                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                                        <Truck className="w-3 h-3 mr-1" />
+                                        {itemLeads.length}
+                                      </span>
+                                    )}
+                                    {itemMaterials.length > 0 && (
+                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                                        <Package className="w-3 h-3 mr-1" />
+                                        {itemMaterials.length}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot className="bg-gray-50">
+                          <tr>
+                            <td colSpan={5} className="px-4 py-3 text-sm font-medium text-gray-900 text-right border-r border-gray-200">
+                              Subwork Total:
+                            </td>
+                            <td className="px-4 py-3 text-sm font-bold text-gray-900 border-r border-gray-200">
+                              {items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0).toLocaleString('hi-IN')}
+                            </td>
+                            <td className="px-4 py-3"></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
                   </div>
                 );
               })}
+
+              {/* Grand Total */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-semibold text-green-900">Grand Total:</span>
+                  <span className="text-xl font-bold text-green-900">
+                    {formatCurrency(calculateTotalEstimate())}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="text-center py-16">
-            <FileText className="mx-auto h-12 w-12 text-gray-300" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No estimate data found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Unable to load estimate data for the selected work.
-            </p>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <FileText className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No estimate data found</h3>
+              <p className="text-gray-500">Unable to load estimate data for the selected work.</p>
+            </div>
           </div>
         )}
       </div>
