@@ -364,21 +364,21 @@ const Subworks: React.FC = () => {
 
       {/* Selected Work Info */}
       {selectedWork && (
-        <div className="bg-blue-50 rounded-md border border-blue-200 p-3">
+        <div className="bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-100 rounded-2xl border border-indigo-200 p-4 shadow-lg">
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-sm font-medium text-blue-900">
+              <h3 className="text-base font-semibold text-indigo-900">
                 {selectedWork.works_id} - {selectedWork.work_name}
               </h3>
-              <p className="text-xs text-blue-700 mt-1">
+              <p className="text-sm text-indigo-700 mt-1">
                 Division: {selectedWork.division || 'N/A'}
               </p>
-              <div className="flex items-center mt-1 text-xs text-blue-600">
+              <div className="flex items-center mt-2 text-sm text-indigo-600">
                 <IndianRupee className="w-3 h-3 mr-1" />
                 <span>Total Estimate: {formatCurrency(selectedWork.total_estimated_cost)}</span>
               </div>
             </div>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-indigo-500 to-blue-600 text-white shadow-lg">
               {selectedWork.status}
             </span>
           </div>
@@ -389,22 +389,27 @@ const Subworks: React.FC = () => {
       {selectedWorkId ? (
         <div className="grid grid-cols-1 gap-6">
           {/* Left Panel - Subworks List */}
-          <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
+          <div className="bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900">Sub Works</h3>
+                <div className="flex items-center">
+                  <div className="p-2 bg-white/20 rounded-lg mr-3">
+                    <Calculator className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white">Sub Works</h3>
+                </div>
                 <div className="flex items-center space-x-2">
                   <button 
                     onClick={() => setShowAddModal(true)}
                     disabled={!selectedWorkId}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50">
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-xl shadow-lg text-xs font-semibold text-white bg-white/20 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all duration-200 disabled:opacity-50 hover:scale-105">
                     <Plus className="w-3 h-3 mr-1" />
                     Add Sub Work
                   </button>
                   <button
                     onClick={handleViewItems}
                     disabled={selectedSubworkIds.length === 0}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 disabled:opacity-50"
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-xl shadow-lg text-xs font-semibold text-white bg-white/20 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all duration-200 disabled:opacity-50 hover:scale-105"
                   >
                     <Eye className="w-3 h-3 mr-1" />
                     View Items ({selectedSubworkIds.length > 0 ? `${getTotalItemsCount()} items` : '0 items'})
@@ -418,8 +423,8 @@ const Subworks: React.FC = () => {
                   <div
                     key={subwork.sr_no}
                     onClick={() => handleSubworkCheckbox(subwork.subworks_id)}
-                    className={`p-4 hover:bg-gray-50 transition-colors ${
-                      selectedSubworkIds.includes(subwork.id) ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                    className={`p-4 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 transition-all duration-200 cursor-pointer ${
+                      selectedSubworkIds.includes(subwork.subworks_id) ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-l-4 border-emerald-500' : ''
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -427,7 +432,7 @@ const Subworks: React.FC = () => {
                         <div className="flex items-center space-x-3">
                           <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
                             selectedSubworkIds.includes(subwork.subworks_id) 
-                              ? 'bg-blue-600 border-blue-600' 
+                              ? 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-600' 
                               : 'border-gray-300'
                           }`}>
                             {selectedSubworkIds.includes(subwork.subworks_id) && (
@@ -463,7 +468,7 @@ const Subworks: React.FC = () => {
                             setCurrentSubworkForItems({ id: subwork.subworks_id, name: subwork.subworks_name });
                             setShowItemsModal(true);
                           }}
-                          className="text-green-600 hover:text-green-900 p-1 rounded"
+                          className="text-green-600 hover:text-green-900 p-2 rounded-lg hover:bg-green-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-300"
                           title="Add Items"
                         >
                           <Plus className="w-4 h-4" />
@@ -474,7 +479,7 @@ const Subworks: React.FC = () => {
                             e.stopPropagation();
                             handleViewSubwork(subwork);
                           }}
-                          className="text-blue-600 hover:text-blue-900 p-1 rounded"
+                          className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
                           title="View Subwork"
                         >
                           <Eye className="w-4 h-4" />
@@ -485,7 +490,7 @@ const Subworks: React.FC = () => {
                             e.stopPropagation();
                             handleEditSubwork(subwork);
                           }}
-                          className="text-green-600 hover:text-green-900 p-1 rounded"
+                          className="text-emerald-600 hover:text-emerald-900 p-2 rounded-lg hover:bg-emerald-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-300"
                           title="Edit Subwork"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -496,7 +501,7 @@ const Subworks: React.FC = () => {
                             e.stopPropagation();
                             handleDeleteSubwork(subwork);
                           }}
-                          className="text-red-600 hover:text-red-900 p-1 rounded"
+                          className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300"
                           title="Delete Subwork"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -508,7 +513,9 @@ const Subworks: React.FC = () => {
               </div>
             ) : (
               <div className="text-center py-12">
-                <Calculator className="mx-auto h-12 w-12 text-gray-300" />
+                <div className="mx-auto w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-200 rounded-2xl flex items-center justify-center mb-4">
+                  <Calculator className="h-10 w-10 text-emerald-600" />
+                </div>
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No sub works found</h3>
                 <p className="mt-1 text-sm text-gray-500">
                   Add sub work items to break down the estimate.
@@ -517,7 +524,7 @@ const Subworks: React.FC = () => {
                   <button 
                     onClick={() => setShowAddModal(true)}
                     disabled={!selectedWorkId}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    className="inline-flex items-center px-6 py-3 border border-transparent shadow-lg text-sm font-semibold rounded-2xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-300 transition-all duration-300">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Sub Work
                   </button>
@@ -528,7 +535,9 @@ const Subworks: React.FC = () => {
         </div>
       ) : (
         <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
-          <FileText className="mx-auto h-12 w-12 text-gray-300" />
+          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl flex items-center justify-center mb-4">
+            <FileText className="h-10 w-10 text-gray-500" />
+          </div>
           <h3 className="mt-2 text-sm font-medium text-gray-900">Select a work to view sub works</h3>
           <p className="mt-1 text-sm text-gray-500">
             Choose a main work item to manage its detailed sub work breakdown.

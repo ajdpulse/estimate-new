@@ -92,13 +92,14 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-sm">
-        <div className="px-4 py-3">
+      <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
+        <div className="px-6 py-4">
           <div className="flex items-center">
             <div>
-              <h1 className="text-lg font-bold text-white">
+              <h1 className="text-xl font-bold text-white drop-shadow-lg">
                 {t('dashboard.welcome')}, {user?.user_metadata?.full_name || user?.email}
               </h1>
+              <p className="text-indigo-100 text-sm mt-1">E-Estimate Management System</p>
             </div>
           </div>
         </div>
@@ -106,64 +107,72 @@ const Dashboard: React.FC = () => {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-gradient-to-br from-emerald-50 to-teal-100 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-emerald-200 p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <FileText className="h-8 w-8 text-blue-600" />
+              <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">
+              <p className="text-sm font-medium text-emerald-700">
                 {t('dashboard.totalWorks')}
               </p>
-              <p className="text-2xl font-semibold text-gray-900">
+              <p className="text-2xl font-bold text-emerald-900">
                 {stats?.totalWorks || 0}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-gradient-to-br from-amber-50 to-yellow-100 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-amber-200 p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Clock className="h-8 w-8 text-yellow-600" />
+              <div className="p-3 bg-gradient-to-br from-amber-500 to-yellow-600 rounded-xl shadow-lg">
+                <Clock className="h-6 w-6 text-white" />
+              </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">
+              <p className="text-sm font-medium text-amber-700">
                 {t('dashboard.pendingApprovals')}
               </p>
-              <p className="text-2xl font-semibold text-gray-900">
+              <p className="text-2xl font-bold text-amber-900">
                 {stats?.pendingApprovals || 0}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-green-200 p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <IndianRupee className="h-8 w-8 text-green-600" />
+              <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg">
+                <IndianRupee className="h-6 w-6 text-white" />
+              </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">
+              <p className="text-sm font-medium text-green-700">
                 {t('dashboard.totalAmount')}
               </p>
-              <p className="text-2xl font-semibold text-gray-900">
+              <p className="text-2xl font-bold text-green-900">
                 {formatCurrency(stats?.totalAmount || 0)}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-gradient-to-br from-violet-50 to-purple-100 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-violet-200 p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <FileText className="h-8 w-8 text-blue-600" />
+              <div className="p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-lg">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">
+              <p className="text-sm font-medium text-violet-700">
                 Technical Sanction
               </p>
-              <p className="text-2xl font-semibold text-gray-900">
+              <p className="text-2xl font-bold text-violet-900">
                 {stats?.recentWorks.filter(w => w.type === 'Technical Sanction').length || 0}
               </p>
             </div>
@@ -172,11 +181,13 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="bg-gradient-to-br from-slate-50 to-gray-100 rounded-2xl shadow-lg border border-slate-200">
+        <div className="px-6 py-4 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-t-2xl">
           <div className="flex items-center">
-            <Activity className="h-5 w-5 text-gray-400 mr-2" />
-            <h2 className="text-lg font-medium text-gray-900">
+            <div className="p-2 bg-white/20 rounded-lg mr-3">
+              <Activity className="h-5 w-5 text-white" />
+            </div>
+            <h2 className="text-lg font-semibold text-white">
               {t('dashboard.recentActivity')}
             </h2>
           </div>
@@ -218,24 +229,37 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
+      <div className="bg-gradient-to-br from-slate-50 to-gray-100 rounded-2xl shadow-lg border border-slate-200 p-6">
+        <div className="flex items-center mb-6">
+          <div className="p-2 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg mr-3">
+            <TrendingUp className="h-5 w-5 text-white" />
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-            <FileText className="h-8 w-8 text-blue-600 mb-2" />
-            <span className="text-sm font-medium text-gray-900">{t('works.addNew')}</span>
+          <button className="group flex flex-col items-center p-6 bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200 rounded-2xl hover:from-blue-100 hover:to-indigo-200 hover:shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300 mb-3">
+              <FileText className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-sm font-semibold text-blue-900 group-hover:text-blue-800">{t('works.addNew')}</span>
           </button>
-          <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-            <BarChart3 className="h-8 w-8 text-green-600 mb-2" />
-            <span className="text-sm font-medium text-gray-900">View Reports</span>
+          <button className="group flex flex-col items-center p-6 bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200 rounded-2xl hover:from-green-100 hover:to-emerald-200 hover:shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-green-300">
+            <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300 mb-3">
+              <BarChart3 className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-sm font-semibold text-green-900 group-hover:text-green-800">View Reports</span>
           </button>
-          <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-            <TrendingUp className="h-8 w-8 text-purple-600 mb-2" />
-            <span className="text-sm font-medium text-gray-900">Analytics</span>
+          <button className="group flex flex-col items-center p-6 bg-gradient-to-br from-purple-50 to-pink-100 border border-purple-200 rounded-2xl hover:from-purple-100 hover:to-pink-200 hover:shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-purple-300">
+            <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300 mb-3">
+              <TrendingUp className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-sm font-semibold text-purple-900 group-hover:text-purple-800">Analytics</span>
           </button>
-          <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-            <Clock className="h-8 w-8 text-orange-600 mb-2" />
-            <span className="text-sm font-medium text-gray-900">Pending Reviews</span>
+          <button className="group flex flex-col items-center p-6 bg-gradient-to-br from-orange-50 to-red-100 border border-orange-200 rounded-2xl hover:from-orange-100 hover:to-red-200 hover:shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-orange-300">
+            <div className="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300 mb-3">
+              <Clock className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-sm font-semibold text-orange-900 group-hover:text-orange-800">Pending Reviews</span>
           </button>
         </div>
       </div>

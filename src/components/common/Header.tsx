@@ -11,11 +11,11 @@ const Header: React.FC = () => {
   const { t } = useLanguage();
 
   const navigationItems = [
-    { key: 'dashboard', path: '/dashboard', label: 'E-Estimate' },
-    { key: 'works', path: '/works', label: t('nav.works') },
-    { key: 'subworks', path: '/subworks', label: t('nav.subworks') },
-    { key: 'compare', path: '/compare', label: t('nav.compare') },
-    { key: 'measurement-book', path: '/measurement-book', label: 'Measurement Book (MB)' },
+    { key: 'dashboard', path: '/dashboard', label: 'E-Estimate', gradient: 'from-indigo-500 to-blue-600' },
+    { key: 'works', path: '/works', label: t('nav.works'), gradient: 'from-emerald-500 to-teal-600' },
+    { key: 'subworks', path: '/subworks', label: t('nav.subworks'), gradient: 'from-purple-500 to-pink-600' },
+    { key: 'compare', path: '/compare', label: t('nav.compare'), gradient: 'from-orange-500 to-red-600' },
+    { key: 'measurement-book', path: '/measurement-book', label: 'Measurement Book (MB)', gradient: 'from-violet-500 to-purple-600' },
   ];
 
   const handleSignOut = async () => {
@@ -28,14 +28,14 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-white shadow-lg border-b border-gray-200">
+    <header className="bg-gradient-to-r from-slate-50 to-gray-100 shadow-xl border-b border-slate-200">
       {/* Top Bar - Logo, Title, Profile, Language */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-12">
           {/* Logo and Title */}
           <div className="flex items-center space-x-4">
             <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-xl shadow-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">E</span>
               </div>
             </div>
@@ -60,7 +60,7 @@ const Header: React.FC = () => {
               
               <button
                 onClick={handleSignOut}
-                className="flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors duration-200"
+                className="flex items-center space-x-1 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300"
               >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">{t('nav.signOut')}</span>
@@ -71,17 +71,17 @@ const Header: React.FC = () => {
       </div>
 
       {/* Navigation Bar */}
-      <div className="border-t border-gray-200 bg-gray-50">
+      <div className="border-t border-slate-200 bg-gradient-to-r from-slate-100 to-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-1 py-1">
             {navigationItems.map((item) => (
               <button
                 key={item.key}
                 onClick={() => navigate(item.path)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 ${
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
                   location.pathname === item.path
-                    ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600'
-                    : 'text-gray-600 hover:text-blue-600 hover:bg-white'
+                    ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg scale-105`
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-white/60 hover:scale-105 hover:shadow-md'
                 }`}
               >
                 {item.label}
@@ -92,16 +92,16 @@ const Header: React.FC = () => {
       </div>
 
       {/* Mobile Navigation */}
-      <div className="md:hidden border-t border-gray-200 bg-gray-50">
+      <div className="md:hidden border-t border-slate-200 bg-gradient-to-r from-slate-100 to-gray-200">
         <div className="px-2 py-2 space-y-1">
           {navigationItems.map((item) => (
             <button
               key={item.key}
               onClick={() => navigate(item.path)}
-              className={`block w-full text-left px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 ${
+              className={`block w-full text-left px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
                 location.pathname === item.path
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-white'
+                  ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-white/60 hover:shadow-md'
               }`}
             >
               {item.label}

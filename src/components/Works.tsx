@@ -228,7 +228,7 @@ const Works: React.FC = () => {
         <div className="mt-4 sm:mt-0">
           <button 
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+            className="inline-flex items-center px-6 py-3 border border-transparent rounded-2xl shadow-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300"
           >
             <Plus className="w-4 h-4 mr-2" />
             {t('works.addNew')}
@@ -237,7 +237,7 @@ const Works: React.FC = () => {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+      <div className="bg-gradient-to-r from-slate-50 to-gray-100 rounded-2xl shadow-lg border border-slate-200 p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Search */}
           <div className="flex-1 relative max-w-md">
@@ -249,7 +249,7 @@ const Works: React.FC = () => {
               placeholder={t('works.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-xl leading-5 bg-white/80 backdrop-blur-sm placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:bg-white transition-all duration-200"
             />
           </div>
 
@@ -259,7 +259,7 @@ const Works: React.FC = () => {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="block pl-2 pr-8 py-1.5 text-sm border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
+              className="block pl-3 pr-8 py-2 text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-xl bg-white/80 backdrop-blur-sm hover:bg-white transition-all duration-200"
             >
               <option value="all">All Types</option>
               <option value="Technical Sanction">Technical Sanction (TS)</option>
@@ -270,44 +270,44 @@ const Works: React.FC = () => {
       </div>
 
       {/* Works List */}
-      <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+      <div className="bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border border-slate-200 overflow-hidden">
         {filteredWorks.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gradient-to-r from-indigo-500 to-blue-600">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                     Sr No
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                     Works ID
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                     Work Name
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                     Division
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                     Total Estimated Cost
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                     Created
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                     {t('works.actions')}
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredWorks.map((work) => (
-                  <tr key={work.sr_no} className="hover:bg-gray-50">
+                  <tr key={work.sr_no} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200">
                     <td className="px-4 py-2 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {work.sr_no}
@@ -365,28 +365,28 @@ const Works: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <button 
                           onClick={() => handleViewWork(work)}
-                          className="text-blue-600 hover:text-blue-900 p-1 rounded"
+                          className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
                           title="View Work"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => handleEditWork(work)}
-                          className="text-green-600 hover:text-green-900 p-1 rounded"
+                          className="text-green-600 hover:text-green-900 p-2 rounded-lg hover:bg-green-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-300"
                           title="Edit Work"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => handleDeleteWork(work)}
-                          className="text-red-600 hover:text-red-900 p-1 rounded"
+                          className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300"
                           title="Delete Work"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => handleGeneratePDF(work)}
-                          className="text-purple-600 hover:text-purple-900 p-1 rounded"
+                          className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-300"
                           title="Generate PDF Report"
                         >
                           <Download className="w-4 h-4" />
@@ -400,7 +400,9 @@ const Works: React.FC = () => {
           </div>
         ) : (
           <div className="text-center py-12">
-            <FileText className="mx-auto h-12 w-12 text-gray-300" />
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl flex items-center justify-center mb-4">
+              <FileText className="h-10 w-10 text-gray-500" />
+            </div>
             <h3 className="mt-2 text-sm font-medium text-gray-900">No works found</h3>
             <p className="mt-1 text-sm text-gray-500">
               Get started by creating a new work estimate.
@@ -408,7 +410,7 @@ const Works: React.FC = () => {
             <div className="mt-6">
               <button 
                 onClick={() => setShowAddModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center px-6 py-3 border border-transparent shadow-lg text-sm font-semibold rounded-2xl text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 {t('works.addNew')}
