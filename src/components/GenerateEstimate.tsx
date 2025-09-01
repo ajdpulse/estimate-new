@@ -124,9 +124,9 @@ const GenerateEstimate: React.FC = () => {
             supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_id', item.sr_no)
           ]);
 
-          measurements[item.id] = measurementsRes.data || [];
-          leads[item.id] = leadsRes.data || [];
-          materials[item.id] = materialsRes.data || [];
+          measurements[item.sr_no] = measurementsRes.data || [];
+          leads[item.sr_no] = leadsRes.data || [];
+          materials[item.sr_no] = materialsRes.data || [];
         }
       }
 
@@ -306,7 +306,7 @@ const GenerateEstimate: React.FC = () => {
           if (itemError) throw itemError;
 
           // Create measurements
-          const measurements = templateData.measurements[item.id] || [];
+          const measurements = templateData.measurements[item.sr_no] || [];
           for (const measurement of measurements) {
             const { error: measurementError } = await supabase
               .schema('estimate')
@@ -336,7 +336,7 @@ const GenerateEstimate: React.FC = () => {
           }
 
           // Create leads
-          const leads = templateData.leads[item.id] || [];
+          const leads = templateData.leads[item.sr_no] || [];
           for (const lead of leads) {
             const { error: leadError } = await supabase
               .schema('estimate')
@@ -356,7 +356,7 @@ const GenerateEstimate: React.FC = () => {
           }
 
           // Create materials
-          const materials = templateData.materials[item.id] || [];
+          const materials = templateData.materials[item.sr_no] || [];
           for (const material of materials) {
             const { error: materialError } = await supabase
               .schema('estimate')
