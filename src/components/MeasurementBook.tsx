@@ -392,40 +392,6 @@ const MeasurementBook: React.FC = () => {
                           className={`p-6 hover:bg-gradient-to-r hover:${colorScheme.bg} transition-all duration-200`}
                         >
                           <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-3">
-                                <span className="text-sm font-bold text-gray-500">
-                                  Item #{item.item_number}
-                                </span>
-                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${measurementStatus.color} ${measurementStatus.textColor} shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105`}>
-                                  <Ruler className="w-3 h-3 mr-1" />
-                                  {measurementStatus.count} measurements
-                                </span>
-                              </div>
-                              
-                              <h4 className="text-base font-bold text-gray-900 mb-3 line-clamp-2">
-                                {item.description_of_item}
-                              </h4>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                                <div className="flex items-center text-gray-600">
-                                  <Package className="w-4 h-4 mr-2 text-blue-500" />
-                                  <span>Qty: {item.ssr_quantity} {item.ssr_unit}</span>
-                                </div>
-                                <div className="flex items-center text-gray-600">
-                                  <IndianRupee className="w-4 h-4 mr-2 text-green-500" />
-                                  <span>Rate: {formatCurrency(item.ssr_rate)}</span>
-                                </div>
-                                <div className="flex items-center text-gray-600">
-                                  <Calculator className="w-4 h-4 mr-2 text-purple-500" />
-                                  <span>Estimate: {formatCurrency(item.total_item_amount)}</span>
-                                </div>
-                                <div className="flex items-center text-gray-600">
-                                  <Ruler className="w-4 h-4 mr-2 text-orange-500" />
-                                  <span>Measured: {formatCurrency(measurementStatus.amount)}</span>
-                                </div>
-                              </div>
-
                             </div>
                             
                             <div className="ml-6">
