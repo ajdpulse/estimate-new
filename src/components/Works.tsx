@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LoadingSpinner } from './common/LoadingSpinner';
+import LoadingSpinner from './common/LoadingSpinner';
 import { Work } from '../types';
 import { 
   Plus, 
