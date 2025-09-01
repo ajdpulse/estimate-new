@@ -154,7 +154,7 @@ const MeasurementBook: React.FC = () => {
 
   const handleAddMeasurement = (item: SubworkItem, subwork: SubWork) => {
     setSelectedItemForMeasurement({
-      itemId: item.sr_no,
+      itemId: item.id,
       itemName: item.description_of_item,
       subworkId: subwork.subworks_id,
       subworkName: subwork.subworks_name
