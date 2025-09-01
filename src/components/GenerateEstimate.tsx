@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Work } from '../types';
+import { Work, EstimateTemplate, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
 import EstimatePDFGenerator from './EstimatePDFGenerator';
 import { 
@@ -13,7 +13,12 @@ import {
   Building,
   IndianRupee,
   Eye,
-  Printer
+  Printer,
+  Save,
+  Copy,
+  Trash2,
+  Plus,
+  BookOpen
 } from 'lucide-react';
 
 const GenerateEstimate: React.FC = () => {
@@ -28,6 +33,7 @@ const GenerateEstimate: React.FC = () => {
 
   useEffect(() => {
     fetchWorks();
+    fetchTemplates();
   }, []);
 
   const fetchWorks = async () => {
@@ -48,6 +54,333 @@ const GenerateEstimate: React.FC = () => {
     }
   };
 
+  const fetchTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('estimate_templates')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setTemplates(data || []);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    }
+  };
+
+  const fetchCompleteEstimateData = async (worksId: string) => {
+    try {
+      // Fetch work details
+      const { data: work, error: workError } = await supabase
+        .schema('estimate')
+        .from('works')
+        .select('*')
+        .eq('works_id', worksId)
+        .single();
+
+      if (workError || !work) throw workError;
+
+      // Fetch subworks
+      const { data: subworks, error: subworksError } = await supabase
+        .schema('estimate')
+        .from('subworks')
+        .select('*')
+        .eq('works_id', worksId)
+        .order('sr_no');
+
+      if (subworksError) throw subworksError;
+
+      // Fetch all related data
+      const subworkItems: { [subworkId: string]: SubworkItem[] } = {};
+      const measurements: { [itemId: string]: ItemMeasurement[] } = {};
+      const leads: { [itemId: string]: ItemLead[] } = {};
+      const materials: { [itemId: string]: ItemMaterial[] } = {};
+
+      for (const subwork of subworks || []) {
+        const { data: items } = await supabase
+          .schema('estimate')
+          .from('subwork_items')
+          .select('*')
+          .eq('subwork_id', subwork.subworks_id)
+          .order('sr_no');
+
+        subworkItems[subwork.subworks_id] = items || [];
+
+        // Fetch measurements, leads, and materials for each item
+        for (const item of items || []) {
+          const [measurementsRes, leadsRes, materialsRes] = await Promise.all([
+            supabase.schema('estimate').from('item_measurements').select('*').eq('subwork_item_id', item.sr_no),
+            supabase.schema('estimate').from('item_leads').select('*').eq('subwork_item_id', item.sr_no),
+            supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_id', item.sr_no)
+          ]);
+
+          measurements[item.id] = measurementsRes.data || [];
+          leads[item.id] = leadsRes.data || [];
+          materials[item.id] = materialsRes.data || [];
+        }
+      }
+
+      return {
+        work,
+        subworks: subworks || [],
+        subworkItems,
+        measurements,
+        leads,
+        materials
+      };
+    } catch (error) {
+      console.error('Error fetching complete estimate data:', error);
+      return null;
+    }
+  };
+
+  const handleSaveAsTemplate = async (work: Work) => {
+    setSelectedWorkForTemplate(work);
+    setTemplateName(`${work.work_name} Template`);
+    setTemplateDescription(`Template based on ${work.works_id}`);
+    setShowSaveTemplate(true);
+  };
+
+  const saveTemplate = async () => {
+    if (!selectedWorkForTemplate || !templateName.trim() || !user) return;
+
+    // Check if user already has 10 templates
+    if (templates.length >= 10) {
+      alert('You can only save up to 10 templates. Please delete some templates first.');
+      return;
+    }
+
+    try {
+      setSavingTemplate(true);
+
+      // Fetch complete estimate data
+      const completeData = await fetchCompleteEstimateData(selectedWorkForTemplate.works_id);
+      if (!completeData) {
+        alert('Error fetching estimate data');
+        return;
+      }
+
+      // Save template
+      const { error } = await supabase
+        .from('estimate_templates')
+        .insert([{
+          template_name: templateName.trim(),
+          description: templateDescription.trim() || null,
+          original_works_id: selectedWorkForTemplate.works_id,
+          template_data: completeData,
+          created_by: user.id
+        }]);
+
+      if (error) throw error;
+
+      alert('Template saved successfully!');
+      setShowSaveTemplate(false);
+      setSelectedWorkForTemplate(null);
+      setTemplateName('');
+      setTemplateDescription('');
+      fetchTemplates();
+    } catch (error) {
+      console.error('Error saving template:', error);
+      alert('Error saving template');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const generateNewWorksId = async (): Promise<string> => {
+    try {
+      const { data, error } = await supabase
+        .schema('estimate')
+        .from('works')
+        .select('works_id')
+        .order('sr_no', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      let nextNumber = 1;
+      if (data && data.length > 0) {
+        const lastWorksId = data[0].works_id;
+        const match = lastWorksId.match(/(\d+)$/);
+        if (match) {
+          nextNumber = parseInt(match[1]) + 1;
+        }
+      }
+
+      return `WORK-${nextNumber.toString().padStart(4, '0')}`;
+    } catch (error) {
+      console.error('Error generating works ID:', error);
+      return `WORK-${Date.now()}`;
+    }
+  };
+
+  const createEstimateFromTemplate = async (template: EstimateTemplate) => {
+    if (!user) return;
+
+    try {
+      setCreatingFromTemplate(true);
+
+      const newWorksId = await generateNewWorksId();
+      const templateData = template.template_data;
+
+      // Create new work
+      const newWork = {
+        ...templateData.work,
+        works_id: newWorksId,
+        work_name: `${templateData.work.work_name} (From Template)`,
+        status: 'draft' as const,
+        created_by: user.id,
+        total_estimated_cost: 0 // Will be recalculated
+      };
+
+      const { data: createdWork, error: workError } = await supabase
+        .schema('estimate')
+        .from('works')
+        .insert([newWork])
+        .select()
+        .single();
+
+      if (workError) throw workError;
+
+      // Create subworks
+      const subworkMapping: { [oldId: string]: string } = {};
+      for (const subwork of templateData.subworks) {
+        const newSubworkId = `${newWorksId}-${subwork.subworks_id.split('-').pop()}`;
+        subworkMapping[subwork.subworks_id] = newSubworkId;
+
+        const { error: subworkError } = await supabase
+          .schema('estimate')
+          .from('subworks')
+          .insert([{
+            works_id: newWorksId,
+            subworks_id: newSubworkId,
+            subworks_name: subwork.subworks_name,
+            created_by: user.id
+          }]);
+
+        if (subworkError) throw subworkError;
+
+        // Create subwork items
+        const items = templateData.subworkItems[subwork.subworks_id] || [];
+        for (const item of items) {
+          const { data: createdItem, error: itemError } = await supabase
+            .schema('estimate')
+            .from('subwork_items')
+            .insert([{
+              subwork_id: newSubworkId,
+              item_number: item.item_number,
+              category: item.category,
+              description_of_item: item.description_of_item,
+              ssr_quantity: item.ssr_quantity,
+              ssr_rate: item.ssr_rate,
+              ssr_unit: item.ssr_unit,
+              total_item_amount: item.total_item_amount,
+              created_by: user.id
+            }])
+            .select()
+            .single();
+
+          if (itemError) throw itemError;
+
+          // Create measurements
+          const measurements = templateData.measurements[item.id] || [];
+          for (const measurement of measurements) {
+            const { error: measurementError } = await supabase
+              .schema('estimate')
+              .from('item_measurements')
+              .insert([{
+                subwork_item_id: createdItem.sr_no,
+                measurement_sr_no: measurement.measurement_sr_no,
+                ssr_reference: measurement.ssr_reference,
+                works_number: measurement.works_number,
+                sub_works_number: measurement.sub_works_number,
+                description_of_items: measurement.description_of_items,
+                sub_description: measurement.sub_description,
+                no_of_units: measurement.no_of_units,
+                length: measurement.length,
+                width_breadth: measurement.width_breadth,
+                height_depth: measurement.height_depth,
+                calculated_quantity: measurement.calculated_quantity,
+                unit: measurement.unit,
+                is_deduction: measurement.is_deduction,
+                is_manual_quantity: measurement.is_manual_quantity,
+                manual_quantity: measurement.manual_quantity,
+                selected_rate_id: measurement.selected_rate_id,
+                line_amount: measurement.line_amount
+              }]);
+
+            if (measurementError) throw measurementError;
+          }
+
+          // Create leads
+          const leads = templateData.leads[item.id] || [];
+          for (const lead of leads) {
+            const { error: leadError } = await supabase
+              .schema('estimate')
+              .from('item_leads')
+              .insert([{
+                subwork_item_id: createdItem.sr_no,
+                sr_no: lead.sr_no,
+                material: lead.material,
+                location_of_quarry: lead.location_of_quarry,
+                lead_in_km: lead.lead_in_km,
+                lead_charges: lead.lead_charges,
+                initial_lead_charges: lead.initial_lead_charges,
+                net_lead_charges: lead.net_lead_charges
+              }]);
+
+            if (leadError) throw leadError;
+          }
+
+          // Create materials
+          const materials = templateData.materials[item.id] || [];
+          for (const material of materials) {
+            const { error: materialError } = await supabase
+              .schema('estimate')
+              .from('item_materials')
+              .insert([{
+                subwork_item_id: createdItem.sr_no,
+                material_name: material.material_name,
+                required_quantity: material.required_quantity,
+                unit: material.unit,
+                rate_per_unit: material.rate_per_unit,
+                total_material_cost: material.total_material_cost
+              }]);
+
+            if (materialError) throw materialError;
+          }
+        }
+      }
+
+      alert(`New estimate created successfully with Works ID: ${newWorksId}`);
+      fetchWorks();
+    } catch (error) {
+      console.error('Error creating estimate from template:', error);
+      alert('Error creating estimate from template');
+    } finally {
+      setCreatingFromTemplate(false);
+    }
+  };
+
+  const deleteTemplate = async (templateId: string) => {
+    if (!confirm('Are you sure you want to delete this template?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('estimate_templates')
+        .delete()
+        .eq('id', templateId);
+
+      if (error) throw error;
+
+      alert('Template deleted successfully');
+      fetchTemplates();
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      alert('Error deleting template');
+    }
+  };
   const handleGeneratePDF = (work: Work) => {
     setSelectedWorkForPDF(work.works_id);
     setShowPDFGenerator(true);
@@ -127,7 +460,7 @@ const GenerateEstimate: React.FC = () => {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-gradient-to-r from-slate-50 to-gray-100 rounded-2xl shadow-lg border border-slate-200 p-6">
+      <div className="bg-gradient-to-r from-slate-50 to-gray-100 rounded-2xl shadow-lg border border-slate-200 p-6 space-y-4">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Search */}
           <div className="flex-1 relative max-w-md">
@@ -174,7 +507,100 @@ const GenerateEstimate: React.FC = () => {
             </select>
           </div>
         </div>
+        
+        {/* Template Actions */}
+        <div className="flex items-center justify-between pt-4 border-t border-slate-300">
+          <div className="flex items-center space-x-2">
+            <BookOpen className="h-4 w-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Templates ({templates.length}/10)</span>
+          </div>
+          <button
+            onClick={() => setShowTemplates(!showTemplates)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200 shadow-lg"
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            {showTemplates ? 'Hide Templates' : 'View Templates'}
+          </button>
+        </div>
       </div>
+
+      {/* Templates Section */}
+      {showTemplates && (
+        <div className="bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-2 bg-white/20 rounded-lg mr-3">
+                  <BookOpen className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-lg font-semibold text-white">Saved Templates ({templates.length}/10)</h2>
+              </div>
+              {creatingFromTemplate && (
+                <div className="flex items-center text-white">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Creating estimate...
+                </div>
+              )}
+            </div>
+          </div>
+
+          {templates.length > 0 ? (
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {templates.map((template) => (
+                  <div
+                    key={template.id}
+                    className="bg-gradient-to-br from-emerald-50 to-teal-100 rounded-2xl p-4 border border-emerald-200 hover:shadow-lg transition-all duration-300 hover:scale-105"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="text-sm font-bold text-emerald-900 truncate">
+                        {template.template_name}
+                      </h3>
+                      <button
+                        onClick={() => deleteTemplate(template.id)}
+                        className="text-red-500 hover:text-red-700 p-1 rounded-lg hover:bg-red-100 transition-all duration-200"
+                        title="Delete Template"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    {template.description && (
+                      <p className="text-xs text-emerald-700 mb-3 line-clamp-2">
+                        {template.description}
+                      </p>
+                    )}
+                    
+                    <div className="text-xs text-emerald-600 mb-3">
+                      <p>Original: {template.original_works_id}</p>
+                      <p>Created: {new Date(template.created_at).toLocaleDateString('hi-IN')}</p>
+                    </div>
+                    
+                    <button
+                      onClick={() => createEstimateFromTemplate(template)}
+                      disabled={creatingFromTemplate}
+                      className="w-full inline-flex items-center justify-center px-3 py-2 border border-transparent rounded-xl shadow-lg text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-300 transition-all duration-300 disabled:opacity-50"
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      Create New Estimate
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="mx-auto w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-200 rounded-2xl flex items-center justify-center mb-4">
+                <BookOpen className="h-8 w-8 text-emerald-600" />
+              </div>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No templates saved</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Save estimates as templates to reuse them later.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Works List for PDF Generation */}
       <div className="bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border border-slate-200 overflow-hidden">
@@ -223,13 +649,24 @@ const GenerateEstimate: React.FC = () => {
                   </div>
                   
                   <div className="ml-6">
-                    <button
-                      onClick={() => handleGeneratePDF(work)}
-                      className="inline-flex items-center px-6 py-3 border border-transparent rounded-2xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-violet-300 transition-all duration-300"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Generate PDF
-                    </button>
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={() => handleSaveAsTemplate(work)}
+                        disabled={templates.length >= 10}
+                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-2xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-300 transition-all duration-300 disabled:opacity-50"
+                        title={templates.length >= 10 ? "Maximum 10 templates allowed" : "Save as Template"}
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Template
+                      </button>
+                      <button
+                        onClick={() => handleGeneratePDF(work)}
+                        className="inline-flex items-center px-6 py-3 border border-transparent rounded-2xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-violet-300 transition-all duration-300"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Generate PDF
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

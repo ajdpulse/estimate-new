@@ -155,6 +155,24 @@ export interface EstimateSubWork {
   updated_at: string;
 }
 
+export interface EstimateTemplate {
+  id: string;
+  template_name: string;
+  description?: string;
+  original_works_id: string;
+  template_data: {
+    work: Work;
+    subworks: SubWork[];
+    subworkItems: { [subworkId: string]: SubworkItem[] };
+    measurements: { [itemId: string]: ItemMeasurement[] };
+    leads: { [itemId: string]: ItemLead[] };
+    materials: { [itemId: string]: ItemMaterial[] };
+  };
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   loading: boolean;
