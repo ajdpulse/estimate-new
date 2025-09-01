@@ -46,6 +46,7 @@ const MeasurementBook: React.FC = () => {
   } | null>(null);
   const [showFullEstimateEdit, setShowFullEstimateEdit] = useState(false);
   const [editMode, setEditMode] = useState<'measurements' | 'full_estimate'>('measurements');
+  const [expandedSubworks, setExpandedSubworks] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchWorks();
@@ -181,6 +182,18 @@ const MeasurementBook: React.FC = () => {
         {config.label}
       </span>
     );
+  };
+
+  const toggleSubwork = (subworkId: string) => {
+    setExpandedSubworks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(subworkId)) {
+        newSet.delete(subworkId);
+      } else {
+        newSet.add(subworkId);
+      }
+      return newSet;
+    });
   };
 
   const getMeasurementStatus = (item: SubworkItem) => {
@@ -363,17 +376,38 @@ const MeasurementBook: React.FC = () => {
           <div className="space-y-6">
             {measurementData.subworks.map((subwork) => {
               const items = measurementData.subworkItems[subwork.subworks_id] || [];
+              const isExpanded = expandedSubworks.has(subwork.subworks_id);
 
               return (
                 <div key={subwork.subworks_id} className="bg-white rounded-lg shadow-sm border border-gray-200">
-                  <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                    <h3 className="font-semibold text-gray-900">
-                      {subwork.subworks_id} - {subwork.subworks_name}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">{items.length} items</p>
+                  <div 
+                    className="px-6 py-4 border-b border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => toggleSubwork(subwork.subworks_id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">
+                          {subwork.subworks_id} - {subwork.subworks_name}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">{items.length} items</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-500">
+                          {isExpanded ? 'Click to collapse' : 'Click to expand'}
+                        </span>
+                        <svg 
+                          className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
 
-                  {items.length > 0 ? (
+                  {isExpanded && items.length > 0 ? (
                     <div className="divide-y divide-gray-200">
                       {items.map((item) => {
                         const measurementStatus = getMeasurementStatus(item);
@@ -423,12 +457,12 @@ const MeasurementBook: React.FC = () => {
                         );
                       })}
                     </div>
-                  ) : (
+                  ) : isExpanded && items.length === 0 ? (
                     <div className="px-6 py-8 text-center text-gray-500">
                       <Calculator className="mx-auto h-8 w-8 mb-2" />
                       <p>No items found in this subwork</p>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               );
             })}
