@@ -392,8 +392,6 @@ const MeasurementBook: React.FC = () => {
                           className={`p-6 hover:bg-gradient-to-r hover:${colorScheme.bg} transition-all duration-200`}
                         >
                           <div className="flex items-start justify-between">
-                            </div>
-                            
                             <div className="ml-6">
                               <button
                                 onClick={() => handleAddMeasurement(item, subwork)}
