@@ -190,8 +190,8 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
               <FileText className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">Full Estimate Editor</h1>
-              <p className="text-sm text-gray-500">Excel-like editing interface</p>
+              <h1 className="text-lg font-semibold text-gray-900">Estimate Editor</h1>
+              <p className="text-sm text-gray-500">Complete estimate editing interface</p>
             </div>
           </div>
           
@@ -237,7 +237,7 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
         ) : estimateData ? (
           <div className="flex-1 overflow-auto">
             
-            {/* Work Details Table */}
+            {/* Work Details - Editable */}
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">Work Details</h2>
@@ -344,23 +344,58 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
               )}
             </div>
 
-            {/* Subworks Excel-like Table */}
+            {/* Subworks & Items - Editable */}
             <div className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Subworks & Items</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Subworks & Items</h2>
+                <button
+                  onClick={() => {/* Add new subwork */}}
+                  className="inline-flex items-center px-3 py-1 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Subwork
+                </button>
+              </div>
               
               {estimateData.subworks.map((subwork, subworkIndex) => {
                 const items = estimateData.subworkItems[subwork.subworks_id] || [];
                 
                 return (
                   <div key={subwork.subworks_id} className="mb-8">
-                    {/* Subwork Header */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-t-lg px-4 py-3">
-                      <h3 className="font-semibold text-blue-900">
-                        {subwork.subworks_id} - {subwork.subworks_name}
-                      </h3>
+                    {/* Subwork Header - Editable */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-t-lg px-4 py-3 flex items-center justify-between">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={subwork.subworks_name}
+                          onChange={(e) => {
+                            // Update subwork name
+                            setHasChanges(true);
+                          }}
+                          className="font-semibold text-blue-900 bg-transparent border-none outline-none w-full"
+                          placeholder="Subwork name"
+                        />
+                        <p className="text-sm text-blue-600">{subwork.subworks_id}</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => {/* Add new item */}}
+                          className="text-green-600 hover:text-green-800 p-1 rounded"
+                          title="Add Item"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {/* Delete subwork */}}
+                          className="text-red-600 hover:text-red-800 p-1 rounded"
+                          title="Delete Subwork"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Items Table */}
+                    {/* Items Table - Editable */}
                     <div className="bg-white border-l border-r border-b border-gray-200 rounded-b-lg overflow-hidden">
                       <table className="min-w-full">
                         <thead className="bg-gray-50">
@@ -386,6 +421,9 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Details
                             </th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Actions
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
@@ -397,21 +435,59 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
                             return (
                               <tr key={item.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
-                                  {item.item_number}
+                                  <input
+                                    type="text"
+                                    value={item.item_number}
+                                    onChange={(e) => {
+                                      // Update item number
+                                      setHasChanges(true);
+                                    }}
+                                    className="w-full border-none outline-none bg-transparent"
+                                  />
                                 </td>
                                 <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200 max-w-xs">
-                                  <div className="truncate" title={item.description_of_item}>
-                                    {item.description_of_item}
-                                  </div>
+                                  <textarea
+                                    value={item.description_of_item}
+                                    onChange={(e) => {
+                                      // Update description
+                                      setHasChanges(true);
+                                    }}
+                                    className="w-full border-none outline-none bg-transparent resize-none"
+                                    rows={2}
+                                  />
                                 </td>
                                 <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
-                                  {item.ssr_quantity}
+                                  <input
+                                    type="number"
+                                    value={item.ssr_quantity}
+                                    onChange={(e) => {
+                                      // Update quantity
+                                      setHasChanges(true);
+                                    }}
+                                    className="w-full border-none outline-none bg-transparent text-center"
+                                  />
                                 </td>
                                 <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
-                                  {item.ssr_unit}
+                                  <input
+                                    type="text"
+                                    value={item.ssr_unit}
+                                    onChange={(e) => {
+                                      // Update unit
+                                      setHasChanges(true);
+                                    }}
+                                    className="w-full border-none outline-none bg-transparent text-center"
+                                  />
                                 </td>
                                 <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
-                                  {(item.ssr_rate || 0).toLocaleString('hi-IN')}
+                                  <input
+                                    type="number"
+                                    value={item.ssr_rate || 0}
+                                    onChange={(e) => {
+                                      // Update rate
+                                      setHasChanges(true);
+                                    }}
+                                    className="w-full border-none outline-none bg-transparent text-right"
+                                  />
                                 </td>
                                 <td className="px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-200">
                                   {(item.total_item_amount || 0).toLocaleString('hi-IN')}
@@ -419,23 +495,48 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
                                 <td className="px-4 py-3 text-sm text-gray-500">
                                   <div className="flex items-center space-x-2">
                                     {itemMeasurements.length > 0 && (
-                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                      <button className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 hover:bg-green-200">
                                         <Ruler className="w-3 h-3 mr-1" />
                                         {itemMeasurements.length}
-                                      </span>
+                                      </button>
                                     )}
                                     {itemLeads.length > 0 && (
-                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                                      <button className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 hover:bg-blue-200">
                                         <Truck className="w-3 h-3 mr-1" />
                                         {itemLeads.length}
-                                      </span>
+                                      </button>
                                     )}
                                     {itemMaterials.length > 0 && (
-                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                                      <button className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800 hover:bg-purple-200">
                                         <Package className="w-3 h-3 mr-1" />
                                         {itemMaterials.length}
-                                      </span>
+                                      </button>
                                     )}
+                                    <button
+                                      onClick={() => {/* Add measurement */}}
+                                      className="text-green-600 hover:text-green-800 p-1 rounded"
+                                      title="Add Measurement"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-500">
+                                  <div className="flex items-center space-x-1">
+                                    <button
+                                      onClick={() => {/* Edit item */}}
+                                      className="text-blue-600 hover:text-blue-800 p-1 rounded"
+                                      title="Edit Item"
+                                    >
+                                      <Edit2 className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => {/* Delete item */}}
+                                      className="text-red-600 hover:text-red-800 p-1 rounded"
+                                      title="Delete Item"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
@@ -444,13 +545,13 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
                         </tbody>
                         <tfoot className="bg-gray-50">
                           <tr>
-                            <td colSpan={5} className="px-4 py-3 text-sm font-medium text-gray-900 text-right border-r border-gray-200">
+                            <td colSpan={6} className="px-4 py-3 text-sm font-medium text-gray-900 text-right border-r border-gray-200">
                               Subwork Total:
                             </td>
                             <td className="px-4 py-3 text-sm font-bold text-gray-900 border-r border-gray-200">
                               {items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0).toLocaleString('hi-IN')}
                             </td>
-                            <td className="px-4 py-3"></td>
+                            <td className="px-4 py-3" colSpan={2}></td>
                           </tr>
                         </tfoot>
                       </table>
