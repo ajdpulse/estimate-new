@@ -190,6 +190,39 @@ const Compare: React.FC = () => {
     }
   };
 
+  const fetchDetailedMeasurementData = async (subworkId: string): Promise<MeasurementDetail[]> => {
+    try {
+      const { data: measurements, error } = await supabase
+        .schema('estimate')
+        .from('item_measurements')
+        .select(`
+          *,
+          subwork_items!inner (
+            description_of_item
+          )
+        `)
+        .eq('subwork_items.subwork_id', subworkId);
+
+      if (error) {
+        console.error('Error fetching detailed measurement data:', error);
+        return [];
+      }
+
+      return (measurements || []).map(measurement => ({
+        id: measurement.id,
+        description: measurement.description_of_items || 'N/A',
+        quantity: measurement.calculated_quantity || 0,
+        unit: measurement.unit || 'N/A',
+        rate: 0, // Rate would need to be calculated or fetched separately
+        amount: measurement.line_amount || 0,
+        itemDescription: measurement.subwork_items.description_of_item || 'N/A'
+      }));
+    } catch (error) {
+      console.error('Error fetching detailed measurement data:', error);
+      return [];
+    }
+  };
+
   const performComparison = async () => {
     if (selectedWorksIds.length === 0) {
       alert('Please select at least one work to compare');
@@ -234,6 +267,11 @@ const Compare: React.FC = () => {
           if (subworkDifference > 0) subworkStatus = 'over';
           else if (subworkDifference < 0) subworkStatus = 'under';
 
+          // Fetch measurement details if there are measurements
+          let measurementDetails: MeasurementDetail[] = [];
+          if (subworkMeasurementAmount > 0) {
+            measurementDetails = await fetchDetailedMeasurementData(subwork.subworks_id);
+          }
           subworkDetails.push({
             subworkId: subwork.subworks_id,
             subworkName: subwork.subworks_name,
@@ -241,7 +279,8 @@ const Compare: React.FC = () => {
             measurementAmount: subworkMeasurementAmount,
             difference: subworkDifference,
             percentageVariance: subworkPercentageVariance,
-            status: subworkStatus
+            status: subworkStatus,
+            measurementDetails
           });
         }
 
