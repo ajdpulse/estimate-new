@@ -17,7 +17,7 @@ interface DashboardStats {
   totalWorks: number;
   pendingApprovals: number;
   totalAmount: number;
-  recentWorks: EstimateWork[];
+  recentWorks: Work[];
 }
 
 const Dashboard: React.FC = () => {
@@ -34,7 +34,7 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
 
-      // Fetch works statistics
+      // Fetch works with subworks and measurements to determine activity
       const { data: works } = await supabase
         .schema('estimate')
         .from('works')
@@ -42,16 +42,59 @@ const Dashboard: React.FC = () => {
         .order('sr_no', { ascending: false });
 
       if (works) {
+        // Get works that have actual estimate/measurement activity
+        const recentWorksWithActivity = [];
+        
+        for (const work of works.slice(0, 10)) { // Check latest 10 works
+          // Check if work has subworks
+          const { data: subworks } = await supabase
+            .schema('estimate')
+            .from('subworks')
+            .select('subworks_id')
+            .eq('works_id', work.works_id)
+            .limit(1);
+          
+          if (subworks && subworks.length > 0) {
+            // Check if any subwork has items
+            const { data: items } = await supabase
+              .schema('estimate')
+              .from('subwork_items')
+              .select('sr_no')
+              .eq('subwork_id', subworks[0].subworks_id)
+              .limit(1);
+            
+            if (items && items.length > 0) {
+              // Check if any item has measurements
+              const { data: measurements } = await supabase
+                .schema('estimate')
+                .from('item_measurements')
+                .select('id')
+                .eq('subwork_item_id', items[0].sr_no)
+                .limit(1);
+              
+              // Include work if it has estimates (items) or measurements
+              if (measurements && measurements.length > 0) {
+                recentWorksWithActivity.push(work);
+              } else if (items.length > 0) {
+                // Has estimate but no measurements yet
+                recentWorksWithActivity.push(work);
+              }
+            }
+          }
+          
+          // Limit to 5 recent activities
+          if (recentWorksWithActivity.length >= 5) break;
+        }
+        
         const totalWorks = works.length;
         const pendingApprovals = works.filter(work => work.status === 'pending').length;
-        const totalAmount = works.reduce((sum, work) => sum + work.estimated_amount, 0);
-        const recentWorks = works.slice(0, 5);
+        const totalAmount = works.reduce((sum, work) => sum + work.total_estimated_cost, 0);
 
         setStats({
           totalWorks,
           pendingApprovals,
           totalAmount,
-          recentWorks,
+          recentWorks: recentWorksWithActivity,
         });
       }
     } catch (error) {
@@ -199,10 +242,10 @@ const Dashboard: React.FC = () => {
                 <div key={work.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
                   <div className="flex-1">
                     <h3 className="text-sm font-medium text-gray-900">
-                      {work.title}
+                      {work.works_id} - {work.work_name}
                     </h3>
                     <p className="text-sm text-gray-500 mt-1">
-                      {work.description}
+                      Division: {work.division || 'N/A'}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
                       {new Date(work.created_at).toLocaleDateString('hi-IN')}
@@ -210,7 +253,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex items-center space-x-3">
                     <span className="text-sm font-medium text-gray-900">
-                      {formatCurrency(work.estimated_amount)}
+                      {formatCurrency(work.total_estimated_cost)}
                     </span>
                     {getStatusBadge(work.status)}
                   </div>

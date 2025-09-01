@@ -11,7 +11,7 @@ const Header: React.FC = () => {
   const { t } = useLanguage();
 
   const navigationItems = [
-    { key: 'dashboard', path: '/dashboard', label: 'E-Estimate', gradient: 'from-indigo-500 to-blue-600' },
+    { key: 'dashboard', path: '/dashboard', label: 'Dashboard', gradient: 'from-indigo-500 to-blue-600' },
     { key: 'works', path: '/works', label: t('nav.works'), gradient: 'from-emerald-500 to-teal-600' },
     { key: 'subworks', path: '/subworks', label: t('nav.subworks'), gradient: 'from-purple-500 to-pink-600' },
     { key: 'generate-estimate', path: '/generate-estimate', label: 'Generate E-Estimate', gradient: 'from-violet-500 to-purple-600' },
