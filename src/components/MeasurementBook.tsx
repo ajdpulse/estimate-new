@@ -225,16 +225,16 @@ const MeasurementBook: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Enhanced Header */}
       <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 shadow-xl">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center space-x-4">
             <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl shadow-lg">
               <BookOpen className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white drop-shadow-lg">
+              <h1 className="text-2xl font-bold text-white drop-shadow-lg">
                 Measurement Book (MB)
               </h1>
-              <p className="text-emerald-100 text-lg mt-1 drop-shadow">
+              <p className="text-emerald-100 text-base mt-1 drop-shadow">
                 Record and manage detailed measurements for construction works
               </p>
             </div>
