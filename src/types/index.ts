@@ -134,6 +134,7 @@ export interface ItemRate {
   description: string;
   rate: number;
   unit?: string;
+  document_reference?: string;
   created_at: string;
   updated_at: string;
   created_by: string;
