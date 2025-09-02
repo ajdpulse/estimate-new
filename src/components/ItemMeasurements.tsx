@@ -78,6 +78,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   useEffect(() => {
     if (isOpen && item.sr_no) {
       fetchData();
+      fetchItemRates();
     }
   }, [isOpen, item.sr_no, activeTab]);
 
@@ -88,6 +89,32 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   useEffect(() => {
     calculateRateGroups();
   }, [measurements, itemRates]);
+
+  const fetchItemRates = async () => {
+    try {
+      const { data: item, error } = await supabase
+        .schema('estimate')
+        .from('subwork_items')
+        .select('*')
+        .eq('sr_no', parseInt(itemId))
+        .single();
+
+      if (error) throw error;
+      setItemData(item);
+
+      // Fetch item rates
+      const { data: rates, error: ratesError } = await supabase
+        .schema('estimate')
+        .from('item_rates')
+        .select('*')
+        .eq('subwork_item_sr_no', item.sr_no);
+
+      if (ratesError) throw ratesError;
+      setItemRates(rates || []);
+    } catch (error) {
+      console.error('Error fetching item rates:', error);
+    }
+  };
 
   const calculateQuantity = () => {
     // If manual quantity is enabled, use the manual quantity value
@@ -914,17 +941,21 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     Select Rate
                   </label>
                   <select
-                    value={selectedRate}
+                    value={selectedRate || ''}
                     onChange={(e) => {
-                      const rate = parseFloat(e.target.value);
-                      setSelectedRate(rate);
+                      const selectedValue = e.target.value;
+                      if (selectedValue) {
+                        const rate = parseFloat(selectedValue);
+                        setSelectedRate(rate);
+                      }
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    required
                   >
-                    <option value={0}>Select rate...</option>
+                    <option value="">Select rate...</option>
                     {itemRates.map((rate, index) => (
                       <option key={index} value={rate.rate}>
-                        {rate.description} - ₹{rate.rate} per {rate.unit}
+                        {rate.description} - ₹{rate.rate.toFixed(2)} per {rate.unit || itemData.ssr_unit}
                       </option>
                     ))}
                   </select>
@@ -1313,18 +1344,21 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     Select Rate *
                   </label>
                   <select
-                    value={selectedRate}
+                    value={selectedRate || ''}
                     onChange={(e) => {
-                      const rate = parseFloat(e.target.value);
-                      setSelectedRate(rate);
+                      const selectedValue = e.target.value;
+                      if (selectedValue) {
+                        const rate = parseFloat(selectedValue);
+                        setSelectedRate(rate);
+                      }
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     required
                   >
-                    <option value={0}>Select rate...</option>
+                    <option value="">Select rate...</option>
                     {itemRates.map((rate, index) => (
                       <option key={index} value={rate.rate}>
-                        {rate.description} - ₹{rate.rate} per {rate.unit}
+                        {rate.description} - ₹{rate.rate.toFixed(2)} per {rate.unit || itemData.ssr_unit}
                       </option>
                     ))}
                   </select>
@@ -1532,81 +1566,4 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     >
                       {uploadingPhoto ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Choose Photos
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Photos Grid */}
-              {designPhotos.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {designPhotos.map((photo) => (
-                    <div key={photo.id} className="relative group">
-                      <div className="aspect-w-16 aspect-h-12 bg-gray-200 rounded-lg overflow-hidden">
-                        <img
-                          src={photo.photo_url}
-                          alt={photo.photo_name}
-                          className="w-full h-48 object-cover group-hover:opacity-75 transition-opacity"
-                        />
-                      </div>
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleDeletePhoto(photo.id, photo.photo_url)}
-                          className="bg-red-600 text-white rounded-full p-1 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <div className="mt-2">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {photo.photo_name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {(photo.file_size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(photo.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <ImageIcon className="mx-auto h-12 w-12 text-gray-300" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No photos uploaded</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Upload design photos to document this work item.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex justify-end mt-6">
-                <button
-                  onClick={() => {
-                    setShowPhotosModal(false);
-                    setPhotoError('');
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default ItemMeasurements;
+                          <div className="animate-spin rounded-full h-4 w-4 border-b
