@@ -53,6 +53,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     is_manual_quantity: false,
     selected_rate_id: undefined
   });
+  const [selectedRate, setSelectedRate] = useState<number>(0);
   const [newLead, setNewLead] = useState<Partial<ItemLead>>({
     material: '',
     lead_in_km: 0,
@@ -203,6 +204,11 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const handleAddMeasurement = async () => {
     if (!user) return;
 
+    if (selectedRate === 0) {
+      alert('Please select a rate');
+      return;
+    }
+
     try {
       const nextSrNo = await getNextMeasurementSrNo();
       const calculatedQuantity = (newMeasurement.no_of_units || 0) * 
@@ -210,7 +216,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                                 (newMeasurement.width_breadth || 0) * 
                                 (newMeasurement.height_depth || 0);
       
-      const lineAmount = calculatedQuantity * currentItem.ssr_rate;
+      // Use the selected rate
+      const rate = selectedRate;
+      const lineAmount = calculatedQuantity * rate;
 
       const { error } = await supabase
         .schema('estimate')
@@ -238,6 +246,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         height_depth: 0,
         selected_rate_id: undefined
       });
+      setSelectedRate(0);
       
       // Refresh data first, then update SSR quantity
       fetchData();
@@ -331,11 +340,21 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       is_manual_quantity: measurement.is_manual_quantity || false,
       manual_quantity: measurement.manual_quantity || 0
     });
+    // Set the selected rate based on the measurement's line_amount and calculated_quantity
+    if (measurement.calculated_quantity && measurement.calculated_quantity > 0) {
+      const rate = (measurement.line_amount || 0) / measurement.calculated_quantity;
+      setSelectedRate(rate);
+    }
     setShowEditModal(true);
   };
 
   const handleUpdateMeasurement = async () => {
     if (!selectedMeasurement || !user) return;
+
+    if (selectedRate === 0) {
+      alert('Please select a rate');
+      return;
+    }
 
     try {
       const calculatedQuantity = (newMeasurement.no_of_units || 0) * 
@@ -343,7 +362,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                                 (newMeasurement.width_breadth || 0) * 
                                 (newMeasurement.height_depth || 0);
       
-      const lineAmount = calculatedQuantity * currentItem.ssr_rate;
+      // Use the selected rate
+      const rate = selectedRate;
+      const lineAmount = calculatedQuantity * rate;
 
       const { error } = await supabase
         .schema('estimate')
@@ -375,6 +396,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         width_breadth: 0,
         height_depth: 0
       });
+      setSelectedRate(0);
       
       // Refresh data first, then update SSR quantity
       fetchData();
@@ -892,17 +914,17 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     Select Rate
                   </label>
                   <select
-                    value={newMeasurement.selected_rate_id || ''}
-                    onChange={(e) => setNewMeasurement({
-                      ...newMeasurement, 
-                      selected_rate_id: e.target.value ? parseInt(e.target.value) : undefined
-                    })}
+                    value={selectedRate}
+                    onChange={(e) => {
+                      const rate = parseFloat(e.target.value);
+                      setSelectedRate(rate);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="">Default SSR Rate (₹{item.ssr_rate.toFixed(2)})</option>
-                    {availableRates.map((rate) => (
-                      <option key={rate.sr_no} value={rate.sr_no}>
-                        {rate.description} - ₹{rate.rate.toFixed(2)} per {rate.unit || 'unit'}
+                    <option value={0}>Select rate...</option>
+                    {itemRates.map((rate, index) => (
+                      <option key={index} value={rate.rate}>
+                        {rate.description} - ₹{rate.rate} per {rate.unit}
                       </option>
                     ))}
                   </select>
@@ -1291,17 +1313,18 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     Select Rate *
                   </label>
                   <select
-                    value={newMeasurement.selected_rate_id || ''}
-                    onChange={(e) => setNewMeasurement({
-                      ...newMeasurement, 
-                      selected_rate_id: e.target.value ? parseInt(e.target.value) : undefined
-                    })}
+                    value={selectedRate}
+                    onChange={(e) => {
+                      const rate = parseFloat(e.target.value);
+                      setSelectedRate(rate);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    required
                   >
-                    <option value="">Default SSR Rate (₹{item.ssr_rate.toFixed(2)})</option>
-                    {availableRates.map((rate, index) => (
-                      <option key={rate.sr_no} value={rate.sr_no}>
-                        {rate.description} - ₹{rate.rate.toFixed(2)} per {rate.unit || 'unit'}
+                    <option value={0}>Select rate...</option>
+                    {itemRates.map((rate, index) => (
+                      <option key={index} value={rate.rate}>
+                        {rate.description} - ₹{rate.rate} per {rate.unit}
                       </option>
                     ))}
                   </select>
