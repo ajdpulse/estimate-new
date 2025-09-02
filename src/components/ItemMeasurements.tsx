@@ -54,6 +54,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     selected_rate_id: undefined
   });
   const [selectedRate, setSelectedRate] = useState<number>(0);
+  const [enableConversion, setEnableConversion] = useState(false);
+  const [conversionFactor, setConversionFactor] = useState<number>(1);
+  const [convertedUnit, setConvertedUnit] = useState<string>('');
   const [newLead, setNewLead] = useState<Partial<ItemLead>>({
     material: '',
     lead_in_km: 0,
@@ -119,14 +122,17 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const calculateQuantity = () => {
     // If manual quantity is enabled, use the manual quantity value
     if (newMeasurement.is_manual_quantity && newMeasurement.manual_quantity !== undefined) {
-      return newMeasurement.manual_quantity;
+      const finalQuantity = newMeasurement.is_deduction ? -Math.abs(newMeasurement.manual_quantity) : newMeasurement.manual_quantity;
+      return enableConversion ? finalQuantity * conversionFactor : finalQuantity;
     }
     
     // Otherwise calculate from dimensions
-    return (newMeasurement.no_of_units || 0) * 
+    const quantity = (newMeasurement.no_of_units || 0) * 
            (newMeasurement.length || 0) * 
            (newMeasurement.width_breadth || 0) * 
            (newMeasurement.height_depth || 0);
+    const finalQuantity = newMeasurement.is_deduction ? -Math.abs(quantity) : quantity;
+    return enableConversion ? finalQuantity * conversionFactor : finalQuantity;
   };
 
   const calculateLineAmount = () => {
@@ -256,7 +262,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           measurement_sr_no: nextSrNo,
           calculated_quantity: calculatedQuantity,
           line_amount: lineAmount,
-          unit: newMeasurement.unit || null,
+          unit: enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || null),
           is_deduction: newMeasurement.is_deduction || false,
           is_manual_quantity: newMeasurement.is_manual_quantity || false,
           manual_quantity: newMeasurement.is_manual_quantity ? (newMeasurement.manual_quantity || 0) : null,
@@ -274,6 +280,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         selected_rate_id: undefined
       });
       setSelectedRate(0);
+      setEnableConversion(false);
+      setConversionFactor(1);
+      setConvertedUnit('');
       
       // Refresh data first, then update SSR quantity
       fetchData();
@@ -372,6 +381,15 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       const rate = (measurement.line_amount || 0) / measurement.calculated_quantity;
       setSelectedRate(rate);
     }
+    
+    // Check if conversion was used
+    const originalQuantity = measurement.no_of_units * measurement.length * measurement.width_breadth * measurement.height_depth;
+    if (originalQuantity !== 0 && Math.abs(measurement.calculated_quantity / originalQuantity - 1) > 0.001) {
+      setEnableConversion(true);
+      setConversionFactor(Math.abs(measurement.calculated_quantity) / originalQuantity);
+      setConvertedUnit(measurement.unit || newMeasurement.unit);
+    }
+    
     setShowEditModal(true);
   };
 
@@ -398,7 +416,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .from('item_measurements')
         .update({
           description_of_items: newMeasurement.description_of_items,
-          unit: newMeasurement.unit,
+          unit: enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || currentItem.ssr_unit),
           no_of_units: newMeasurement.no_of_units,
           length: newMeasurement.length,
           width_breadth: newMeasurement.width_breadth,
@@ -407,8 +425,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           line_amount: calculateLineAmount(),
           is_manual_quantity: newMeasurement.is_manual_quantity || false,
           manual_quantity: newMeasurement.manual_quantity || 0,
-          is_deduction: newMeasurement.is_deduction || false,
-          unit: currentItem.ssr_unit
+          is_deduction: newMeasurement.is_deduction || false
         })
         .eq('subwork_item_id', selectedMeasurement.subwork_item_id)
         .eq('measurement_sr_no', selectedMeasurement.measurement_sr_no);
@@ -424,6 +441,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         height_depth: 0
       });
       setSelectedRate(0);
+      setEnableConversion(false);
+      setConversionFactor(1);
+      setConvertedUnit('');
       
       // Refresh data first, then update SSR quantity
       fetchData();
@@ -1051,6 +1071,58 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   )}
                 </div>
 
+                {/* Unit Conversion */}
+                <div className="flex items-start space-x-3">
+                  <input
+                    type="checkbox"
+                    id="enableConversion"
+                    checked={enableConversion}
+                    onChange={(e) => setEnableConversion(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="enableConversion" className="text-sm font-medium text-gray-700">
+                      Convert calculated quantity
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Check this to convert the calculated quantity to different units (e.g., kg to metric ton)
+                    </p>
+                    
+                    {enableConversion && (
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Conversion Factor
+                          </label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            value={conversionFactor}
+                            onChange={(e) => setConversionFactor(parseFloat(e.target.value) || 1)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="1.0"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">
+                            e.g., 0.001 for kg to metric ton
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Converted Unit
+                          </label>
+                          <input
+                            type="text"
+                            value={convertedUnit}
+                            onChange={(e) => setConvertedUnit(e.target.value)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="metric ton"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <input
@@ -1074,7 +1146,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-600">Calculated Quantity:</span>
                     <span className={`font-medium ${newMeasurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
-                      {newMeasurement.is_deduction ? '-' : ''}{calculateQuantity().toFixed(3)} {newMeasurement.unit || currentItem.ssr_unit}
+                      {newMeasurement.is_deduction ? '-' : ''}{calculateQuantity().toFixed(3)} {enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || currentItem.ssr_unit)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm mt-2">
@@ -1454,6 +1526,58 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   )}
                 </div>
 
+                {/* Unit Conversion */}
+                <div className="flex items-start space-x-3">
+                  <input
+                    type="checkbox"
+                    id="enableConversion"
+                    checked={enableConversion}
+                    onChange={(e) => setEnableConversion(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="enableConversion" className="text-sm font-medium text-gray-700">
+                      Convert calculated quantity
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Check this to convert the calculated quantity to different units (e.g., kg to metric ton)
+                    </p>
+                    
+                    {enableConversion && (
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Conversion Factor
+                          </label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            value={conversionFactor}
+                            onChange={(e) => setConversionFactor(parseFloat(e.target.value) || 1)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="1.0"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">
+                            e.g., 0.001 for kg to metric ton
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Converted Unit
+                          </label>
+                          <input
+                            type="text"
+                            value={convertedUnit}
+                            onChange={(e) => setConvertedUnit(e.target.value)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="metric ton"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <input
@@ -1476,7 +1600,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Calculated Quantity:</span>
                     <span className="font-medium text-gray-900">
-                      {calculateQuantity().toFixed(3)} {newMeasurement.unit || item.ssr_unit}
+                      {calculateQuantity().toFixed(3)} {enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || item.ssr_unit)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
@@ -1488,7 +1612,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>Rate Used:</span>
                     <span>
-                      ₹{getSelectedRate().toFixed(2)} per {newMeasurement.unit || item.ssr_unit}
+                      ₹{getSelectedRate().toFixed(2)} per {enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || item.ssr_unit)}
                     </span>
                   </div>
                 </div>
