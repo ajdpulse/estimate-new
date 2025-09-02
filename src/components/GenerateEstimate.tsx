@@ -119,14 +119,14 @@ const GenerateEstimate: React.FC = () => {
         // Fetch measurements, leads, and materials for each item
         for (const item of items || []) {
           const [measurementsRes, leadsRes, materialsRes] = await Promise.all([
-            supabase.schema('estimate').from('item_measurements').select('*').eq('subwork_item_id', item.sr_no),
-            supabase.schema('estimate').from('item_leads').select('*').eq('subwork_item_id', item.sr_no),
-            supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_id', item.sr_no)
+            supabase.schema('estimate').from('measurement_book').select('*').eq('item_id', item.id),
+            supabase.schema('estimate').from('item_leads').select('*').eq('subwork_item_sr_no', item.sr_no),
+            supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_sr_no', item.sr_no)
           ]);
 
-          measurements[item.sr_no] = measurementsRes.data || [];
-          leads[item.sr_no] = leadsRes.data || [];
-          materials[item.sr_no] = materialsRes.data || [];
+          measurements[item.id] = measurementsRes.data || [];
+          leads[item.id] = leadsRes.data || [];
+          materials[item.id] = materialsRes.data || [];
         }
       }
 
@@ -306,44 +306,39 @@ const GenerateEstimate: React.FC = () => {
           if (itemError) throw itemError;
 
           // Create measurements
-          const measurements = templateData.measurements[item.sr_no] || [];
+          const measurements = templateData.measurements[item.id] || [];
           for (const measurement of measurements) {
             const { error: measurementError } = await supabase
               .schema('estimate')
-              .from('item_measurements')
+              .from('measurement_book')
               .insert([{
-                subwork_item_id: createdItem.sr_no,
+                work_id: newWorksId,
+                subwork_id: newSubworkId,
+                item_id: createdItem.id,
                 measurement_sr_no: measurement.measurement_sr_no,
-                ssr_reference: measurement.ssr_reference,
-                works_number: measurement.works_number,
-                sub_works_number: measurement.sub_works_number,
                 description_of_items: measurement.description_of_items,
-                sub_description: measurement.sub_description,
                 no_of_units: measurement.no_of_units,
                 length: measurement.length,
                 width_breadth: measurement.width_breadth,
                 height_depth: measurement.height_depth,
-                calculated_quantity: measurement.calculated_quantity,
+                estimated_quantity: measurement.estimated_quantity,
+                actual_quantity: measurement.actual_quantity,
+                variance: measurement.variance,
+                variance_reason: measurement.variance_reason,
                 unit: measurement.unit,
-                is_deduction: measurement.is_deduction,
-                is_manual_quantity: measurement.is_manual_quantity,
-                manual_quantity: measurement.manual_quantity,
-                selected_rate_id: measurement.selected_rate_id,
-                line_amount: measurement.line_amount
               }]);
 
             if (measurementError) throw measurementError;
           }
 
           // Create leads
-          const leads = templateData.leads[item.sr_no] || [];
+          const leads = templateData.leads[item.id] || [];
           for (const lead of leads) {
             const { error: leadError } = await supabase
               .schema('estimate')
               .from('item_leads')
               .insert([{
-                subwork_item_id: createdItem.sr_no,
-                sr_no: lead.sr_no,
+                subwork_item_sr_no: createdItem.sr_no,
                 material: lead.material,
                 location_of_quarry: lead.location_of_quarry,
                 lead_in_km: lead.lead_in_km,
@@ -356,13 +351,13 @@ const GenerateEstimate: React.FC = () => {
           }
 
           // Create materials
-          const materials = templateData.materials[item.sr_no] || [];
+          const materials = templateData.materials[item.id] || [];
           for (const material of materials) {
             const { error: materialError } = await supabase
               .schema('estimate')
               .from('item_materials')
               .insert([{
-                subwork_item_id: createdItem.sr_no,
+                subwork_item_sr_no: createdItem.sr_no,
                 material_name: material.material_name,
                 required_quantity: material.required_quantity,
                 unit: material.unit,

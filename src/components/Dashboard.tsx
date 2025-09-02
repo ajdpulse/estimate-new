@@ -69,7 +69,7 @@ const Dashboard: React.FC = () => {
                 .schema('estimate')
                 .from('measurement_book')
                 .select('sr_no')
-                .eq('subwork_item_id', items[0].sr_no)
+                .eq('item_id', items[0].id)
                 .limit(1);
               
               // Include work if it has estimates (items) or measurements

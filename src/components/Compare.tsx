@@ -147,18 +147,18 @@ const Compare: React.FC = () => {
       // Fetch all measurements for this works ID with subwork details
       const { data: measurementsWithSubworks, error } = await supabase
         .schema('estimate')
-        .from('item_measurements')
+        .from('measurement_book')
         .select(`
           *,
           subwork_items!inner (
-            subwork_id,
+            sr_no,
             description_of_item,
             subworks!inner (
               works_id
             )
           )
         `)
-        .eq('subwork_items.subworks.works_id', worksId);
+        .eq('work_id', worksId);
 
       if (error) {
         console.error('Error fetching measurement data:', error);
@@ -170,8 +170,8 @@ const Compare: React.FC = () => {
       let totalAmount = 0;
 
       (measurementsWithSubworks || []).forEach(measurement => {
-        const subworkId = measurement.subwork_items.subwork_id;
-        const amount = measurement.line_amount || 0;
+        const subworkId = measurement.subwork_id;
+        const amount = measurement.actual_quantity || 0;
         
         if (!subworkAmounts[subworkId]) {
           subworkAmounts[subworkId] = 0;
@@ -194,14 +194,14 @@ const Compare: React.FC = () => {
     try {
       const { data: measurements, error } = await supabase
         .schema('estimate')
-        .from('item_measurements')
+        .from('measurement_book')
         .select(`
           *,
           subwork_items!inner (
             description_of_item
           )
         `)
-        .eq('subwork_items.subwork_id', subworkId);
+        .eq('subwork_id', subworkId);
 
       if (error) {
         console.error('Error fetching detailed measurement data:', error);
@@ -209,13 +209,13 @@ const Compare: React.FC = () => {
       }
 
       return (measurements || []).map(measurement => ({
-        id: measurement.id,
+        id: measurement.sr_no.toString(),
         description: measurement.description_of_items || 'N/A',
-        quantity: measurement.calculated_quantity || 0,
+        quantity: measurement.actual_quantity || 0,
         unit: measurement.unit || 'N/A',
         rate: 0, // Rate would need to be calculated or fetched separately
-        amount: measurement.line_amount || 0,
-        itemDescription: measurement.subwork_items.description_of_item || 'N/A'
+        amount: measurement.actual_quantity || 0,
+        itemDescription: 'N/A' // This would need to be joined separately
       }));
     } catch (error) {
       console.error('Error fetching detailed measurement data:', error);

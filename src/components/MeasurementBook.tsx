@@ -119,14 +119,14 @@ const MeasurementBook: React.FC = () => {
         for (const item of items || []) {
           const { data: itemMeasurements } = await supabase
             .schema('estimate')
-            .from('item_measurements')
+            .from('measurement_book')
             .select('*')
-            .eq('subwork_item_id', item.sr_no)
+            .eq('item_id', item.id)
             .order('measurement_sr_no');
 
-          measurements[item.id] = itemMeasurements || [];
+          measurements[item.sr_no] = itemMeasurements || [];
           
-          const itemMeasurementTotal = (itemMeasurements || []).reduce((sum, m) => sum + (m.line_amount || 0), 0);
+          const itemMeasurementTotal = (itemMeasurements || []).reduce((sum, m) => sum + (m.actual_quantity || 0), 0);
           totalMeasurementAmount += itemMeasurementTotal;
         }
       }

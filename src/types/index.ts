@@ -83,33 +83,28 @@ export interface SubworkItem {
 }
 
 export interface ItemMeasurement {
-  id: string;
-  subwork_item_id: number;
+  sr_no: number;
+  work_id: string;
+  subwork_id: string;
+  item_id: string;
   measurement_sr_no: number;
-  ssr_reference?: string;
-  works_number?: string;
-  sub_works_number?: string;
   description_of_items?: string;
-  sub_description?: string;
   no_of_units: number;
   length: number;
   width_breadth: number;
   height_depth: number;
-  calculated_quantity: number;
+  estimated_quantity: number;
+  actual_quantity: number;
+  variance: number;
+  variance_reason?: string;
   unit?: string;
-  is_deduction?: boolean;
-  is_manual_quantity?: boolean;
-  manual_quantity?: number;
-  selected_rate_id?: number;
-  line_amount: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface ItemLead {
-  id: string;
-  subwork_item_id: number;
   sr_no: number;
+  subwork_item_sr_no: number;
   material: string;
   location_of_quarry?: string;
   lead_in_km: number;
@@ -121,8 +116,8 @@ export interface ItemLead {
 }
 
 export interface ItemMaterial {
-  id: string;
-  subwork_item_id: number;
+  sr_no: number;
+  subwork_item_sr_no: number;
   material_name: string;
   required_quantity: number;
   unit?: string;
