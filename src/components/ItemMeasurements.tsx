@@ -1569,19 +1569,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                       <div className="mt-2">
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {photo.photo_name}
-                 onChange={(e) => {
-                   const selectedValue = e.target.value;
-                   if (selectedValue) {
-                     const rate = parseFloat(selectedValue);
-                     setSelectedRate(rate);
-                   }
-                 }}
+                        </p>
                         <p className="text-xs text-gray-500">
                           {(photo.file_size / 1024 / 1024).toFixed(2)} MB
                         </p>
                         <p className="text-xs text-gray-500">
                           {new Date(photo.created_at).toLocaleDateString()}
-                   <option key={index} value={rate.rate}>
+                        </p>
                       </div>
                     </div>
                   ))}
