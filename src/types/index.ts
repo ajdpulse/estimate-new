@@ -85,12 +85,19 @@ export interface SubworkItem {
 export interface ItemMeasurement {
   sr_no: number;
   subwork_item_id: number;
+  work_id: string;
+  subwork_id: string;
+  item_id: string;
   description_of_items?: string;
   no_of_units: number;
   length: number;
   width_breadth: number;
   height_depth: number;
   calculated_quantity: number;
+  estimated_quantity: number;
+  actual_quantity: number;
+  variance: number;
+  variance_reason?: string;
   unit?: string;
   created_at: string;
   updated_at: string;
