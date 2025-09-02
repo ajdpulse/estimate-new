@@ -15,7 +15,11 @@ import {
   FileText,
   IndianRupee,
   Calculator,
-  ChevronRight
+  ChevronRight,
+  Camera,
+  Upload,
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
 
 const Subworks: React.FC = () => {
@@ -38,6 +42,12 @@ const Subworks: React.FC = () => {
   });
   const [showItemsModal, setShowItemsModal] = useState(false);
   const [currentSubworkForItems, setCurrentSubworkForItems] = useState<{ id: string; name: string } | null>(null);
+
+  // Design photo states
+  const [showDesignModal, setShowDesignModal] = useState(false);
+  const [selectedSubworkForDesign, setSelectedSubworkForDesign] = useState<SubWork | null>(null);
+  const [designPhotos, setDesignPhotos] = useState<any[]>([]);
+  const [uploadingDesign, setUploadingDesign] = useState(false);
 
   // Add state for subwork totals
   const [subworkTotals, setSubworkTotals] = useState<{[key: string]: number}>({});
@@ -156,6 +166,98 @@ const Subworks: React.FC = () => {
     } catch (error) {
       console.error('Error fetching subwork totals:', error);
     }
+  };
+
+  const fetchDesignPhotos = async (subworkId: string) => {
+    try {
+      const { data, error } = await supabase
+        .schema('estimate')
+        .from('subwork_design_photos')
+        .select('*')
+        .eq('subwork_id', subworkId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setDesignPhotos(data || []);
+    } catch (error) {
+      console.error('Error fetching design photos:', error);
+    }
+  };
+
+  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedSubworkForDesign || !user) return;
+
+    try {
+      setUploadingDesign(true);
+
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${selectedSubworkForDesign.subworks_id}_${Date.now()}.${fileExt}`;
+      const filePath = `subwork-designs/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('estimate-forms')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('estimate-forms')
+        .getPublicUrl(filePath);
+
+      // Save to database
+      const { error: dbError } = await supabase
+        .schema('estimate')
+        .from('subwork_design_photos')
+        .insert([{
+          subwork_id: selectedSubworkForDesign.subworks_id,
+          photo_url: publicUrl,
+          photo_name: file.name,
+          description: `Design/Diagram for ${selectedSubworkForDesign.subworks_name}`,
+          uploaded_by: user.id
+        }]);
+
+      if (dbError) throw dbError;
+
+      // Refresh photos
+      fetchDesignPhotos(selectedSubworkForDesign.subworks_id);
+      
+    } catch (error) {
+      console.error('Error uploading design photo:', error);
+      alert('Error uploading design photo');
+    } finally {
+      setUploadingDesign(false);
+    }
+  };
+
+  const handleDeleteDesignPhoto = async (photoId: string) => {
+    if (!confirm('Are you sure you want to delete this design photo?')) return;
+
+    try {
+      const { error } = await supabase
+        .schema('estimate')
+        .from('subwork_design_photos')
+        .delete()
+        .eq('id', photoId);
+
+      if (error) throw error;
+
+      // Refresh photos
+      if (selectedSubworkForDesign) {
+        fetchDesignPhotos(selectedSubworkForDesign.subworks_id);
+      }
+    } catch (error) {
+      console.error('Error deleting design photo:', error);
+      alert('Error deleting design photo');
+    }
+  };
+
+  const handleViewDesigns = (subwork: SubWork) => {
+    setSelectedSubworkForDesign(subwork);
+    setShowDesignModal(true);
+    fetchDesignPhotos(subwork.subworks_id);
   };
 
   const generateSubworkId = async (worksId: string): Promise<string> => {
@@ -459,10 +561,6 @@ const Subworks: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <button 
-                          onClick={() => {
-                            setCurrentSubworkForItems({ id: subwork.subworks_id, name: subwork.subworks_name });
-                            setShowItemsModal(true);
-                          }}
                           onClick={(e) => {
                             e.stopPropagation();
                             setCurrentSubworkForItems({ id: subwork.subworks_id, name: subwork.subworks_name });
@@ -476,6 +574,15 @@ const Subworks: React.FC = () => {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleViewDesigns(subwork);
+                          }}
+                          className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                          title="Design/Diagrams"
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
                             e.stopPropagation();
                             handleViewSubwork(subwork);
                           }}
@@ -487,7 +594,6 @@ const Subworks: React.FC = () => {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            e.stopPropagation();
                             handleEditSubwork(subwork);
                           }}
                           className="text-emerald-600 hover:text-emerald-900 p-2 rounded-lg hover:bg-emerald-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-300"
@@ -497,7 +603,6 @@ const Subworks: React.FC = () => {
                         </button>
                         <button 
                           onClick={(e) => {
-                            e.stopPropagation();
                             e.stopPropagation();
                             handleDeleteSubwork(subwork);
                           }}
@@ -553,6 +658,139 @@ const Subworks: React.FC = () => {
           isOpen={showItemsModal}
           onClose={() => setShowItemsModal(false)}
         />
+      )}
+
+      {/* Design Photos Modal */}
+      {showDesignModal && selectedSubworkForDesign && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Design/Diagrams - {selectedSubworkForDesign.subworks_name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowDesignModal(false);
+                    setSelectedSubworkForDesign(null);
+                    setDesignPhotos([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Close</span>
+                  ✕
+                </button>
+              </div>
+              
+              {/* Upload Section */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-center">
+                  <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-600 mb-3">Upload design drawings, diagrams, or photos</p>
+                  <label className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 cursor-pointer">
+                    {uploadingDesign ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="w-4 h-4 mr-2" />
+                        Choose File
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.dwg,.dxf"
+                      onChange={handleDesignUpload}
+                      disabled={uploadingDesign}
+                      className="hidden"
+                    />
+                  </label>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Supports: Images, PDF, DWG, DXF files
+                  </p>
+                </div>
+              </div>
+
+              {/* Photos Grid */}
+              {designPhotos.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {designPhotos.map((photo) => (
+                    <div key={photo.id} className="relative bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                      <div className="aspect-w-16 aspect-h-12 bg-gray-100">
+                        {photo.photo_url.toLowerCase().includes('.pdf') ? (
+                          <div className="flex items-center justify-center h-48">
+                            <FileText className="h-12 w-12 text-red-500" />
+                            <span className="ml-2 text-sm text-gray-600">PDF Document</span>
+                          </div>
+                        ) : (
+                          <img
+                            src={photo.photo_url}
+                            alt={photo.photo_name}
+                            className="w-full h-48 object-cover"
+                          />
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <h4 className="text-sm font-medium text-gray-900 truncate">
+                          {photo.photo_name}
+                        </h4>
+                        {photo.description && (
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                            {photo.description}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-2">
+                          {new Date(photo.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="absolute top-2 right-2 flex space-x-1">
+                        <a
+                          href={photo.photo_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100 transition-all"
+                          title="View Full Size"
+                        >
+                          <Eye className="w-4 h-4 text-gray-600" />
+                        </a>
+                        <button
+                          onClick={() => handleDeleteDesignPhoto(photo.id)}
+                          className="p-1 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100 transition-all"
+                          title="Delete Photo"
+                        >
+                          <X className="w-4 h-4 text-red-600" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <ImageIcon className="mx-auto h-12 w-12 text-gray-300" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No designs uploaded</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Upload design drawings, diagrams, or photos for this subwork.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => {
+                    setShowDesignModal(false);
+                    setSelectedSubworkForDesign(null);
+                    setDesignPhotos([]);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Add Subwork Modal */}
