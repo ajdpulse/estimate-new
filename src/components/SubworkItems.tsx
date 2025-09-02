@@ -44,6 +44,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     description_of_item: '',
     category: ''
   });
+  const [isManualEntry, setIsManualEntry] = useState(false);
   const [itemRates, setItemRates] = useState<Array<{
     description: string;
     rate: number;
@@ -751,6 +752,26 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description of Item *
                   </label>
+                  <div className="flex items-center mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsManualEntry(!isManualEntry)}
+                      className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    >
+                      {isManualEntry ? 'Switch to SSR Search' : 'Switch to Manual Entry'}
+                    </button>
+                  </div>
+                  
+                  {isManualEntry ? (
+                    <textarea
+                      value={newItem.description_of_item || ''}
+                      onChange={(e) => setNewItem({...newItem, description_of_item: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter item description manually..."
+                      rows={3}
+                      required
+                    />
+                  ) : (
                   <div className="relative">
                     <textarea
                       value={descriptionQuery}
@@ -824,6 +845,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
 
                 {/* Multiple Rates Table */}
