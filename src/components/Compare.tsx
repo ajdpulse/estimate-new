@@ -147,7 +147,7 @@ const Compare: React.FC = () => {
       // Fetch all measurements for this works ID with subwork details
       const { data: measurementsWithSubworks, error } = await supabase
         .schema('estimate')
-        .from('measurement_book')
+        .from('item_measurements')
         .select(`
           *,
           subwork_items!inner (
@@ -194,7 +194,7 @@ const Compare: React.FC = () => {
     try {
       const { data: measurements, error } = await supabase
         .schema('estimate')
-        .from('measurement_book')
+        .from('item_measurements')
         .select(`
           *,
           subwork_items!inner (

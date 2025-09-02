@@ -119,9 +119,9 @@ const MeasurementBook: React.FC = () => {
         for (const item of items || []) {
           const { data: itemMeasurements } = await supabase
             .schema('estimate')
-            .from('measurement_book')
+            .from('item_measurements')
             .select('*')
-            .eq('item_id', item.id)
+            .eq('subwork_item_id', item.sr_no)
             .order('measurement_sr_no');
 
           measurements[item.sr_no] = itemMeasurements || [];

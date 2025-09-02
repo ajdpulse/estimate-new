@@ -67,9 +67,9 @@ const Dashboard: React.FC = () => {
               // Check if any item has measurements
               const { data: measurements } = await supabase
                 .schema('estimate')
-                .from('measurement_book')
+                .from('item_measurements')
                 .select('sr_no')
-                .eq('item_id', items[0].id)
+                .eq('subwork_item_id', items[0].sr_no)
                 .limit(1);
               
               // Include work if it has estimates (items) or measurements

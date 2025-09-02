@@ -96,7 +96,7 @@ const FullEstimateEditor: React.FC<FullEstimateEditorProps> = ({
 
         for (const item of items || []) {
           const [measurementsRes, leadsRes, materialsRes] = await Promise.all([
-            supabase.schema('estimate').from('measurement_book').select('*').eq('item_id', item.id),
+            supabase.schema('estimate').from('item_measurements').select('*').eq('subwork_item_id', item.sr_no),
             supabase.schema('estimate').from('item_leads').select('*').eq('subwork_item_sr_no', item.sr_no),
             supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_sr_no', item.sr_no)
           ]);

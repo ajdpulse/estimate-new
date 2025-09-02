@@ -119,7 +119,7 @@ const GenerateEstimate: React.FC = () => {
         // Fetch measurements, leads, and materials for each item
         for (const item of items || []) {
           const [measurementsRes, leadsRes, materialsRes] = await Promise.all([
-            supabase.schema('estimate').from('measurement_book').select('*').eq('item_id', item.id),
+            supabase.schema('estimate').from('item_measurements').select('*').eq('subwork_item_id', item.sr_no),
             supabase.schema('estimate').from('item_leads').select('*').eq('subwork_item_sr_no', item.sr_no),
             supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_sr_no', item.sr_no)
           ]);
@@ -310,21 +310,16 @@ const GenerateEstimate: React.FC = () => {
           for (const measurement of measurements) {
             const { error: measurementError } = await supabase
               .schema('estimate')
-              .from('measurement_book')
+              .from('item_measurements')
               .insert([{
-                work_id: newWorksId,
-                subwork_id: newSubworkId,
-                item_id: createdItem.id,
+                subwork_item_id: createdItem.sr_no,
                 measurement_sr_no: measurement.measurement_sr_no,
                 description_of_items: measurement.description_of_items,
                 no_of_units: measurement.no_of_units,
                 length: measurement.length,
                 width_breadth: measurement.width_breadth,
                 height_depth: measurement.height_depth,
-                estimated_quantity: measurement.estimated_quantity,
-                actual_quantity: measurement.actual_quantity,
-                variance: measurement.variance,
-                variance_reason: measurement.variance_reason,
+                calculated_quantity: measurement.calculated_quantity,
                 unit: measurement.unit,
               }]);
 
