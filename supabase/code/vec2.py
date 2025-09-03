@@ -41,7 +41,6 @@ except ImportError:
     FUZZY_AVAILABLE = False
     print("ℹ️ FuzzyWuzzy not installed. Install for better fuzzy matching.")
 
-
 @dataclass
 class RateItem:
     """Enhanced data class for rate items"""
@@ -78,13 +77,12 @@ class RateItem:
             "keywords": self.search_keywords
         }
 
-
 @dataclass
 class SearchSuggestion:
     """Data class for search suggestions"""
     item: RateItem
     relevance_score: float
-    match_type: str  # 'exact', 'partial', 'fuzzy', 'semantic'
+    match_type: str  # 'exact', 'partial', 'fuzzy', 'semantic', 'hybrid'
     matched_keywords: List[str]
     
     def to_dict(self) -> Dict:
@@ -95,7 +93,6 @@ class SearchSuggestion:
             "matched_keywords": self.matched_keywords
         }
 
-
 class EnhancedPDFProcessor:
     """Enhanced PDF processor with advanced extraction and indexing"""
     
@@ -105,6 +102,7 @@ class EnhancedPDFProcessor:
         self.section_mapping = {}  # section -> list of primary_keys
         self.item_number_index = {}  # item_number -> primary_key
         self.description_index = {}  # normalized_description -> primary_key
+        self.ngram_index = defaultdict(set)  # ngram -> set of primary_keys
         
     def process_pdf(self, pdf_bytes: bytes) -> Dict[str, RateItem]:
         """Process PDF with enhanced extraction techniques"""
@@ -495,16 +493,23 @@ class EnhancedPDFProcessor:
         for item in self.items_database.values():
             text = (item.description + " " + " ".join(item.search_keywords)).lower()
             
-            # Generate 2-grams and 3-grams
-            words = text.split()
-            for i in range(len(words)):
-                for j in range(i+1, min(i+4, len(words)+1)):
-                    ngram = " ".join(words[i:j])
-                    if len(ngram) >= 3:  # Minimum 3 characters
+            # Generate token 1-4 grams
+            words = re.findall(r"\w+", text)
+            for n in range(1, 5):
+                for i in range(len(words) - n + 1):
+                    ngram = " ".join(words[i:i+n])
+                    if len(ngram) >= 3:
                         self.ngram_index[ngram].add(item.primary_key)
+            
+            # Generate character 3-6 grams over description
+            desc = item.description.lower()
+            chars = re.sub(r"\s+", "", desc)  # Remove spaces for continuous char ngrams
+            for n in range(3, 7):
+                for i in range(len(chars) - n + 1):
+                    cgram = chars[i:i+n]
+                    self.ngram_index[cgram].add(item.primary_key)
         
         print(f"✅ Built indexes with {len(self.keyword_index)} keywords and {len(self.ngram_index)} n-grams")
-
 
 class IntelligentSearchEngine:
     """Intelligent search engine with suggestions and exact matching"""
@@ -540,46 +545,102 @@ class IntelligentSearchEngine:
             for key, embedding in zip(keys, embeddings):
                 self.embeddings_cache[key] = embedding
             
-            # Fit TF-IDF
-            self.tfidf_vectorizer.fit(texts)
+            # Fit TF-IDF and store matrix
+            self.tfidf_matrix = self.tfidf_vectorizer.fit_transform(texts)
+            self._tfidf_keys = keys
             
             print(f"  ✅ Computed {len(self.embeddings_cache)} embeddings")
     
     def get_suggestions(self, query: str, max_suggestions: int = 10) -> List[SearchSuggestion]:
-        """Get intelligent suggestions for a query"""
+        """Get intelligent suggestions for a query (for autocomplete)"""
         query = query.strip().lower()
         
         if len(query) < 2:
             return []
         
-        suggestions = []
+        all_sug = self.search_all(query, min_score=0.25, max_results=200)
         
-        # 1. Exact item number match
-        exact_item_suggestions = self._get_exact_item_matches(query)
-        suggestions.extend(exact_item_suggestions)
+        # Diversify for typeahead: favor different sections and item numbers
+        seen_sections = set()
+        seen_items = set()
+        diverse = []
+        for s in all_sug:
+            sec = s.item.section
+            ino = s.item.sr_no or ""
+            key = (sec, ino)
+            if key in seen_items:
+                continue
+            seen_sections.add(sec)
+            seen_items.add(key)
+            diverse.append(s)
+            if len(diverse) >= max_suggestions:
+                break
         
-        # 2. Keyword exact matches
-        keyword_suggestions = self._get_keyword_matches(query)
-        suggestions.extend(keyword_suggestions)
+        return diverse
+    
+    def search_all(self, query: str, min_score: float = 0.35, max_results: int = 500) -> List[SearchSuggestion]:
+        """High-recall search returning all relevant results"""
+        q = query.strip().lower()
+        if not q:
+            return []
         
-        # 3. Fuzzy matches
-        if FUZZY_AVAILABLE:
-            fuzzy_suggestions = self._get_fuzzy_matches(query)
-            suggestions.extend(fuzzy_suggestions)
+        candidates: Dict[str, float] = {}
         
-        # 4. N-gram partial matches
-        ngram_suggestions = self._get_ngram_matches(query)
-        suggestions.extend(ngram_suggestions)
+        # A) Exact item number
+        for s in self._get_exact_item_matches(q):
+            candidates[s.item.primary_key] = max(candidates.get(s.item.primary_key, 0.0), 1.0)
         
-        # 5. Semantic matches
-        semantic_suggestions = self._get_semantic_matches(query)
-        suggestions.extend(semantic_suggestions)
+        # B) Keyword index (union of all matched keywords)
+        kw_items = set()
+        for w in re.findall(r"\w+", q):
+            if w in self.processor.keyword_index:
+                kw_items.update(self.processor.keyword_index[w])
+        for pk in kw_items:
+            candidates[pk] = max(candidates.get(pk, 0.0), 0.55)
         
-        # Remove duplicates and sort by relevance
-        unique_suggestions = self._deduplicate_suggestions(suggestions)
-        sorted_suggestions = sorted(unique_suggestions, key=lambda x: x.relevance_score, reverse=True)
+        # C) N-gram partial coverage
+        for ngram, keys in self.processor.ngram_index.items():
+            if q in ngram or ngram in q:
+                for pk in keys:
+                    candidates[pk] = max(candidates.get(pk, 0.0), 0.5)
         
-        return sorted_suggestions[:max_suggestions]
+        # D) TF-IDF lexical retrieval (BM25-like)
+        for pk, score in self._get_tfidf_matches(q, top_k=300):
+            candidates[pk] = max(candidates.get(pk, 0.0), min(0.8, 0.4 + 0.6 * score))
+        
+        # E) Fuzzy
+        for s in self._get_fuzzy_matches(q, limit=150, threshold=65):
+            pk = s.item.primary_key
+            candidates[pk] = max(candidates.get(pk, 0.0), max(0.5, s.relevance_score))
+        
+        # F) Semantic pass re-scoring
+        try:
+            q_emb = self.model.encode(q)
+            for pk in list(candidates.keys()):
+                emb = self.embeddings_cache.get(pk)
+                if emb is None:
+                    continue
+                sim = float(cosine_similarity([q_emb], [emb])[0][0])
+                # Blended score: 60% prior, 40% semantic
+                blended = 0.6 * candidates[pk] + 0.4 * sim
+                candidates[pk] = blended
+        except Exception as e:
+            print(f"Semantic search error: {e}")
+        
+        # Build suggestions
+        out = []
+        for pk, score in candidates.items():
+            if score >= min_score:
+                out.append(SearchSuggestion(
+                    item=self.items_database[pk],
+                    relevance_score=score,
+                    match_type="hybrid",
+                    matched_keywords=[query]
+                ))
+        
+        # Sort by score desc
+        out.sort(key=lambda s: s.relevance_score, reverse=True)
+        return out[:max_results]
     
     def _get_exact_item_matches(self, query: str) -> List[SearchSuggestion]:
         """Get exact item number matches"""
@@ -649,36 +710,38 @@ class IntelligentSearchEngine:
         
         return suggestions
     
-    def _get_fuzzy_matches(self, query: str) -> List[SearchSuggestion]:
+    def _get_fuzzy_matches(self, query: str, limit: int = 200, threshold: int = 60) -> List[SearchSuggestion]:
         """Get fuzzy string matches"""
         suggestions = []
         
         if not FUZZY_AVAILABLE:
             return suggestions
         
-        # Get all descriptions for fuzzy matching
-        descriptions = []
+        # Get all candidates for fuzzy matching
+        candidates = []
         for item in self.items_database.values():
-            descriptions.append((item.description.lower(), item.primary_key))
+            candidates.append((item.description.lower(), item.primary_key))
+            candidates.append((item.display_text.lower(), item.primary_key))
         
-        # Fuzzy match against descriptions
-        fuzzy_matches = process.extract(query, [desc[0] for desc in descriptions], limit=5)
+        corpus_texts = [c[0] for c in candidates]
+        fuzzy_top = process.extract(query, corpus_texts, limit=min(limit, len(corpus_texts)))
         
-        for match_text, score in fuzzy_matches:
-            if score > 60:  # Minimum fuzzy score threshold
-                # Find the item with this description
-                for desc, primary_key in descriptions:
-                    if desc == match_text:
-                        item = self.items_database[primary_key]
-                        
-                        suggestion = SearchSuggestion(
-                            item=item,
-                            relevance_score=score / 100.0,
-                            match_type="fuzzy",
-                            matched_keywords=[query]
-                        )
-                        suggestions.append(suggestion)
-                        break
+        seen = set()
+        for match_text, score in fuzzy_top:
+            if score < threshold:
+                continue
+            # Resolve primary_key
+            for text, pk in candidates:
+                if text == match_text and pk not in seen:
+                    seen.add(pk)
+                    item = self.items_database[pk]
+                    suggestions.append(SearchSuggestion(
+                        item=item,
+                        relevance_score=score / 100.0,
+                        match_type="fuzzy",
+                        matched_keywords=[query]
+                    ))
+                    break
         
         return suggestions
     
@@ -745,6 +808,21 @@ class IntelligentSearchEngine:
         
         return suggestions
     
+    def _get_tfidf_matches(self, query: str, top_k: int = 200) -> List[Tuple[str, float]]:
+        """Get TF-IDF lexical matches"""
+        if not hasattr(self, "tfidf_matrix"):
+            return []
+        
+        qv = self.tfidf_vectorizer.transform([query])
+        sims = cosine_similarity(qv, self.tfidf_matrix)[0]
+        idxs = np.argsort(-sims)[:top_k]
+        out = []
+        for i in idxs:
+            if sims[i] > 0:
+                key = self._tfidf_keys[i]
+                out.append((key, float(sims[i])))
+        return out
+    
     def _deduplicate_suggestions(self, suggestions: List[SearchSuggestion]) -> List[SearchSuggestion]:
         """Remove duplicate suggestions, keeping the highest scored one"""
         seen_items = {}
@@ -762,7 +840,7 @@ class IntelligentSearchEngine:
         return self.items_database.get(primary_key)
     
     def search_by_filters(self, section: str = None, item_no: str = None, 
-                         material_type: str = None) -> List[RateItem]:
+                          material_type: str = None) -> List[RateItem]:
         """Search by specific filters"""
         results = []
         
@@ -782,7 +860,6 @@ class IntelligentSearchEngine:
                 results.append(item)
         
         return results
-
 
 class FrontendReadyRAGSystem:
     """Frontend-ready RAG system with API-like interface"""
@@ -883,6 +960,45 @@ class FrontendReadyRAGSystem:
                 "suggestions": []
             }
     
+    def search_full_results(self, query: str, page: int = 1, page_size: int = 25, min_score: float = 0.35) -> Dict[str, Any]:
+        """API endpoint for full search results with pagination"""
+        if not self.is_initialized:
+            return {
+                "status": "error",
+                "message": "System not initialized",
+                "results": [],
+                "total": 0,
+                "page": page,
+                "page_size": page_size
+            }
+        
+        try:
+            all_suggestions = self.search_engine.search_all(query, min_score=min_score, max_results=2000)
+            total = len(all_suggestions)
+            start = max(0, (page - 1) * page_size)
+            end = min(total, start + page_size)
+            page_items = all_suggestions[start:end]
+            return {
+                "status": "success",
+                "query": query,
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "results": [s.item.to_frontend_dict() | {
+                    "relevance_score": round(s.relevance_score, 4),
+                    "match_type": s.match_type
+                } for s in page_items]
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Search failed: {str(e)}",
+                "results": [],
+                "total": 0,
+                "page": page,
+                "page_size": page_size
+            }
+    
     def get_item_details(self, primary_key: str) -> Dict[str, Any]:
         """API endpoint for getting exact item details"""
         if not self.is_initialized:
@@ -907,7 +1023,7 @@ class FrontendReadyRAGSystem:
             }
     
     def search_with_filters(self, section: str = None, item_no: str = None, 
-                           material_type: str = None) -> Dict[str, Any]:
+                            material_type: str = None) -> Dict[str, Any]:
         """API endpoint for filtered search"""
         if not self.is_initialized:
             return {
@@ -964,7 +1080,7 @@ class FrontendReadyRAGSystem:
         print("🎯 DEMO SESSION")
         print("="*60)
         
-        # Demo queries
+        # Demo queries for suggestions
         demo_queries = [
             "acetylene",
             "cement",
@@ -991,14 +1107,23 @@ class FrontendReadyRAGSystem:
             else:
                 print("     No suggestions found")
         
+        # Demo full results
+        print("\n🔎 Full results for 'cement' (first page):")
+        full = self.search_full_results("cement", page=1, page_size=10, min_score=0.35)
+        if full["status"] == "success":
+            for i, r in enumerate(full["results"], 1):
+                print(f"  {i}. {r['display_text']} | Section: {r['section']} | Score: {r['relevance_score']}")
+        else:
+            print("     No results found")
+        
         print("\n🎯 Demo completed successfully!")
-
 
 # ==== MAIN EXECUTION ====
 if __name__ == "__main__":
     # Your PDF URL (replace with actual URL)
-    PDF_URL = "https://tvmqkondihsomlebizjj.supabase.co/storage/v1/object/sign/estimate-forms/MJP%20SSR%202023-24_Final.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85OGM0N2MwMC1hZDQ5LTQ1NDYtOWViNS05NjVhMWJlZGNjNWQiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJlc3RpbWF0ZS1mb3Jtcy9NSlAgU1NSIDIwMjMtMjRfRmluYWwucGRmIiwiaWF0IjoxNzU0NTU3MTg1LCJleHAiOjE3NTUxNjE5ODV9.fs6AV85ideRnsi_ZMBHfdDJ1Ajtdbr4H40hM54dOiWc"
 
+    PDF_URL = "https://tvmqkondihsomlebizjj.supabase.co/storage/v1/object/sign/estimate-forms/MJP%20SSR%202023-24_Final.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85OGM0N2MwMC1hZDQ5LTQ1NDYtOWViNS05NjVhMWJlZGNjNWQiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJlc3RpbWF0ZS1mb3Jtcy9NSlAgU1NSIDIwMjMtMjRfRmluYWwucGRmIiwiaWF0IjoxNzU2ODk1NDA2LCJleHAiOjE3NTk0ODc0MDZ9.1TG5ELfKNnJvohg2VeMUidJ2W7BIvxz-yxFK-x1yF04"
+ 
     # Create and run the system
     rag_system = FrontendReadyRAGSystem(pdf_url=PDF_URL)
     
@@ -1013,14 +1138,17 @@ if __name__ == "__main__":
     # 2. Get suggestions as user types
     suggestions = rag_system.get_suggestions("acety")  # User typing "acetylene"
     
-    # 3. User selects a suggestion
+    # 3. Get full results with pagination
+    full_results = rag_system.search_full_results("cement", page=1, page_size=20)
+    
+    # 4. User selects a suggestion
     if suggestions["suggestions"]:
         selected_item_id = suggestions["suggestions"][0]["item"]["id"]
         item_details = rag_system.get_item_details(selected_item_id)
     
-    # 4. Filter-based search
+    # 5. Filter-based search
     filtered_results = rag_system.search_with_filters(section="MATERIALS", material_type="cement")
     
-    # 5. Get all available sections for dropdowns
+    # 6. Get all available sections for dropdowns
     sections = rag_system.get_all_sections()
     """
