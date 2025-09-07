@@ -173,7 +173,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       const key = (measurement.selected_rate_id ?? 0).toString() || 'no_rate';
       const rateKey = rate.toString();
       
-      if (!groups[rateKey]) {
+        groups[rateId] = { rate: selectedRate?.rate || item.ssr_rate || 0, measurements: [] };
         // Find rate description from itemRates
         const rateInfo = itemRates.find(r => r.rate === rate);
         groups[rateKey] = {
