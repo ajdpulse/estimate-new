@@ -50,10 +50,6 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     rate: number;
     unit: string;
   }>>([{ description: '', rate: 0, unit: '' }]);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (isOpen && subworkId) {
@@ -105,46 +101,9 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     }
   };
 
-  const searchSSRItemsAdvanced = async (query: string) => {
-    if (!query || query.trim().length < 2) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-
-    try {
-      setSearchLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ssr-search-advanced`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query, max_results: 3 })
-      });
-
-      const data = await response.json();
-      
-      if (data.status === 'success') {
-        setSearchResults(data.results || []);
-        setShowSearchResults(true);
-      } else {
-        setSearchResults([]);
-        setShowSearchResults(false);
-      }
-    } catch (error) {
-      console.error('Error searching SSR items:', error);
-      setSearchResults([]);
-      setShowSearchResults(false);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
   const handleDescriptionChange = (value: string) => {
     setDescriptionQuery(value);
     setNewItem({...newItem, description_of_item: value});
-    setSearchQuery(value);
     
     // Clear previous timeout
     if (searchTimeoutRef.current) {
@@ -155,15 +114,12 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     if (!value || value.trim().length < 2) {
       setSsrSuggestions([]);
       setShowSuggestions(false);
-      setSearchResults([]);
-      setShowSearchResults(false);
       return;
     }
     
     // Debounce search with new timeout
     searchTimeoutRef.current = setTimeout(() => {
       searchSSRItems(value);
-      searchSSRItemsAdvanced(value);
     }, 500);
   };
 
@@ -195,18 +151,6 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-  };
-
-  const selectSSRItemAdvanced = (result: any) => {
-    setNewItem({
-      ...newItem,
-      description_of_item: result.description,
-      ssr_unit: result.unit || '',
-      ssr_rate: parseFloat(result.rate_2024_25) || 0
-    });
-    setSearchQuery(result.description);
-    setShowSearchResults(false);
-    setSearchResults([]);
   };
 
   const fetchSubworkItems = async () => {
@@ -375,9 +319,6 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       setDescriptionQuery('');
       setSsrSuggestions([]);
       setShowSuggestions(false);
-      setSearchResults([]);
-      setShowSearchResults(false);
-      setSearchQuery('');
       fetchSubworkItems();
     } catch (error) {
       console.error('Error adding item:', error);
@@ -833,57 +774,12 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   ) : (
                   <div className="relative">
                     <textarea
-                      value={newItem.description_of_item}
+                      value={descriptionQuery}
                       onChange={(e) => handleDescriptionChange(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter item description manually or search SSR items..."
                       rows={3}
                     />
-                    
-                    {/* Search Results Dropdown */}
-                    {showSearchResults && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                        {searchLoading ? (
-                          <div className="p-3 text-center">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
-                            <p className="text-xs text-gray-500 mt-1">Searching SSR items...</p>
-                          </div>
-                        ) : searchResults.length > 0 ? (
-                          <div className="py-1">
-                            {searchResults.map((result, index) => (
-                              <button
-                                key={result.id}
-                                onClick={() => selectSSRItemAdvanced(result)}
-                                className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-b border-gray-100 last:border-b-0"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1">
-                                    <p className="text-sm font-medium text-gray-900 truncate">
-                                      #{result.item_no} {result.description}
-                                    </p>
-                                    <div className="flex items-center space-x-2 mt-1">
-                                      <span className="text-xs text-gray-500">
-                                        {result.unit} • ₹{result.rate_2024_25}
-                                      </span>
-                                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                                        {result.section}
-                                      </span>
-                                      <span className="text-xs text-green-600">
-                                        {Math.round(result.relevance_score * 100)}% match
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        ) : searchQuery.length >= 2 ? (
-                          <div className="p-3 text-center text-gray-500 text-sm">
-                            No SSR items found for "{searchQuery}"
-                          </div>
-                        ) : null}
-                      </div>
-                    )}
                     {searchingSSR && (
                       <div className="absolute right-3 top-3">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>

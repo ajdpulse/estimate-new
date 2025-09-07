@@ -33,7 +33,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const [activeTab, setActiveTab] = useState<'measurements' | 'leads' | 'materials'>('measurements');
   const [measurements, setMeasurements] = useState<ItemMeasurement[]>([]);
   const [itemRates, setItemRates] = useState<ItemRate[]>([]);
-  const [itemData, setItemData] = useState<any>(null);
   const [leads, setLeads] = useState<ItemLead[]>([]);
   const [materials, setMaterials] = useState<ItemMaterial[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,7 +81,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   useEffect(() => {
     if (isOpen && item.sr_no) {
       fetchData();
-      fetchItemRates(item.sr_no);
+      fetchItemRates();
     }
   }, [isOpen, item.sr_no, activeTab]);
 
@@ -94,13 +93,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     calculateRateGroups();
   }, [measurements, itemRates]);
 
-  const fetchItemRates = async (itemSrNo: number) => {
+  const fetchItemRates = async () => {
     try {
       const { data: item, error } = await supabase
         .schema('estimate')
         .from('subwork_items')
         .select('*')
-        .eq('sr_no', itemSrNo)
+        .eq('sr_no', parseInt(itemId))
         .single();
 
       if (error) throw error;
