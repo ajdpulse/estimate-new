@@ -20,6 +20,7 @@ interface ItemMeasurementsProps {
   onClose: () => void;
   onItemUpdated?: (itemSrNo: number) => void;
   availableRates: ItemRate[];
+  existingMeasurements?: ItemMeasurement[];
 }
 
 const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({ 
@@ -27,7 +28,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   isOpen, 
   onClose,
   onItemUpdated,
-  availableRates
+  availableRates,
+  existingMeasurements = []
 }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'measurements' | 'leads' | 'materials'>('measurements');
@@ -51,7 +53,11 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     width_breadth: 0,
     height_depth: 0,
     is_manual_quantity: false,
-    selected_rate_id: undefined
+    selected_rate_id: undefined,
+    estimated_quantity: 0,
+    actual_quantity: 0,
+    variance: 0,
+    variance_reason: ''
   });
   const [selectedRate, setSelectedRate] = useState<number>(0);
   const [enableConversion, setEnableConversion] = useState(false);
@@ -80,7 +86,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
   useEffect(() => {
     if (isOpen && item.sr_no) {
-      fetchData();
+      // Use existing measurements if provided, otherwise fetch from database
+      if (existingMeasurements.length > 0) {
+        setMeasurements(existingMeasurements);
+      } else {
+        fetchData();
+      }
       fetchItemRates();
     }
   }, [isOpen, item.sr_no, activeTab]);
@@ -252,6 +263,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       // Use the selected rate
       const rate = selectedRate;
       const lineAmount = calculatedQuantity * rate;
+      const variance = calculatedQuantity - (newMeasurement.estimated_quantity || 0);
 
       const { error } = await supabase
         .schema('estimate')
@@ -261,6 +273,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           subwork_item_id: currentItem.sr_no,
           measurement_sr_no: nextSrNo,
           calculated_quantity: calculatedQuantity,
+          actual_quantity: calculatedQuantity,
+          variance: variance,
           line_amount: lineAmount,
           unit: enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || null),
           is_deduction: newMeasurement.is_deduction || false,
@@ -277,15 +291,24 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         length: 0,
         width_breadth: 0,
         height_depth: 0,
-        selected_rate_id: undefined
+        selected_rate_id: undefined,
+        estimated_quantity: 0,
+        actual_quantity: 0,
+        variance: 0,
+        variance_reason: ''
       });
       setSelectedRate(0);
       setEnableConversion(false);
       setConversionFactor(1);
       setConvertedUnit('');
       
-      // Refresh data first, then update SSR quantity
-      fetchData();
+      // Refresh measurements
+      if (existingMeasurements.length > 0) {
+        // If using existing measurements, we need to refresh from parent
+        onClose();
+      } else {
+        fetchData();
+      }
       
       // Update SSR quantity after adding measurement
       setTimeout(async () => {
@@ -374,7 +397,11 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       unit: measurement.unit || '',
       is_deduction: measurement.is_deduction || false,
       is_manual_quantity: measurement.is_manual_quantity || false,
-      manual_quantity: measurement.manual_quantity || 0
+      manual_quantity: measurement.manual_quantity || 0,
+      estimated_quantity: measurement.estimated_quantity || 0,
+      actual_quantity: measurement.actual_quantity || 0,
+      variance: measurement.variance || 0,
+      variance_reason: measurement.variance_reason || ''
     });
     // Set the selected rate based on the measurement's line_amount and calculated_quantity
     if (measurement.calculated_quantity && measurement.calculated_quantity > 0) {
@@ -410,6 +437,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       // Use the selected rate
       const rate = selectedRate;
       const lineAmount = calculatedQuantity * rate;
+      const variance = calculatedQuantity - (newMeasurement.estimated_quantity || 0);
 
       const { error } = await supabase
         .schema('estimate')
@@ -422,6 +450,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           width_breadth: newMeasurement.width_breadth,
           height_depth: newMeasurement.height_depth,
           calculated_quantity: calculateQuantity(),
+          actual_quantity: calculateQuantity(),
+          variance: variance,
+          variance_reason: newMeasurement.variance_reason,
           line_amount: calculateLineAmount(),
           is_manual_quantity: newMeasurement.is_manual_quantity || false,
           manual_quantity: newMeasurement.manual_quantity || 0,
@@ -438,15 +469,24 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         no_of_units: 0,
         length: 0,
         width_breadth: 0,
-        height_depth: 0
+        height_depth: 0,
+        estimated_quantity: 0,
+        actual_quantity: 0,
+        variance: 0,
+        variance_reason: ''
       });
       setSelectedRate(0);
       setEnableConversion(false);
       setConversionFactor(1);
       setConvertedUnit('');
       
-      // Refresh data first, then update SSR quantity
-      fetchData();
+      // Refresh measurements
+      if (existingMeasurements.length > 0) {
+        // If using existing measurements, we need to refresh from parent
+        onClose();
+      } else {
+        fetchData();
+      }
       
       // Update SSR quantity after editing measurement
       setTimeout(async () => {
@@ -472,7 +512,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
       if (error) throw error;
       
-      fetchData();
+      // Refresh measurements
+      if (existingMeasurements.length > 0) {
+        // If using existing measurements, we need to refresh from parent
+        onClose();
+      } else {
+        fetchData();
+      }
       
       // Update SSR quantity after deletion
       setTimeout(async () => {
@@ -710,6 +756,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Quantity
                           </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Variance
+                          </th>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Amount
                           </th>
@@ -718,8 +767,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {measurements.map((measurement) => (
-                          <tr key={measurement.id} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 text-sm text-gray-900">{measurement.measurement_sr_no}</td>
+                          <tr key={measurement.sr_no || measurement.measurement_sr_no} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 text-sm text-gray-900">{measurement.measurement_sr_no || measurement.sr_no}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.description_of_items || '-'}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.no_of_units}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.length}</td>
@@ -743,6 +792,15 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                               </div>
                             </td>
                             
+                            <td className="px-4 py-3 text-sm text-center">
+                              <span className={`font-medium ${
+                                (measurement.variance || 0) > 0 ? 'text-red-600' : 
+                                (measurement.variance || 0) < 0 ? 'text-green-600' : 'text-gray-900'
+                              }`}>
+                                {measurement.variance?.toFixed(3) || '0.000'}
+                              </span>
+                            </td>
+                            
                             <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                               ₹{measurement.line_amount.toFixed(2)}
                             </td>
@@ -756,7 +814,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                                   <Edit2 className="w-4 h-4" />
                                 </button>
                                 <button 
-                                  onClick={() => handleDeleteMeasurement(measurement)}
+                                  onClick={() => handleDeleteMeasurement(measurement.sr_no || measurement.measurement_sr_no)}
                                   className="text-red-600 hover:text-red-900 p-1 rounded"
                                   title="Delete Measurement"
                                 >
@@ -1139,6 +1197,38 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   <p className="text-xs text-gray-500 ml-6">
                     Check this for openings, voids, or other items that should be subtracted from the total quantity
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Estimated Quantity
+                  </label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={newMeasurement.estimated_quantity}
+                    onChange={(e) => setNewMeasurement({
+                      ...newMeasurement, 
+                      estimated_quantity: parseFloat(e.target.value) || 0
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Variance Reason (if any)
+                  </label>
+                  <input
+                    type="text"
+                    value={newMeasurement.variance_reason}
+                    onChange={(e) => setNewMeasurement({
+                      ...newMeasurement, 
+                      variance_reason: e.target.value
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Reason for variance (optional)"
+                  />
                 </div>
 
                 {/* Preview */}
@@ -1594,6 +1684,38 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   <p className="text-xs text-gray-500 ml-6">
                     Check this for openings, voids, or other items that should be subtracted from the total quantity
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Estimated Quantity
+                  </label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={newMeasurement.estimated_quantity}
+                    onChange={(e) => setNewMeasurement({
+                      ...newMeasurement, 
+                      estimated_quantity: parseFloat(e.target.value) || 0
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Variance Reason (if any)
+                  </label>
+                  <input
+                    type="text"
+                    value={newMeasurement.variance_reason}
+                    onChange={(e) => setNewMeasurement({
+                      ...newMeasurement, 
+                      variance_reason: e.target.value
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Reason for variance (optional)"
+                  />
                 </div>
 
                 <div className="bg-gray-50 p-3 rounded-md">
