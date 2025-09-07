@@ -81,7 +81,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   useEffect(() => {
     if (isOpen && item.sr_no) {
       fetchData();
-      fetchItemRates();
+      fetchItemRates(item.sr_no);
     }
   }, [isOpen, item.sr_no, activeTab]);
 
@@ -93,13 +93,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     calculateRateGroups();
   }, [measurements, itemRates]);
 
-  const fetchItemRates = async () => {
+  const fetchItemRates = async (itemSrNo: number) => {
     try {
       const { data: item, error } = await supabase
         .schema('estimate')
         .from('subwork_items')
         .select('*')
-        .eq('sr_no', parseInt(sr_no))
+        .eq('sr_no', itemSrNo)
         .single();
 
       if (error) throw error;
