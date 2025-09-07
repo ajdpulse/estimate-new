@@ -170,21 +170,19 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     const groups: {[key: string]: {rate: number, quantity: number, description?: string}} = {};
     
     measurements.forEach(measurement => {
-      const key = (measurement.selected_rate_id ?? 0).toString() || 'no_rate';
-      const rateKey = rate.toString();
+      const rateId = (measurement.selected_rate_id ?? 0).toString();
+      const selectedRate = itemRates.find(r => r.sr_no.toString() === rateId);
+      const rateValue = selectedRate?.rate || item.ssr_rate || 0;
       
       if (!groups[rateId]) {
-        groups[rateId] = { rate: selectedRate?.rate || item.ssr_rate || 0, measurements: [] };
-        // Find rate description from itemRates
-        const rateInfo = itemRates.find(r => r.rate === rate);
-        groups[rateKey] = {
-          rate: rate,
+        groups[rateId] = {
+          rate: rateValue,
           quantity: 0,
-          description: rateInfo?.description
+          description: selectedRate?.description
         };
       }
       
-      groups[rateKey].quantity += measurement.calculated_quantity;
+      groups[rateId].quantity += measurement.calculated_quantity;
     });
     
     setRateGroups(groups);
