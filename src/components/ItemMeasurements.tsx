@@ -111,7 +111,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .from('subwork_items')
         .select('*')
         .eq('sr_no', parseInt(itemId))
-        .single();
+        .eq('subwork_item_sr_no', item.sr_no);
 
       if (error) throw error;
       setItemData(item);
