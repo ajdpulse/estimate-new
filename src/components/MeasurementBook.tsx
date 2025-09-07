@@ -149,7 +149,7 @@ const MeasurementBook: React.FC = () => {
 
   const handleEditMeasurements = (item: SubworkItem, subwork: SubWork) => {
     setSelectedItemForMeasurement({
-      itemId: item.sr_no.toString(),
+      itemId: item.id,
       itemName: item.description_of_item,
       subworkId: subwork.subworks_id,
       subworkName: subwork.subworks_name,
@@ -529,6 +529,7 @@ const MeasurementBook: React.FC = () => {
       {showItemMeasurements && selectedItemForMeasurement && (
         <ItemMeasurements
           item={{
+            id: selectedItemForMeasurement.itemId,
             sr_no: selectedItemForMeasurement.itemSrNo,
             description_of_item: selectedItemForMeasurement.itemName,
             subwork_id: selectedItemForMeasurement.subworkId
