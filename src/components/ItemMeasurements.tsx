@@ -32,6 +32,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   existingMeasurements = []
 }) => {
   const { user } = useAuth();
+  const [itemData, setItemData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'measurements' | 'leads' | 'materials'>('measurements');
   const [measurements, setMeasurements] = useState<ItemMeasurement[]>([]);
   const [itemRates, setItemRates] = useState<ItemRate[]>([]);
