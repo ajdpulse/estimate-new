@@ -99,7 +99,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .schema('estimate')
         .from('subwork_items')
         .select('*')
-        .eq('sr_no', parseInt(itemId))
+        .eq('sr_no', parseInt(sr_no))
         .single();
 
       if (error) throw error;
