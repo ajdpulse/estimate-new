@@ -217,6 +217,15 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         setLeads(data || []);
       } else if (activeTab === 'materials') {
         const { data, error } = await supabase
+          .schema('estimate')
+          .from('item_materials')
+          .select('*')
+          .eq('subwork_item_id', currentItem.sr_no)
+          .order('sr_no', { ascending: true });
+
+        if (error) throw error;
+        setMaterials(data || []);
+      }
       
       if (workId) {
         // Measurement Book context: merge data from both tables
