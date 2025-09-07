@@ -33,6 +33,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const [activeTab, setActiveTab] = useState<'measurements' | 'leads' | 'materials'>('measurements');
   const [measurements, setMeasurements] = useState<ItemMeasurement[]>([]);
   const [itemRates, setItemRates] = useState<ItemRate[]>([]);
+  const [itemData, setItemData] = useState<any>(null);
   const [leads, setLeads] = useState<ItemLead[]>([]);
   const [materials, setMaterials] = useState<ItemMaterial[]>([]);
   const [loading, setLoading] = useState(false);
