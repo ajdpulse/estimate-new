@@ -21,10 +21,10 @@ interface ItemMeasurementsProps {
   onItemUpdated?: (itemSrNo: number) => void;
   availableRates: ItemRate[];
   existingMeasurements?: ItemMeasurement[];
+  workId?: string; // Add workId to determine context
 }
 
 const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({ 
-  workId?: string; // Add workId to determine context
   item, 
   isOpen, 
   onClose,
@@ -271,25 +271,42 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       const lineAmount = calculatedQuantity * rate;
       const variance = calculatedQuantity - (newMeasurement.estimated_quantity || 0);
 
-      const { error } = await supabase
-        .schema('estimate')
-        .from('item_measurements')
-        .insert([{
-          ...newMeasurement,
-          subwork_item_id: currentItem.sr_no,
-          measurement_sr_no: nextSrNo,
-          calculated_quantity: calculatedQuantity,
-          actual_quantity: calculatedQuantity,
-          variance: variance,
-          line_amount: lineAmount,
-          unit: enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || null),
-          is_deduction: newMeasurement.is_deduction || false,
-          is_manual_quantity: newMeasurement.is_manual_quantity || false,
-          manual_quantity: newMeasurement.is_manual_quantity ? (newMeasurement.manual_quantity || 0) : null,
-          selected_rate_id: newMeasurement.selected_rate_id || null
-        }]);
+      const measurementData = {
+        ...newMeasurement,
+        subwork_item_id: currentItem.sr_no,
+        measurement_sr_no: nextSrNo,
+        calculated_quantity: calculatedQuantity,
+        actual_quantity: calculatedQuantity,
+        variance: variance,
+        line_amount: lineAmount,
+        unit: enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || null),
+        is_deduction: newMeasurement.is_deduction || false,
+        is_manual_quantity: newMeasurement.is_manual_quantity || false,
+        manual_quantity: newMeasurement.is_manual_quantity ? (newMeasurement.manual_quantity || 0) : null,
+        selected_rate_id: newMeasurement.selected_rate_id || null
+      };
 
-      if (error) throw error;
+      // Determine which table to save to based on context
+      if (workId) {
+        // Called from Measurement Book - save to measurement_book table
+        const { error } = await supabase
+          .schema('estimate')
+          .from('measurement_book')
+          .insert([{
+            ...measurementData,
+            work_id: workId,
+          }]);
+        
+        if (error) throw error;
+      } else {
+        // Called from Subworks - save to item_measurements table
+        const { error } = await supabase
+          .schema('estimate')
+          .from('item_measurements')
+          .insert([measurementData]);
+        
+        if (error) throw error;
+      }
       
       setShowAddModal(false);
       setNewMeasurement({
@@ -445,32 +462,31 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       const lineAmount = calculatedQuantity * rate;
       const variance = calculatedQuantity - (newMeasurement.estimated_quantity || 0);
 
-      const { error } = await supabase
-        .schema('estimate')
-        .from('item_measurements')
-        .update({
-          description_of_items: newMeasurement.description_of_items,
-          unit: enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || currentItem.ssr_unit),
-          no_of_units: newMeasurement.no_of_units,
-          length: newMeasurement.length,
-          width_breadth: newMeasurement.width_breadth,
-          height_depth: newMeasurement.height_depth,
-          calculated_quantity: calculateQuantity(),
-          actual_quantity: calculateQuantity(),
-          variance_reason: newMeasurement.variance_reason,
-          line_amount: calculateLineAmount(),
-          is_manual_quantity: newMeasurement.is_manual_quantity || false,
-          manual_quantity: newMeasurement.manual_quantity || 0,
+      const measurementData = {
+        description_of_items: newMeasurement.description_of_items,
+        unit: enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || currentItem.ssr_unit),
+        no_of_units: newMeasurement.no_of_units,
+        length: newMeasurement.length,
+        width_breadth: newMeasurement.width_breadth,
+        height_depth: newMeasurement.height_depth,
+        calculated_quantity: calculateQuantity(),
+        actual_quantity: calculateQuantity(),
+        variance_reason: newMeasurement.variance_reason,
+        line_amount: calculateLineAmount(),
+        is_manual_quantity: newMeasurement.is_manual_quantity || false,
+        manual_quantity: newMeasurement.manual_quantity || 0,
+      };
+
       // Determine which table to save to based on context
       if (workId) {
         // Called from Measurement Book - save to measurement_book table
         const { error } = await supabase
           .schema('estimate')
           .from('measurement_book')
-          .upsert([{
-            ...measurementData,
-            work_id: workId,
-          }]);
+          .update(measurementData)
+          .eq('work_id', workId)
+          .eq('subwork_item_id', selectedMeasurement.subwork_item_id)
+          .eq('measurement_sr_no', selectedMeasurement.measurement_sr_no);
         
         if (error) throw error;
       } else {
@@ -478,7 +494,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         const { error } = await supabase
           .schema('estimate')
           .from('item_measurements')
-          .upsert([measurementData]);
+          .update(measurementData)
+          .eq('subwork_item_id', selectedMeasurement.subwork_item_id)
+          .eq('measurement_sr_no', selectedMeasurement.measurement_sr_no);
         
         if (error) throw error;
       }
