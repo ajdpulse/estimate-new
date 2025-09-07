@@ -116,7 +116,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         .from('item_rates')
         .select('*')
         .eq('subwork_item_sr_no', item.sr_no);
-        .eq('subwork_item_sr_no', item.sr_no);
 
       if (error) throw error;
       setItemData(item);
