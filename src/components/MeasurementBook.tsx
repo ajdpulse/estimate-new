@@ -43,6 +43,7 @@ const MeasurementBook: React.FC = () => {
     itemName: string;
     subworkId: string;
     subworkName: string;
+    existingMeasurements: ItemMeasurement[];
   } | null>(null);
   const [showFullEstimateEdit, setShowFullEstimateEdit] = useState(false);
   const [editMode, setEditMode] = useState<'measurements' | 'full_estimate'>('measurements');
@@ -147,11 +148,13 @@ const MeasurementBook: React.FC = () => {
   };
 
   const handleAddMeasurement = (item: SubworkItem, subwork: SubWork) => {
+    const existingMeasurements = measurementData?.measurements[item.sr_no] || [];
     setSelectedItemForMeasurement({
       itemId: item.sr_no.toString(),
       itemName: item.description_of_item,
       subworkId: subwork.subworks_id,
-      subworkName: subwork.subworks_name
+      subworkName: subwork.subworks_name,
+      existingMeasurements: existingMeasurements
     });
     setShowItemMeasurements(true);
   };
@@ -450,10 +453,14 @@ const MeasurementBook: React.FC = () => {
                               <div className="ml-6">
                                 <button
                                   onClick={() => handleAddMeasurement(item, subwork)}
-                                  className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                                  className={`inline-flex items-center px-4 py-2 rounded-lg transition-colors ${
+                                    measurementStatus.count > 0 
+                                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                  }`}
                                 >
                                   <Edit2 className="w-4 h-4 mr-2" />
-                                  {measurementStatus.count > 0 ? 'Update' : 'Add'} Measurements
+                                  {measurementStatus.count > 0 ? 'Edit Measurements' : 'Add Measurements'}
                                 </button>
                               </div>
                             </div>
