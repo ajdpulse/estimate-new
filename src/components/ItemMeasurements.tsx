@@ -173,6 +173,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       const key = (measurement.selected_rate_id ?? 0).toString() || 'no_rate';
       const rateKey = rate.toString();
       
+      if (!groups[rateId]) {
         groups[rateId] = { rate: selectedRate?.rate || item.ssr_rate || 0, measurements: [] };
         // Find rate description from itemRates
         const rateInfo = itemRates.find(r => r.rate === rate);
@@ -819,7 +820,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                                   <Edit2 className="w-4 h-4" />
                                 </button>
                                 <button 
-                                  onClick={() => handleDeleteMeasurement(measurement.sr_no || measurement.measurement_sr_no)}
+                                  onClick={() => handleDeleteMeasurement(measurement)}
                                   className="text-red-600 hover:text-red-900 p-1 rounded"
                                   title="Delete Measurement"
                                 >
