@@ -24,10 +24,12 @@ interface ItemMeasurementsProps {
 }
 
 const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({ 
+  workId?: string; // Add workId to determine context
   item, 
   isOpen, 
   onClose,
   onItemUpdated,
+  workId,
   availableRates,
   existingMeasurements = []
 }) => {
@@ -455,17 +457,32 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           height_depth: newMeasurement.height_depth,
           calculated_quantity: calculateQuantity(),
           actual_quantity: calculateQuantity(),
-          variance: variance,
           variance_reason: newMeasurement.variance_reason,
           line_amount: calculateLineAmount(),
           is_manual_quantity: newMeasurement.is_manual_quantity || false,
           manual_quantity: newMeasurement.manual_quantity || 0,
-          is_deduction: newMeasurement.is_deduction || false
-        })
-        .eq('subwork_item_id', selectedMeasurement.subwork_item_id)
-        .eq('measurement_sr_no', selectedMeasurement.measurement_sr_no);
+      // Determine which table to save to based on context
+      if (workId) {
+        // Called from Measurement Book - save to measurement_book table
+        const { error } = await supabase
+          .schema('estimate')
+          .from('measurement_book')
+          .upsert([{
+            ...measurementData,
+            work_id: workId,
+          }]);
+        
+        if (error) throw error;
+      } else {
+        // Called from Subworks - save to item_measurements table
+        const { error } = await supabase
+          .schema('estimate')
+          .from('item_measurements')
+          .upsert([measurementData]);
+        
+        if (error) throw error;
+      }
 
-      if (error) throw error;
       
       setShowEditModal(false);
       setSelectedMeasurement(null);

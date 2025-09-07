@@ -1190,6 +1190,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
       {/* Measurements Modal */}
       {showMeasurementsModal && selectedItem && (
+          // No workId passed - indicates Subworks context
         <ItemMeasurements
           item={selectedItem}
           isOpen={showMeasurementsModal}

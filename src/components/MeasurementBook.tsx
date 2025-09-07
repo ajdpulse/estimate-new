@@ -537,6 +537,7 @@ const MeasurementBook: React.FC = () => {
           itemName={selectedItemForMeasurement.itemName}
           subworkId={selectedItemForMeasurement.subworkId}
           subworkName={selectedItemForMeasurement.subworkName}
+          workId={selectedWorkId} // Pass workId to indicate Measurement Book context
           isOpen={showItemMeasurements}
           onClose={() => {
             setShowItemMeasurements(false);
