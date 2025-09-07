@@ -106,11 +106,16 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
   const fetchItemRates = async () => {
     try {
-      const { data: item, error } = await supabase
+      if (!item?.sr_no) {
+        console.error('Item sr_no is required for fetching rates');
+        return;
+      }
+
+      const { data, error } = await supabase
         .schema('estimate')
-        .from('subwork_items')
+        .from('item_rates')
         .select('*')
-        .eq('sr_no', parseInt(itemId))
+        .eq('subwork_item_sr_no', item.sr_no);
         .eq('subwork_item_sr_no', item.sr_no);
 
       if (error) throw error;
