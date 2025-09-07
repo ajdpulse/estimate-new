@@ -285,7 +285,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         });
         setMeasurementSources(sources);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
