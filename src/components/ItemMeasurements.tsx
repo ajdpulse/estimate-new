@@ -170,7 +170,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     const groups: {[key: string]: {rate: number, quantity: number, description?: string}} = {};
     
     measurements.forEach(measurement => {
-      const rate = getSelectedRateForMeasurement(measurement);
+      const key = (measurement.selected_rate_id ?? 0).toString() || 'no_rate';
       const rateKey = rate.toString();
       
       if (!groups[rateKey]) {
