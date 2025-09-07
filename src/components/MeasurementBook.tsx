@@ -118,14 +118,56 @@ const MeasurementBook: React.FC = () => {
         subworkItems[subwork.subworks_id] = items || [];
 
         for (const item of items || []) {
-          const { data: itemMeasurements } = await supabase
+          // Fetch original measurements from item_measurements
+          const { data: originalMeasurements } = await supabase
             .schema('estimate')
             .from('item_measurements')
             .select('*')
             .eq('subwork_item_id', item.sr_no)
             .order('measurement_sr_no');
 
-          measurements[item.sr_no] = itemMeasurements || [];
+          // Fetch modified measurements from measurement_book
+          const { data: modifiedMeasurements } = await supabase
+            .schema('estimate')
+            .from('measurement_book')
+            .select('*')
+            .eq('subwork_item_id', item.sr_no)
+            .eq('work_id', workId)
+            .order('measurement_sr_no');
+
+          // Merge measurements: prioritize measurement_book data over item_measurements
+          const mergedMeasurements = [...(originalMeasurements || [])];
+          
+          // Replace or add measurements from measurement_book
+          (modifiedMeasurements || []).forEach(modifiedMeasurement => {
+            const existingIndex = mergedMeasurements.findIndex(
+              original => original.measurement_sr_no === modifiedMeasurement.measurement_sr_no
+            );
+            
+            if (existingIndex >= 0) {
+              // Replace existing measurement with modified version
+              mergedMeasurements[existingIndex] = {
+                ...mergedMeasurements[existingIndex],
+                ...modifiedMeasurement,
+                source: 'measurement_book' // Add source indicator
+              };
+            } else {
+              // Add new measurement from measurement_book
+              mergedMeasurements.push({
+                ...modifiedMeasurement,
+                source: 'measurement_book'
+              });
+            }
+          });
+
+          // Add source indicator to original measurements
+          mergedMeasurements.forEach(measurement => {
+            if (!measurement.source) {
+              measurement.source = 'item_measurements';
+            }
+          });
+
+          measurements[item.id] = mergedMeasurements;
           
           const itemMeasurementTotal = (itemMeasurements || []).reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
           totalMeasurementAmount += itemMeasurementTotal;

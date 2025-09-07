@@ -39,6 +39,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const [measurements, setMeasurements] = useState<ItemMeasurement[]>([]);
   const [itemRates, setItemRates] = useState<ItemRate[]>([]);
   const [leads, setLeads] = useState<ItemLead[]>([]);
+  const [measurementSources, setMeasurementSources] = useState<{[key: string]: string}>({});
   const [materials, setMaterials] = useState<ItemMaterial[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -216,14 +217,73 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         setLeads(data || []);
       } else if (activeTab === 'materials') {
         const { data, error } = await supabase
+      
+      if (workId) {
+        // Measurement Book context: merge data from both tables
+        const [originalRes, modifiedRes] = await Promise.all([
+          supabase
+            .schema('estimate')
+            .from('item_measurements')
+            .select('*')
+            .eq('subwork_item_id', item.sr_no)
+            .order('measurement_sr_no'),
+          supabase
+            .schema('estimate')
+            .from('measurement_book')
+            .select('*')
+            .eq('subwork_item_id', item.sr_no)
+            .eq('work_id', workId)
+            .order('measurement_sr_no')
+        ]);
+
+        if (originalRes.error) throw originalRes.error;
+        if (modifiedRes.error) throw modifiedRes.error;
+
+        // Merge measurements: prioritize measurement_book data
+        const mergedMeasurements = [...(originalRes.data || [])];
+        const sources: {[key: string]: string} = {};
+        
+        // Mark original measurements
+        mergedMeasurements.forEach(measurement => {
+          sources[measurement.measurement_sr_no] = 'item_measurements';
+        });
+
+        // Replace or add measurements from measurement_book
+        (modifiedRes.data || []).forEach(modifiedMeasurement => {
+          const existingIndex = mergedMeasurements.findIndex(
+            original => original.measurement_sr_no === modifiedMeasurement.measurement_sr_no
+          );
+          
+          if (existingIndex >= 0) {
+            // Replace existing measurement with modified version
+            mergedMeasurements[existingIndex] = modifiedMeasurement;
+          } else {
+            // Add new measurement from measurement_book
+            mergedMeasurements.push(modifiedMeasurement);
+          }
+          sources[modifiedMeasurement.measurement_sr_no] = 'measurement_book';
+        });
+
+        setMeasurements(mergedMeasurements);
+        setMeasurementSources(sources);
+      } else {
+        // Subworks context: only from item_measurements
+        const { data, error } = await supabase
           .schema('estimate')
-          .from('item_materials')
+          .from('item_measurements')
           .select('*')
-          .eq('subwork_item_id', currentItem.sr_no)
-          .order('material_name', { ascending: true });
+          .eq('subwork_item_id', item.sr_no)
+          .order('measurement_sr_no');
 
         if (error) throw error;
-        setMaterials(data || []);
+        setMeasurements(data || []);
+        
+        // Mark all as from item_measurements
+        const sources: {[key: string]: string} = {};
+        (data || []).forEach(measurement => {
+          sources[measurement.measurement_sr_no] = 'item_measurements';
+        });
+        setMeasurementSources(sources);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
