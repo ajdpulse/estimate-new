@@ -43,7 +43,7 @@ const MeasurementBook: React.FC = () => {
     itemName: string;
     subworkId: string;
     subworkName: string;
-    existingMeasurements: ItemMeasurement[];
+    itemSrNo: number;
   } | null>(null);
   const [showFullEstimateEdit, setShowFullEstimateEdit] = useState(false);
   const [editMode, setEditMode] = useState<'measurements' | 'full_estimate'>('measurements');
@@ -147,14 +147,13 @@ const MeasurementBook: React.FC = () => {
     }
   };
 
-  const handleAddMeasurement = (item: SubworkItem, subwork: SubWork) => {
-    const existingMeasurements = measurementData?.measurements[item.sr_no] || [];
+  const handleEditMeasurements = (item: SubworkItem, subwork: SubWork) => {
     setSelectedItemForMeasurement({
       itemId: item.sr_no.toString(),
       itemName: item.description_of_item,
       subworkId: subwork.subworks_id,
       subworkName: subwork.subworks_name,
-      existingMeasurements: existingMeasurements
+      itemSrNo: item.sr_no
     });
     setShowItemMeasurements(true);
   };
@@ -200,9 +199,9 @@ const MeasurementBook: React.FC = () => {
   };
 
   const getMeasurementStatus = (item: SubworkItem) => {
-    const itemMeasurements = measurementData?.measurements[item.id] || [];
+    const itemMeasurements = measurementData?.measurements[item.sr_no] || [];
     const measurementCount = itemMeasurements.length;
-    const totalMeasurementAmount = itemMeasurements.reduce((sum, m) => sum + (m.line_amount || 0), 0);
+    const totalMeasurementAmount = itemMeasurements.reduce((sum, m) => sum + (m.actual_quantity || 0), 0);
     
     if (measurementCount === 0) {
       return { status: 'no_measurements', count: 0, amount: 0, color: 'text-gray-500', bgColor: 'bg-gray-50' };
@@ -452,15 +451,15 @@ const MeasurementBook: React.FC = () => {
                               
                               <div className="ml-6">
                                 <button
-                                  onClick={() => handleAddMeasurement(item, subwork)}
+                                  onClick={() => handleEditMeasurements(item, subwork)}
                                   className={`inline-flex items-center px-4 py-2 rounded-lg transition-colors ${
                                     measurementStatus.count > 0 
-                                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
                                       : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                                   }`}
                                 >
                                   <Edit2 className="w-4 h-4 mr-2" />
-                                  {measurementStatus.count > 0 ? 'Edit Measurements' : 'Add Measurements'}
+                                  {measurementStatus.count > 0 ? `Edit Measurements (${measurementStatus.count})` : 'Add Measurements'}
                                 </button>
                               </div>
                             </div>
@@ -529,7 +528,11 @@ const MeasurementBook: React.FC = () => {
       {/* Item Measurements Modal */}
       {showItemMeasurements && selectedItemForMeasurement && (
         <ItemMeasurements
-          itemId={selectedItemForMeasurement.itemId}
+          item={{
+            sr_no: selectedItemForMeasurement.itemSrNo,
+            description_of_item: selectedItemForMeasurement.itemName,
+            subwork_id: selectedItemForMeasurement.subworkId
+          }}
           itemName={selectedItemForMeasurement.itemName}
           subworkId={selectedItemForMeasurement.subworkId}
           subworkName={selectedItemForMeasurement.subworkName}
