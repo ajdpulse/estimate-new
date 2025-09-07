@@ -127,7 +127,7 @@ const MeasurementBook: React.FC = () => {
 
           measurements[item.sr_no] = itemMeasurements || [];
           
-          const itemMeasurementTotal = (itemMeasurements || []).reduce((sum, m) => sum + (m.actual_quantity || 0), 0);
+          const itemMeasurementTotal = (itemMeasurements || []).reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
           totalMeasurementAmount += itemMeasurementTotal;
         }
       }
@@ -149,7 +149,7 @@ const MeasurementBook: React.FC = () => {
 
   const handleEditMeasurements = (item: SubworkItem, subwork: SubWork) => {
     setSelectedItemForMeasurement({
-      itemId: item.id,
+      itemId: item.sr_no.toString(),
       itemName: item.description_of_item,
       subworkId: subwork.subworks_id,
       subworkName: subwork.subworks_name,
@@ -201,7 +201,7 @@ const MeasurementBook: React.FC = () => {
   const getMeasurementStatus = (item: SubworkItem) => {
     const itemMeasurements = measurementData?.measurements[item.sr_no] || [];
     const measurementCount = itemMeasurements.length;
-    const totalMeasurementAmount = itemMeasurements.reduce((sum, m) => sum + (m.actual_quantity || 0), 0);
+    const totalMeasurementAmount = itemMeasurements.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
     
     if (measurementCount === 0) {
       return { status: 'no_measurements', count: 0, amount: 0, color: 'text-gray-500', bgColor: 'bg-gray-50' };
@@ -529,7 +529,7 @@ const MeasurementBook: React.FC = () => {
       {showItemMeasurements && selectedItemForMeasurement && (
         <ItemMeasurements
           item={{
-            id: selectedItemForMeasurement.itemId,
+            id: selectedItemForMeasurement.itemSrNo.toString(),
             sr_no: selectedItemForMeasurement.itemSrNo,
             description_of_item: selectedItemForMeasurement.itemName,
             subwork_id: selectedItemForMeasurement.subworkId
