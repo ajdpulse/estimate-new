@@ -280,8 +280,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         const { data, error } = await supabase
           .schema('estimate')
           .from('item_measurements')
-          .select('*')
-          .eq('subwork_item_id', item.sr_no)
+          .eq('item_id', item.sr_no)
+          .eq('subwork_id', subworkId)
           .order('measurement_sr_no');
 
         if (error) throw error;

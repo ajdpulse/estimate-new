@@ -131,7 +131,7 @@ const MeasurementBook: React.FC = () => {
             .schema('estimate')
             .from('measurement_book')
             .select('*')
-            .eq('item_id', item.id)
+            .eq('item_id', item.sr_no)
             .eq('subwork_id', subwork.subworks_id)
             .order('measurement_sr_no');
 
