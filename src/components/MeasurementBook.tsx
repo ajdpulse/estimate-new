@@ -131,8 +131,8 @@ const MeasurementBook: React.FC = () => {
             .schema('estimate')
             .from('measurement_book')
             .select('*')
-            .eq('subwork_item_id', item.sr_no)
-            .eq('work_id', worksId)
+            .eq('item_id', item.id)
+            .eq('subwork_id', subwork.subworks_id)
             .order('measurement_sr_no');
 
           // Merge measurements: prioritize measurement_book data over item_measurements
@@ -169,7 +169,7 @@ const MeasurementBook: React.FC = () => {
 
           measurements[item.id] = mergedMeasurements;
           
-          const itemMeasurementTotal = (itemMeasurements || []).reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
+          const itemMeasurementTotal = (mergedMeasurements || []).reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
           totalMeasurementAmount += itemMeasurementTotal;
         }
       }
