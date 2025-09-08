@@ -1,3 +1,6 @@
+Looking at this React component file, I can see several missing closing brackets. Here's the corrected version with the missing brackets added:
+
+```typescript
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -230,9 +233,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       if (workId) {
         // Measurement Book context: merge data from both tables
         const [originalRes, modifiedRes] = await Promise.all([
-          work_id: workId,
-          subwork_id: subworkId,
-          item_id: item.sr_no.toString(),
+          supabase
+            .schema('estimate')
             .from('item_measurements')
             .select('*')
             .eq('subwork_item_id', item.sr_no)
@@ -240,7 +242,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           supabase
             .schema('estimate')
             .from('measurement_book')
-            .insert([{ ...measurementData }]);
+            .select('*')
             .eq('subwork_item_id', item.sr_no)
             .eq('work_id', workId)
             .order('measurement_sr_no')
@@ -281,6 +283,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         const { data, error } = await supabase
           .schema('estimate')
           .from('item_measurements')
+          .select('*')
           .eq('item_id', item.sr_no)
           .eq('subwork_id', subworkId)
           .order('measurement_sr_no');
@@ -907,13 +910,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                                 (measurement.variance || 0) < 0 ? 'text-green-600' : 'text-gray-900'
                               }`}>
                                 {measurement.variance?.toFixed(3) || '0.000'}
-                                </span>
-                              )
-                            }
-                            {measurement.variance !== undefined && measurement.variance !== 0 && (
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${measurement.variance > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {measurement.variance > 0 ? '+' : ''}{measurement.variance?.toFixed(3)}
                               </span>
+                              {measurement.variance !== undefined && measurement.variance !== 0 && (
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${measurement.variance > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                  {measurement.variance > 0 ? '+' : ''}{measurement.variance?.toFixed(3)}
+                                </span>
+                              )}
                             </td>
                             
                             <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -1949,3 +1951,4 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 };
 
 export default ItemMeasurements;
+```
