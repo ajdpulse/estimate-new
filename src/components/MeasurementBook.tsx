@@ -132,7 +132,7 @@ const MeasurementBook: React.FC = () => {
             .from('measurement_book')
             .select('*')
             .eq('subwork_item_id', item.sr_no)
-            .eq('work_id', workId)
+            .eq('work_id', worksId)
             .order('measurement_sr_no');
 
           // Merge measurements: prioritize measurement_book data over item_measurements
