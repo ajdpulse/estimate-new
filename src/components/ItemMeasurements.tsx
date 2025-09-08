@@ -230,8 +230,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       if (workId) {
         // Measurement Book context: merge data from both tables
         const [originalRes, modifiedRes] = await Promise.all([
-          supabase
-            .schema('estimate')
+          work_id: workId,
+          subwork_id: subworkId,
+          item_id: item.sr_no.toString(),
             .from('item_measurements')
             .select('*')
             .eq('subwork_item_id', item.sr_no)
@@ -239,7 +240,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           supabase
             .schema('estimate')
             .from('measurement_book')
-            .select('*')
+            .insert([{ ...measurementData }]);
             .eq('subwork_item_id', item.sr_no)
             .eq('work_id', workId)
             .order('measurement_sr_no')
@@ -906,6 +907,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                                 (measurement.variance || 0) < 0 ? 'text-green-600' : 'text-gray-900'
                               }`}>
                                 {measurement.variance?.toFixed(3) || '0.000'}
+                                </span>
+                              )
+                            }
+                            {measurement.variance !== undefined && measurement.variance !== 0 && (
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${measurement.variance > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {measurement.variance > 0 ? '+' : ''}{measurement.variance?.toFixed(3)}
                               </span>
                             </td>
                             
