@@ -475,7 +475,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         onItemUpdated(currentItem.sr_no);
       }
       
-      console.log(`Updated SSR quantity to ${totalQuantity} for item ${currentItem.sr_no}`);
+      console.log(\`Updated SSR quantity to ${totalQuantity} for item ${currentItem.sr_no}`);
       
     } catch (error) {
       console.error('Error updating SSR quantity:', error);
@@ -797,7 +797,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab('measurements')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={\`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'measurements'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -808,7 +808,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
               </button>
               <button
                 onClick={() => setActiveTab('leads')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={\`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'leads'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -819,7 +819,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
               </button>
               <button
                 onClick={() => setActiveTab('materials')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={\`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'materials'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -888,7 +888,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.height_depth}</td>
                             <td className="px-4 py-2 whitespace-nowrap text-sm">
                               <div className="flex flex-col">
-                                <span className={`font-medium ${measurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
+                                <span className={\`font-medium ${measurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
                                   {measurement.is_deduction ? '-' : ''}{measurement.calculated_quantity.toFixed(3)} {measurement.unit || currentItem.ssr_unit}
                                 </span>
                                 {measurement.is_manual_quantity && (
@@ -905,7 +905,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                             </td>
                             
                             <td className="px-4 py-3 text-sm text-center">
-                              <span className={`font-medium ${
+                              <span className={\`font-medium ${
                                 (measurement.variance || 0) > 0 ? 'text-red-600' : 
                                 (measurement.variance || 0) < 0 ? 'text-green-600' : 'text-gray-900'
                               }`}>
