@@ -472,7 +472,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         onItemUpdated(currentItem.sr_no);
       }
       
-      console.log(\`Updated SSR quantity to ${totalQuantity} for item ${currentItem.sr_no}`);
+      console.log(`Updated SSR quantity to ${totalQuantity} for item ${currentItem.sr_no}`);
       
     } catch (error) {
       console.error('Error updating SSR quantity:', error);
