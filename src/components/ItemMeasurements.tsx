@@ -1,4 +1,4 @@
-Looking at this React component file, I can see several missing closing brackets. Here's the corrected version with the missing brackets added:
+//Looking at this React component file, I can see several missing closing brackets. Here's the corrected version with the missing brackets added:
 
 ```typescript
 import React, { useState, useEffect } from 'react';
