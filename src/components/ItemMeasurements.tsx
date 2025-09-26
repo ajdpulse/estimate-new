@@ -152,11 +152,11 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     if (!user || !newMeasurement.description_of_items) return;
 
     try {
-      setSaving(true);
+      setSaving(true);debugger
       
       const calculatedQuantity = calculateQuantity(newMeasurement);
       
-      const measurementData = {debugger
+      const measurementData = {
         subwork_item_id: item.sr_no,
         work_id: workId || '',
         subwork_id: subworkId,
