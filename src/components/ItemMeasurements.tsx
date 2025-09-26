@@ -149,9 +149,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   };
 
   const handleAddMeasurement = async () => {
-    if (!user || !newMeasurement.description_of_items) return;debugger
+    if (!user || !newMeasurement.description_of_items) return;
 
-    try {
+    try {debugger
       setSaving(true);
       
       const calculatedQuantity = calculateQuantity(newMeasurement);
