@@ -156,7 +156,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       
       const calculatedQuantity = calculateQuantity(newMeasurement);
       
-      const measurementData = {debigger
+      const measurementData = {debugger
         subwork_item_id: item.sr_no,
         work_id: workId || '',
         subwork_id: subworkId,
