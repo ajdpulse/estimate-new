@@ -29,6 +29,7 @@ interface ItemMeasurementsProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
 const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   item,
   itemName,
@@ -227,4 +228,4 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         variance: 0
       };
 
-      const measurement = measurements.find(m => m.sr_no.toString() === me
+      const measurement = measurements.find(m => m.sr_no.toString() === me,
