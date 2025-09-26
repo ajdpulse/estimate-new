@@ -231,7 +231,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
             .from('measurement_book')
             .select('*')
             .eq('subwork_item_id', item.sr_no)
-            .eq('work_id', workId)
+            .eq('subwork_id', subworkId)
             .order('measurement_sr_no')
         ]);
 
