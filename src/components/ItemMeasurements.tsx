@@ -136,7 +136,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  };debugger
 
   const calculateQuantity = (measurement: Partial<ItemMeasurement>) => {
     const units = measurement.no_of_units || 0;
@@ -151,7 +151,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   const handleAddMeasurement = async () => {
     if (!user || !newMeasurement.description_of_items) return;
 
-    try {debugger
+    try {
       setSaving(true);
       
       const calculatedQuantity = calculateQuantity(newMeasurement);
