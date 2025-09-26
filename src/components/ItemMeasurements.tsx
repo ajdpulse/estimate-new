@@ -28,8 +28,7 @@ interface ItemMeasurementsProps {
   workId?: string; // Optional - indicates if this is from Measurement Book context
   isOpen: boolean;
   onClose: () => void;
-},
-
+}
 const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   item,
   itemName,
