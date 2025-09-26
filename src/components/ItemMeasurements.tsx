@@ -2,17 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { SubworkItem, ItemMeasurement, ItemLead, ItemMaterial } from '../types';
-import { 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Calculator,
-  Truck,
-  Upload,
-  X,
-  ImageIcon,
-  Package2
-} from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Calculator, Truck, Upload, X, Image as ImageIcon, Package2 } from 'lucide-react'';
 
 interface ItemMeasurementsProps {
   item: SubworkItem;
@@ -241,7 +231,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
             .from('measurement_book')
             .select('*')
             .eq('subwork_item_id', item.sr_no)
-            .eq('work_id', workId)
+            .eq('subwork_id', subworkId)
             .order('measurement_sr_no')
         ]);
 
