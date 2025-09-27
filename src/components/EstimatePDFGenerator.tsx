@@ -40,7 +40,7 @@ interface EstimatePDFGeneratorProps {
   onClose: () => void;
 }
 
-const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
+export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
   workId,
   isOpen,
   onClose
@@ -931,5 +931,3 @@ const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     </div>
   );
 };
-
-export default EstimatePDFGenerator;
