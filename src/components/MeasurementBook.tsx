@@ -34,7 +34,7 @@ interface EstimateData {
   subworkItems: { [subworkId: string]: SubworkItem[] };
 }
 
-const MeasurementBook: React.FC = () => {
+const MeasurementBook = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   
