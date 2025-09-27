@@ -740,7 +740,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     
     <div className="flex-1">
       <div className="text-center mb-6">
-        <p className="text-sm">Fund Head :- {estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
+        <p className="text-sm">Fund Head :- {estimateData.work.fund_head || '-'}</p>
         <p className="text-sm">Village :- {estimateData.work.village || 'N/A'}, GP :- {estimateData.work.grampanchayat || 'N/A'}, Tah :- {estimateData.work.taluka || 'N/A'}</p>
         <h3 className="text-lg font-bold mt-4">Sub-work: {subwork.subworks_name}</h3>
       </div>
