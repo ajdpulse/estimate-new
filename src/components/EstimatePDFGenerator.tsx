@@ -729,6 +729,205 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                 <PageFooter pageNumber={3} />
               </div>
 
+              {/* Measurement Detail Pages for Each Subwork Item */}
+              {(() => {
+                let pageNumber = 4;
+                const measurementPages = [];
+                
+                estimateData.subworks.forEach((subwork) => {
+                  const items = estimateData.subworkItems[subwork.subworks_id] || [];
+                  
+                  items.forEach((item) => {
+                    const itemMeasurements = estimateData.measurements[item.id] || [];
+                    const itemLeads = estimateData.leads[item.id] || [];
+                    const itemMaterials = estimateData.materials[item.id] || [];
+                    
+                    // Only create a page if there are measurements, leads, or materials
+                    if (itemMeasurements.length > 0 || itemLeads.length > 0 || itemMaterials.length > 0) {
+                      measurementPages.push(
+                        <div key={`measurement-${item.id}`} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                          <PageHeader pageNumber={pageNumber} />
+                          
+                          <div className="flex-1">
+                            <div className="text-center mb-6">
+                              <p className="text-sm">Fund Head :- {estimateData.work.fund_head || '-'}</p>
+                              <p className="text-sm font-semibold">NAME OF WORK: {estimateData.work.work_name}</p>
+                              <p className="text-sm">Village :- {estimateData.work.village || 'N/A'}, GP :- {estimateData.work.grampanchayat || 'N/A'}, Tah :- {estimateData.work.taluka || 'N/A'}</p>
+                              <h3 className="text-lg font-bold mt-4">MEASUREMENT DETAILS</h3>
+                              <h4 className="text-base font-semibold mt-2">Subwork: {subwork.subworks_name}</h4>
+                              <h5 className="text-sm font-medium mt-1">Item: {item.description_of_item}</h5>
+                            </div>
+
+                            {/* Item Summary */}
+                            <div className="mb-6 bg-gray-50 p-4 rounded">
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <span className="font-medium">Item Number:</span> {item.item_number || 'N/A'}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Category:</span> {item.category || 'N/A'}
+                                </div>
+                                <div>
+                                  <span className="font-medium">SSR Quantity:</span> {item.ssr_quantity || 0} {item.ssr_unit || ''}
+                                </div>
+                                <div>
+                                  <span className="font-medium">SSR Rate:</span> ₹{(item.ssr_rate || 0).toLocaleString('hi-IN')}
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="font-medium">Total Amount:</span> ₹{(item.total_item_amount || 0).toLocaleString('hi-IN')}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Measurements Table */}
+                            {itemMeasurements.length > 0 && (
+                              <div className="mb-6">
+                                <h5 className="font-bold mb-3 text-sm bg-blue-100 p-2">MEASUREMENTS</h5>
+                                <table className="w-full border-collapse border border-black text-xs">
+                                  <thead>
+                                    <tr className="bg-gray-100">
+                                      <th className="border border-black p-2">Sr. No</th>
+                                      <th className="border border-black p-2">Description of Items</th>
+                                      <th className="border border-black p-2">No. of Units</th>
+                                      <th className="border border-black p-2">Length (m)</th>
+                                      <th className="border border-black p-2">Width/Breadth (m)</th>
+                                      <th className="border border-black p-2">Height/Depth (m)</th>
+                                      <th className="border border-black p-2">Calculated Quantity</th>
+                                      <th className="border border-black p-2">Unit</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {itemMeasurements.map((measurement, idx) => (
+                                      <tr key={measurement.sr_no || idx}>
+                                        <td className="border border-black p-2 text-center">{idx + 1}</td>
+                                        <td className="border border-black p-2">{measurement.description_of_items || 'N/A'}</td>
+                                        <td className="border border-black p-2 text-center">{measurement.no_of_units || 1}</td>
+                                        <td className="border border-black p-2 text-center">{(measurement.length || 0).toFixed(3)}</td>
+                                        <td className="border border-black p-2 text-center">{(measurement.width_breadth || 0).toFixed(3)}</td>
+                                        <td className="border border-black p-2 text-center">{(measurement.height_depth || 0).toFixed(3)}</td>
+                                        <td className="border border-black p-2 text-center">{(measurement.calculated_quantity || 0).toFixed(3)}</td>
+                                        <td className="border border-black p-2 text-center">{measurement.unit || item.ssr_unit || 'N/A'}</td>
+                                      </tr>
+                                    ))}
+                                    <tr className="font-bold bg-gray-100">
+                                      <td colSpan={6} className="border border-black p-2 text-right">Total Calculated Quantity:</td>
+                                      <td className="border border-black p-2 text-center">
+                                        {itemMeasurements.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0).toFixed(3)}
+                                      </td>
+                                      <td className="border border-black p-2 text-center">{item.ssr_unit || 'N/A'}</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+
+                            {/* Lead Charges Table */}
+                            {itemLeads.length > 0 && (
+                              <div className="mb-6">
+                                <h5 className="font-bold mb-3 text-sm bg-green-100 p-2">LEAD CHARGES</h5>
+                                <table className="w-full border-collapse border border-black text-xs">
+                                  <thead>
+                                    <tr className="bg-gray-100">
+                                      <th className="border border-black p-2">Sr. No</th>
+                                      <th className="border border-black p-2">Material</th>
+                                      <th className="border border-black p-2">Location of Quarry</th>
+                                      <th className="border border-black p-2">Lead Distance (Km)</th>
+                                      <th className="border border-black p-2">Lead Charges (₹)</th>
+                                      <th className="border border-black p-2">Initial Lead Charges (₹)</th>
+                                      <th className="border border-black p-2">Net Lead Charges (₹)</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {itemLeads.map((lead, idx) => (
+                                      <tr key={lead.sr_no || idx}>
+                                        <td className="border border-black p-2 text-center">{idx + 1}</td>
+                                        <td className="border border-black p-2">{lead.material || 'N/A'}</td>
+                                        <td className="border border-black p-2">{lead.location_of_quarry || 'N/A'}</td>
+                                        <td className="border border-black p-2 text-center">{(lead.lead_in_km || 0).toFixed(2)}</td>
+                                        <td className="border border-black p-2 text-right">{(lead.lead_charges || 0).toLocaleString('hi-IN')}</td>
+                                        <td className="border border-black p-2 text-right">{(lead.initial_lead_charges || 0).toLocaleString('hi-IN')}</td>
+                                        <td className="border border-black p-2 text-right">{(lead.net_lead_charges || 0).toLocaleString('hi-IN')}</td>
+                                      </tr>
+                                    ))}
+                                    <tr className="font-bold bg-gray-100">
+                                      <td colSpan={6} className="border border-black p-2 text-right">Total Net Lead Charges:</td>
+                                      <td className="border border-black p-2 text-right">
+                                        ₹{itemLeads.reduce((sum, l) => sum + (l.net_lead_charges || 0), 0).toLocaleString('hi-IN')}
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+
+                            {/* Materials Table */}
+                            {itemMaterials.length > 0 && (
+                              <div className="mb-6">
+                                <h5 className="font-bold mb-3 text-sm bg-purple-100 p-2">MATERIALS</h5>
+                                <table className="w-full border-collapse border border-black text-xs">
+                                  <thead>
+                                    <tr className="bg-gray-100">
+                                      <th className="border border-black p-2">Sr. No</th>
+                                      <th className="border border-black p-2">Material Name</th>
+                                      <th className="border border-black p-2">Required Quantity</th>
+                                      <th className="border border-black p-2">Unit</th>
+                                      <th className="border border-black p-2">Rate per Unit (₹)</th>
+                                      <th className="border border-black p-2">Total Material Cost (₹)</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {itemMaterials.map((material, idx) => (
+                                      <tr key={material.sr_no || idx}>
+                                        <td className="border border-black p-2 text-center">{idx + 1}</td>
+                                        <td className="border border-black p-2">{material.material_name || 'N/A'}</td>
+                                        <td className="border border-black p-2 text-center">{(material.required_quantity || 0).toFixed(3)}</td>
+                                        <td className="border border-black p-2 text-center">{material.unit || 'N/A'}</td>
+                                        <td className="border border-black p-2 text-right">{(material.rate_per_unit || 0).toLocaleString('hi-IN')}</td>
+                                        <td className="border border-black p-2 text-right">{(material.total_material_cost || 0).toLocaleString('hi-IN')}</td>
+                                      </tr>
+                                    ))}
+                                    <tr className="font-bold bg-gray-100">
+                                      <td colSpan={5} className="border border-black p-2 text-right">Total Material Cost:</td>
+                                      <td className="border border-black p-2 text-right">
+                                        ₹{itemMaterials.reduce((sum, m) => sum + (m.total_material_cost || 0), 0).toLocaleString('hi-IN')}
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+
+                            {/* Summary Section */}
+                            <div className="mt-6 bg-yellow-50 p-4 rounded border">
+                              <h5 className="font-bold mb-2 text-sm">ITEM SUMMARY</h5>
+                              <div className="grid grid-cols-2 gap-4 text-xs">
+                                <div>
+                                  <span className="font-medium">Total Measurements:</span> {itemMeasurements.length}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Total Lead Entries:</span> {itemLeads.length}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Total Materials:</span> {itemMaterials.length}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Item Total Amount:</span> ₹{(item.total_item_amount || 0).toLocaleString('hi-IN')}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <PageFooter pageNumber={pageNumber} />
+                        </div>
+                      );
+                      pageNumber++;
+                    }
+                  });
+                });
+                
+                return measurementPages;
+              })()}
+
               {/* Sub-work Detail Pages */}
               {estimateData.subworks.map((subwork, subworkIndex) => {
                 const items = estimateData.subworkItems[subwork.subworks_id] || [];
@@ -736,7 +935,30 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
                 return (
   <div key={subwork.subworks_id} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
-    <PageHeader pageNumber={4 + subworkIndex} />
+    <PageHeader pageNumber={(() => {
+      // Calculate page number after measurement pages
+      let pageNum = 4;
+      estimateData.subworks.forEach((sw, idx) => {
+        if (idx < subworkIndex) {
+          const swItems = estimateData.subworkItems[sw.subworks_id] || [];
+          swItems.forEach((item) => {
+            const hasDetails = (estimateData.measurements[item.id] || []).length > 0 ||
+                             (estimateData.leads[item.id] || []).length > 0 ||
+                             (estimateData.materials[item.id] || []).length > 0;
+            if (hasDetails) pageNum++;
+          });
+        }
+      });
+      // Add current subwork measurement pages
+      const currentItems = estimateData.subworkItems[subwork.subworks_id] || [];
+      currentItems.forEach((item) => {
+        const hasDetails = (estimateData.measurements[item.id] || []).length > 0 ||
+                         (estimateData.leads[item.id] || []).length > 0 ||
+                         (estimateData.materials[item.id] || []).length > 0;
+        if (hasDetails) pageNum++;
+      });
+      return pageNum;
+    })()} />
     
     <div className="flex-1">
       <div className="text-center mb-6">
@@ -895,7 +1117,30 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
       })}
     </div>
     
-    <PageFooter pageNumber={4 + subworkIndex} />
+    <PageFooter pageNumber={(() => {
+      // Calculate page number after measurement pages
+      let pageNum = 4;
+      estimateData.subworks.forEach((sw, idx) => {
+        if (idx < subworkIndex) {
+          const swItems = estimateData.subworkItems[sw.subworks_id] || [];
+          swItems.forEach((item) => {
+            const hasDetails = (estimateData.measurements[item.id] || []).length > 0 ||
+                             (estimateData.leads[item.id] || []).length > 0 ||
+                             (estimateData.materials[item.id] || []).length > 0;
+            if (hasDetails) pageNum++;
+          });
+        }
+      });
+      // Add current subwork measurement pages
+      const currentItems = estimateData.subworkItems[subwork.subworks_id] || [];
+      currentItems.forEach((item) => {
+        const hasDetails = (estimateData.measurements[item.id] || []).length > 0 ||
+                         (estimateData.leads[item.id] || []).length > 0 ||
+                         (estimateData.materials[item.id] || []).length > 0;
+        if (hasDetails) pageNum++;
+      });
+      return pageNum;
+    })()} />
   </div>
 );
               })}
