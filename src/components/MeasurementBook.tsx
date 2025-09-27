@@ -4,27 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Work, SubWork, SubworkItem } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
-import { 
-  BookOpen, 
-  Search, 
-  Filter, 
-  Plus, 
-  Save, 
-  Download, 
-  Calculator, 
-  Ruler, 
-  Edit2, 
-  Trash2, 
-  Eye, 
-  RefreshCw, 
-  AlertTriangle, 
-  CheckCircle, 
-  FileSpreadsheet, 
-  Import, 
-  Upload,
-  X,
-  Check
-} from 'lucide-react';
+import { BookOpen, Search, Filter, Plus, Save, Download, Calculator, Ruler, CreditCard as Edit2, Trash2, Eye, RefreshCw, AlertTriangle, CheckCircle, FileSpreadsheet, Import, Upload, X, Check } from 'lucide-react';
 
 interface MeasurementBookEntry {
   sr_no: number;
