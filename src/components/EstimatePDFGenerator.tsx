@@ -575,7 +575,7 @@ const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                     <h3 className="text-lg font-bold mt-4">RECAPITULATION SHEET</h3>
                   </div>
 
-                  <<table className="w-full border-collapse border border-black text-xs mb-6">
+                  <table className="w-full border-collapse border border-black text-xs mb-6">
   <thead>
     <tr className="bg-gray-100">
       <th className="border border-black p-2 text-center">Sr. No</th>
