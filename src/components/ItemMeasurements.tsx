@@ -348,7 +348,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     setShowEditModal(true);
   };
 
-  const handleUpdateMeasurement = async () => {
+  const handleUpdateMeasurement = async () => {debugger;
     if (!selectedMeasurement || !user) return;
 
     if (selectedRate === 0) {
