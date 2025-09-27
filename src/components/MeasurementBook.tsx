@@ -4,7 +4,27 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Work, SubWork, SubworkItem } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
-import { BookOpen, Search, Filter, Plus, Save, Download, Calculator, Ruler, CreditCard as Edit2, Trash2, Eye, RefreshCw, AlertTriangle, CheckCircle, FileSpreadsheet, Import, Upload } from 'lucide-react';
+import { 
+  BookOpen, 
+  Search, 
+  Filter, 
+  Plus, 
+  Save, 
+  Download, 
+  Calculator, 
+  Ruler, 
+  Edit2, 
+  Trash2, 
+  Eye, 
+  RefreshCw, 
+  AlertTriangle, 
+  CheckCircle, 
+  FileSpreadsheet, 
+  Import, 
+  Upload,
+  X,
+  Check
+} from 'lucide-react';
 
 interface MeasurementBookEntry {
   sr_no: number;
@@ -12,7 +32,7 @@ interface MeasurementBookEntry {
   subwork_id: string;
   item_id: string;
   measurement_sr_no: number;
-  description_of_items: string;
+  description_of_items?: string;
   no_of_units: number;
   length: number;
   width_breadth: number;
@@ -20,9 +40,9 @@ interface MeasurementBookEntry {
   estimated_quantity: number;
   actual_quantity: number;
   variance: number;
-  variance_reason: string;
-  unit: string;
-  measured_by: string;
+  variance_reason?: string;
+  unit?: string;
+  measured_by?: string;
   measured_at: string;
   created_at: string;
   updated_at: string;
@@ -50,6 +70,7 @@ const MeasurementBook: React.FC = () => {
   const [editingRow, setEditingRow] = useState<number | null>(null);
   const [newMeasurement, setNewMeasurement] = useState<Partial<MeasurementBookEntry>>({});
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingMeasurement, setEditingMeasurement] = useState<Partial<MeasurementBookEntry>>({});
 
   // Fetch works on component mount
   useEffect(() => {
@@ -71,7 +92,7 @@ const MeasurementBook: React.FC = () => {
         .schema('estimate')
         .from('works')
         .select('*')
-        .in('status', ['approved', 'in_progress', 'completed'])
+        .in('status', ['approved', 'in_progress', 'completed', 'pending'])
         .order('sr_no', { ascending: false });
 
       if (error) throw error;
@@ -142,7 +163,7 @@ const MeasurementBook: React.FC = () => {
         .from('measurement_book')
         .select('*')
         .eq('work_id', workId)
-        .order('sr_no', { ascending: true });
+        .order('measurement_sr_no', { ascending: true });
 
       if (error) throw error;
       setMeasurements(data || []);
@@ -172,12 +193,12 @@ const MeasurementBook: React.FC = () => {
 
           if (existingMeasurements && existingMeasurements.length > 0) {
             // Import existing measurements
-            for (const measurement of existingMeasurements) {
+            for (const [index, measurement] of existingMeasurements.entries()) {
               importedMeasurements.push({
                 work_id: estimateData.work.works_id,
                 subwork_id: subwork.subworks_id,
                 item_id: item.id,
-                measurement_sr_no: measurement.sr_no,
+                measurement_sr_no: index + 1,
                 description_of_items: measurement.description_of_items || item.description_of_item,
                 no_of_units: measurement.no_of_units || 1,
                 length: measurement.length || 0,
@@ -186,7 +207,8 @@ const MeasurementBook: React.FC = () => {
                 estimated_quantity: measurement.calculated_quantity || 0,
                 actual_quantity: measurement.actual_quantity || measurement.calculated_quantity || 0,
                 unit: measurement.unit || item.ssr_unit,
-                measured_by: user.email || 'System Import'
+                measured_by: user.email || 'System Import',
+                measured_at: new Date().toISOString()
               });
             }
           } else {
@@ -204,7 +226,8 @@ const MeasurementBook: React.FC = () => {
               estimated_quantity: item.ssr_quantity || 0,
               actual_quantity: 0,
               unit: item.ssr_unit,
-              measured_by: user.email || 'System Import'
+              measured_by: user.email || 'System Import',
+              measured_at: new Date().toISOString()
             });
           }
         }
@@ -238,12 +261,27 @@ const MeasurementBook: React.FC = () => {
       setSaving(true);
 
       if (isNew) {
+        // Get next measurement_sr_no for this work
+        const { data: existingMeasurements } = await supabase
+          .schema('estimate')
+          .from('measurement_book')
+          .select('measurement_sr_no')
+          .eq('work_id', selectedWorkId)
+          .order('measurement_sr_no', { ascending: false })
+          .limit(1);
+
+        const nextMeasurementSrNo = existingMeasurements && existingMeasurements.length > 0 
+          ? existingMeasurements[0].measurement_sr_no + 1 
+          : 1;
+
         const { error } = await supabase
           .schema('estimate')
           .from('measurement_book')
           .insert([{
             ...measurement,
-            measured_by: user.email || 'Unknown User'
+            measurement_sr_no: nextMeasurementSrNo,
+            measured_by: user.email || 'Unknown User',
+            measured_at: new Date().toISOString()
           }]);
 
         if (error) throw error;
@@ -252,6 +290,8 @@ const MeasurementBook: React.FC = () => {
           .schema('estimate')
           .from('measurement_book')
           .update(measurement)
+            ...measurement,
+            measured_at: new Date().toISOString()
           .eq('sr_no', measurement.sr_no);
 
         if (error) throw error;
@@ -261,6 +301,7 @@ const MeasurementBook: React.FC = () => {
       setEditingRow(null);
       setShowAddForm(false);
       setNewMeasurement({});
+      setEditingMeasurement({});
 
     } catch (error) {
       console.error('Error saving measurement:', error);
@@ -286,6 +327,23 @@ const MeasurementBook: React.FC = () => {
       console.error('Error deleting measurement:', error);
       alert('Error deleting measurement');
     }
+  };
+
+  const handleStartEdit = (measurement: MeasurementBookEntry) => {
+    setEditingRow(measurement.sr_no);
+    setEditingMeasurement({ ...measurement });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRow(null);
+    setEditingMeasurement({});
+  };
+
+  const handleFieldChange = (field: keyof MeasurementBookEntry, value: any) => {
+    setEditingMeasurement(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const calculateQuantity = (units: number, length: number, width: number, height: number) => {
@@ -317,7 +375,7 @@ const MeasurementBook: React.FC = () => {
 
   // Filter measurements
   const filteredMeasurements = measurements.filter(measurement => {
-    const matchesSearch = measurement.description_of_items?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = (measurement.description_of_items || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          measurement.item_id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSubwork = selectedSubworkId === 'all' || measurement.subwork_id === selectedSubworkId;
     return matchesSearch && matchesSubwork;
@@ -525,6 +583,7 @@ const MeasurementBook: React.FC = () => {
                     const isEditing = editingRow === measurement.sr_no;
                     const varianceStatus = getVarianceStatus(measurement.variance);
                     const VarianceIcon = varianceStatus.icon;
+                    const currentMeasurement = isEditing ? editingMeasurement : measurement;
 
                     return (
                       <tr key={measurement.sr_no} className="hover:bg-gradient-to-r hover:from-violet-50 hover:to-purple-50 transition-all duration-200">
@@ -534,37 +593,28 @@ const MeasurementBook: React.FC = () => {
                         <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-200 max-w-xs">
                           {isEditing ? (
                             <textarea
-                              value={measurement.description_of_items}
+                              value={currentMeasurement.description_of_items || ''}
                               onChange={(e) => {
-                                const updated = measurements.map(m => 
-                                  m.sr_no === measurement.sr_no 
-                                    ? { ...m, description_of_items: e.target.value }
-                                    : m
-                                );
-                                setMeasurements(updated);
+                                handleFieldChange('description_of_items', e.target.value);
                               }}
                               className="w-full p-1 text-xs border border-gray-300 rounded resize-none"
                               rows={2}
                             />
                           ) : (
-                            <div className="text-xs line-clamp-2">{measurement.description_of_items}</div>
+                            <div className="text-xs line-clamp-2">{measurement.description_of_items || 'N/A'}</div>
                           )}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 border-r border-gray-200">
                           {isEditing ? (
                             <input
                               type="number"
-                              value={measurement.no_of_units}
+                              value={currentMeasurement.no_of_units || 1}
                               onChange={(e) => {
-                                const updated = measurements.map(m => 
-                                  m.sr_no === measurement.sr_no 
-                                    ? { ...m, no_of_units: parseFloat(e.target.value) || 0 }
-                                    : m
-                                );
-                                setMeasurements(updated);
+                                handleFieldChange('no_of_units', parseInt(e.target.value) || 1);
                               }}
                               className="w-16 p-1 text-xs border border-gray-300 rounded text-center"
                               step="1"
+                              min="1"
                             />
                           ) : (
                             measurement.no_of_units
@@ -574,17 +624,13 @@ const MeasurementBook: React.FC = () => {
                           {isEditing ? (
                             <input
                               type="number"
-                              value={measurement.length}
+                              value={currentMeasurement.length || 0}
                               onChange={(e) => {
-                                const updated = measurements.map(m => 
-                                  m.sr_no === measurement.sr_no 
-                                    ? { ...m, length: parseFloat(e.target.value) || 0 }
-                                    : m
-                                );
-                                setMeasurements(updated);
+                                handleFieldChange('length', parseFloat(e.target.value) || 0);
                               }}
                               className="w-20 p-1 text-xs border border-gray-300 rounded text-center"
                               step="0.001"
+                              min="0"
                             />
                           ) : (
                             measurement.length.toFixed(3)
@@ -594,17 +640,13 @@ const MeasurementBook: React.FC = () => {
                           {isEditing ? (
                             <input
                               type="number"
-                              value={measurement.width_breadth}
+                              value={currentMeasurement.width_breadth || 0}
                               onChange={(e) => {
-                                const updated = measurements.map(m => 
-                                  m.sr_no === measurement.sr_no 
-                                    ? { ...m, width_breadth: parseFloat(e.target.value) || 0 }
-                                    : m
-                                );
-                                setMeasurements(updated);
+                                handleFieldChange('width_breadth', parseFloat(e.target.value) || 0);
                               }}
                               className="w-20 p-1 text-xs border border-gray-300 rounded text-center"
                               step="0.001"
+                              min="0"
                             />
                           ) : (
                             measurement.width_breadth.toFixed(3)
@@ -614,77 +656,134 @@ const MeasurementBook: React.FC = () => {
                           {isEditing ? (
                             <input
                               type="number"
-                              value={measurement.height_depth}
+                              value={currentMeasurement.height_depth || 0}
                               onChange={(e) => {
-                                const updated = measurements.map(m => 
-                                  m.sr_no === measurement.sr_no 
-                                    ? { ...m, height_depth: parseFloat(e.target.value) || 0 }
-                                    : m
-                                );
-                                setMeasurements(updated);
+                                handleFieldChange('height_depth', parseFloat(e.target.value) || 0);
                               }}
                               className="w-20 p-1 text-xs border border-gray-300 rounded text-center"
                               step="0.001"
+                              min="0"
                             />
                           ) : (
                             measurement.height_depth.toFixed(3)
                           )}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-blue-600 border-r border-gray-200">
-                          {measurement.estimated_quantity.toFixed(3)}
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              value={currentMeasurement.estimated_quantity || 0}
+                              onChange={(e) => {
+                                handleFieldChange('estimated_quantity', parseFloat(e.target.value) || 0);
+                              }}
+                              className="w-20 p-1 text-xs border border-gray-300 rounded text-center"
+                              step="0.001"
+                              min="0"
+                            />
+                          ) : (
+                            measurement.estimated_quantity.toFixed(3)
+                          )}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-green-600 border-r border-gray-200">
-                          {measurement.actual_quantity.toFixed(3)}
+                          {isEditing ? (
+                            <span className="text-green-600 font-medium">
+                              {calculateQuantity(
+                                currentMeasurement.no_of_units || 1,
+                                currentMeasurement.length || 0,
+                                currentMeasurement.width_breadth || 0,
+                                currentMeasurement.height_depth || 0
+                              ).toFixed(3)}
+                            </span>
+                          ) : (
+                            measurement.actual_quantity.toFixed(3)
+                          )}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-sm border-r border-gray-200">
                           <div className="flex items-center">
                             <VarianceIcon className={`w-4 h-4 mr-1 ${varianceStatus.color}`} />
-                            <span className={`font-medium ${measurement.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {measurement.variance >= 0 ? '+' : ''}{measurement.variance.toFixed(3)}
+                            <span className={`font-medium ${
+                              isEditing 
+                                ? (calculateQuantity(
+                                    currentMeasurement.no_of_units || 1,
+                                    currentMeasurement.length || 0,
+                                    currentMeasurement.width_breadth || 0,
+                                    currentMeasurement.height_depth || 0
+                                  ) - (currentMeasurement.estimated_quantity || 0)) >= 0 ? 'text-green-600' : 'text-red-600'
+                                : measurement.variance >= 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {isEditing ? (
+                                <>
+                                  {(calculateQuantity(
+                                    currentMeasurement.no_of_units || 1,
+                                    currentMeasurement.length || 0,
+                                    currentMeasurement.width_breadth || 0,
+                                    currentMeasurement.height_depth || 0
+                                  ) - (currentMeasurement.estimated_quantity || 0)) >= 0 ? '+' : ''}
+                                  {(calculateQuantity(
+                                    currentMeasurement.no_of_units || 1,
+                                    currentMeasurement.length || 0,
+                                    currentMeasurement.width_breadth || 0,
+                                    currentMeasurement.height_depth || 0
+                                  ) - (currentMeasurement.estimated_quantity || 0)).toFixed(3)}
+                                </>
+                              ) : (
+                                <>
+                                  {measurement.variance >= 0 ? '+' : ''}{measurement.variance.toFixed(3)}
+                                </>
+                              )}
                             </span>
                           </div>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 border-r border-gray-200">
-                          {measurement.unit}
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={currentMeasurement.unit || ''}
+                              onChange={(e) => {
+                                handleFieldChange('unit', e.target.value);
+                              }}
+                              className="w-16 p-1 text-xs border border-gray-300 rounded text-center"
+                              placeholder="Unit"
+                            />
+                          ) : (
+                            measurement.unit || 'N/A'
+                          )}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 border-r border-gray-200">
-                          {measurement.measured_by}
+                          {measurement.measured_by || 'N/A'}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex items-center space-x-1">
                             {isEditing ? (
                               <>
                                 <button
-                                  onClick={() => handleSaveMeasurement(measurement)}
+                                  onClick={() => handleSaveMeasurement(editingMeasurement)}
                                   disabled={saving}
-                                  className="text-green-600 hover:text-green-800 p-1 rounded"
+                                  className="text-green-600 hover:text-green-800 p-1 rounded hover:bg-green-100 transition-colors"
                                   title="Save"
                                 >
-                                  <Save className="w-4 h-4" />
+                                  <Check className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    setEditingRow(null);
-                                    fetchMeasurements(selectedWorkId);
-                                  }}
-                                  className="text-gray-600 hover:text-gray-800 p-1 rounded"
+                                  onClick={handleCancelEdit}
+                                  className="text-gray-600 hover:text-gray-800 p-1 rounded hover:bg-gray-100 transition-colors"
                                   title="Cancel"
                                 >
-                                  ✕
+                                  <X className="w-4 h-4" />
                                 </button>
                               </>
                             ) : (
                               <>
                                 <button
-                                  onClick={() => setEditingRow(measurement.sr_no)}
-                                  className="text-blue-600 hover:text-blue-800 p-1 rounded"
+                                  onClick={() => handleStartEdit(measurement)}
+                                  className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-100 transition-colors"
                                   title="Edit"
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteMeasurement(measurement.sr_no)}
-                                  className="text-red-600 hover:text-red-800 p-1 rounded"
+                                  className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-100 transition-colors"
                                   title="Delete"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -750,7 +849,7 @@ const MeasurementBook: React.FC = () => {
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <span className="sr-only">Close</span>
-                  ✕
+                  <X className="w-5 h-5" />
                 </button>
               </div>
               
@@ -840,6 +939,7 @@ const MeasurementBook: React.FC = () => {
                     onChange={(e) => setNewMeasurement({...newMeasurement, length: parseFloat(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
                     step="0.001"
+                    min="0"
                   />
                 </div>
 
@@ -853,6 +953,7 @@ const MeasurementBook: React.FC = () => {
                     onChange={(e) => setNewMeasurement({...newMeasurement, width_breadth: parseFloat(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
                     step="0.001"
+                    min="0"
                   />
                 </div>
 
@@ -866,6 +967,7 @@ const MeasurementBook: React.FC = () => {
                     onChange={(e) => setNewMeasurement({...newMeasurement, height_depth: parseFloat(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
                     step="0.001"
+                    min="0"
                   />
                 </div>
 
@@ -879,6 +981,7 @@ const MeasurementBook: React.FC = () => {
                     onChange={(e) => setNewMeasurement({...newMeasurement, estimated_quantity: parseFloat(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
                     step="0.001"
+                    min="0"
                   />
                 </div>
 
@@ -962,8 +1065,7 @@ const MeasurementBook: React.FC = () => {
                 <button
                   onClick={() => handleSaveMeasurement({
                     ...newMeasurement,
-                    work_id: selectedWorkId,
-                    measurement_sr_no: measurements.length + 1
+                    work_id: selectedWorkId
                   }, true)}
                   disabled={!newMeasurement.subwork_id || !newMeasurement.item_id || !newMeasurement.description_of_items || saving}
                   className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
