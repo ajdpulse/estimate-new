@@ -71,7 +71,7 @@ const MeasurementBook: React.FC = () => {
         .schema('estimate')
         .from('works')
         .select('*')
-        .in('status', ['approved', 'in_progress', 'completed'])
+        .in('status', ['approved', 'in_progress', 'completed', 'draft'])
         .order('sr_no', { ascending: false });
 
       if (error) throw error;
