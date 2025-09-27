@@ -20,8 +20,6 @@ interface ItemMeasurementsProps {
   onClose: () => void;
   onItemUpdated?: (itemSrNo: number) => void;
   availableRates: ItemRate[];
-  existingMeasurements?: ItemMeasurement[];
-  workId?: string; // Add workId to determine context
 }
 
 const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({ 
@@ -29,17 +27,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   isOpen, 
   onClose,
   onItemUpdated,
-  workId,
-  availableRates,
-  existingMeasurements = []
+  availableRates
 }) => {
   const { user } = useAuth();
-  const [itemData, setItemData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'measurements' | 'leads' | 'materials'>('measurements');
   const [measurements, setMeasurements] = useState<ItemMeasurement[]>([]);
   const [itemRates, setItemRates] = useState<ItemRate[]>([]);
   const [leads, setLeads] = useState<ItemLead[]>([]);
-  const [measurementSources, setMeasurementSources] = useState<{[key: string]: string}>({});
   const [materials, setMaterials] = useState<ItemMaterial[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -57,16 +51,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     width_breadth: 0,
     height_depth: 0,
     is_manual_quantity: false,
-    selected_rate_id: undefined,
-    estimated_quantity: 0,
-    actual_quantity: 0,
-    variance: 0,
-    variance_reason: ''
+    selected_rate_id: undefined
   });
   const [selectedRate, setSelectedRate] = useState<number>(0);
-  const [enableConversion, setEnableConversion] = useState(false);
-  const [conversionFactor, setConversionFactor] = useState<number>(1);
-  const [convertedUnit, setConvertedUnit] = useState<string>('');
   const [newLead, setNewLead] = useState<Partial<ItemLead>>({
     material: '',
     lead_in_km: 0,
@@ -90,13 +77,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
   useEffect(() => {
     if (isOpen && item.sr_no) {
-      // Use existing measurements if provided, otherwise fetch from database
-      if (existingMeasurements.length > 0) {
-        setMeasurements(existingMeasurements);
-      } else {
-        fetchData();
-      }
-      fetchItemRates();
+      fetchData();
     }
   }, [isOpen, item.sr_no, activeTab]);
 
@@ -108,50 +89,17 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     calculateRateGroups();
   }, [measurements, itemRates]);
 
-  const fetchItemRates = async () => {
-    try {
-      if (!item?.sr_no) {
-        console.error('Item sr_no is required for fetching rates');
-        return;
-      }
-
-      const { data, error } = await supabase
-        .schema('estimate')
-        .from('item_rates')
-        .select('*')
-        .eq('subwork_item_sr_no', item.sr_no);
-
-      if (error) throw error;
-      setItemData(item);
-
-      // Fetch item rates
-      const { data: rates, error: ratesError } = await supabase
-        .schema('estimate')
-        .from('item_rates')
-        .select('*')
-        .eq('subwork_item_sr_no', item.sr_no);
-
-      if (ratesError) throw ratesError;
-      setItemRates(rates || []);
-    } catch (error) {
-      console.error('Error fetching item rates:', error);
-    }
-  };
-
   const calculateQuantity = () => {
     // If manual quantity is enabled, use the manual quantity value
     if (newMeasurement.is_manual_quantity && newMeasurement.manual_quantity !== undefined) {
-      const finalQuantity = newMeasurement.is_deduction ? -Math.abs(newMeasurement.manual_quantity) : newMeasurement.manual_quantity;
-      return enableConversion ? finalQuantity * conversionFactor : finalQuantity;
+      return newMeasurement.manual_quantity;
     }
     
     // Otherwise calculate from dimensions
-    const quantity = (newMeasurement.no_of_units || 0) * 
+    return (newMeasurement.no_of_units || 0) * 
            (newMeasurement.length || 0) * 
            (newMeasurement.width_breadth || 0) * 
            (newMeasurement.height_depth || 0);
-    const finalQuantity = newMeasurement.is_deduction ? -Math.abs(quantity) : quantity;
-    return enableConversion ? finalQuantity * conversionFactor : finalQuantity;
   };
 
   const calculateLineAmount = () => {
@@ -173,19 +121,20 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     const groups: {[key: string]: {rate: number, quantity: number, description?: string}} = {};
     
     measurements.forEach(measurement => {
-      const rateId = (measurement.selected_rate_id ?? 0).toString();
-      const selectedRate = itemRates.find(r => r.sr_no.toString() === rateId);
-      const rateValue = selectedRate?.rate || item.ssr_rate || 0;
+      const rate = getSelectedRateForMeasurement(measurement);
+      const rateKey = rate.toString();
       
-      if (!groups[rateId]) {
-        groups[rateId] = {
-          rate: rateValue,
+      if (!groups[rateKey]) {
+        // Find rate description from itemRates
+        const rateInfo = itemRates.find(r => r.rate === rate);
+        groups[rateKey] = {
+          rate: rate,
           quantity: 0,
-          description: selectedRate?.description
+          description: rateInfo?.description
         };
       }
       
-      groups[rateId].quantity += measurement.calculated_quantity;
+      groups[rateKey].quantity += measurement.calculated_quantity;
     });
     
     setRateGroups(groups);
@@ -221,81 +170,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           .from('item_materials')
           .select('*')
           .eq('subwork_item_id', currentItem.sr_no)
-          .order('sr_no', { ascending: true });
+          .order('material_name', { ascending: true });
 
         if (error) throw error;
         setMaterials(data || []);
       }
-      
-      if (workId) {
-        // Measurement Book context: merge data from both tables
-        const [originalRes, modifiedRes] = await Promise.all([
-          supabase
-            .schema('estimate')
-            .from('item_measurements')
-            .select('*')
-            .eq('subwork_item_id', item.sr_no)
-            .order('measurement_sr_no'),
-          supabase
-            .schema('estimate')
-            .from('measurement_book')
-            .select('*')
-            .eq('subwork_item_id', item.sr_no)
-            .eq('work_id', workId)
-            .order('measurement_sr_no')
-        ]);
-
-        if (originalRes.error) throw originalRes.error;
-        if (modifiedRes.error) throw modifiedRes.error;
-
-        // Merge measurements: prioritize measurement_book data
-        const mergedMeasurements = [...(originalRes.data || [])];
-        const sources: {[key: string]: string} = {};
-        
-        // Mark original measurements
-        mergedMeasurements.forEach(measurement => {
-          sources[measurement.measurement_sr_no] = 'item_measurements';
-        });
-
-        // Replace or add measurements from measurement_book
-        (modifiedRes.data || []).forEach(modifiedMeasurement => {
-          const existingIndex = mergedMeasurements.findIndex(
-            original => original.measurement_sr_no === modifiedMeasurement.measurement_sr_no
-          );
-          
-          if (existingIndex >= 0) {
-            // Replace existing measurement with modified version
-            mergedMeasurements[existingIndex] = modifiedMeasurement;
-          } else {
-            // Add new measurement from measurement_book
-            mergedMeasurements.push(modifiedMeasurement);
-          }
-          sources[modifiedMeasurement.measurement_sr_no] = 'measurement_book';
-        });
-
-        setMeasurements(mergedMeasurements);
-        setMeasurementSources(sources);
-      } else {
-        // Subworks context: only from item_measurements
-        const { data, error } = await supabase
-          .schema('estimate')
-          .from('item_measurements')
-          .select('*')
-          .eq('item_id', item.sr_no)
-          .eq('subwork_id', subworkId)
-          .order('measurement_sr_no');
-
-        if (error) throw error;
-        setMeasurements(data || []);
-        
-        // Mark all as from item_measurements
-        const sources: {[key: string]: string} = {};
-        (data || []).forEach(measurement => {
-          sources[measurement.measurement_sr_no] = 'item_measurements';
-        });
-        setMeasurementSources(sources);
-      }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
@@ -339,44 +219,24 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       // Use the selected rate
       const rate = selectedRate;
       const lineAmount = calculatedQuantity * rate;
-      const variance = calculatedQuantity - (newMeasurement.estimated_quantity || 0);
 
-      const measurementData = {
-        ...newMeasurement,
-        subwork_item_id: currentItem.sr_no,
-        measurement_sr_no: nextSrNo,
-        calculated_quantity: calculatedQuantity,
-        actual_quantity: calculatedQuantity,
-        variance: variance,
-        line_amount: lineAmount,
-        unit: enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || null),
-        is_deduction: newMeasurement.is_deduction || false,
-        is_manual_quantity: newMeasurement.is_manual_quantity || false,
-        manual_quantity: newMeasurement.is_manual_quantity ? (newMeasurement.manual_quantity || 0) : null,
-        selected_rate_id: newMeasurement.selected_rate_id || null
-      };
+      const { error } = await supabase
+        .schema('estimate')
+        .from('item_measurements')
+        .insert([{
+          ...newMeasurement,
+          subwork_item_id: currentItem.sr_no,
+          measurement_sr_no: nextSrNo,
+          calculated_quantity: calculatedQuantity,
+          line_amount: lineAmount,
+          unit: newMeasurement.unit || null,
+          is_deduction: newMeasurement.is_deduction || false,
+          is_manual_quantity: newMeasurement.is_manual_quantity || false,
+          manual_quantity: newMeasurement.is_manual_quantity ? (newMeasurement.manual_quantity || 0) : null,
+          selected_rate_id: newMeasurement.selected_rate_id || null
+        }]);
 
-      // Determine which table to save to based on context
-      if (workId) {
-        // Called from Measurement Book - save to measurement_book table
-        const { error } = await supabase
-          .schema('estimate')
-          .from('measurement_book')
-          .insert([{
-            ...measurementData,
-            work_id: workId,
-          }]);
-        
-        if (error) throw error;
-      } else {
-        // Called from Subworks - save to item_measurements table
-        const { error } = await supabase
-          .schema('estimate')
-          .from('item_measurements')
-          .insert([measurementData]);
-        
-        if (error) throw error;
-      }
+      if (error) throw error;
       
       setShowAddModal(false);
       setNewMeasurement({
@@ -384,24 +244,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         length: 0,
         width_breadth: 0,
         height_depth: 0,
-        selected_rate_id: undefined,
-        estimated_quantity: 0,
-        actual_quantity: 0,
-        variance: 0,
-        variance_reason: ''
+        selected_rate_id: undefined
       });
       setSelectedRate(0);
-      setEnableConversion(false);
-      setConversionFactor(1);
-      setConvertedUnit('');
       
-      // Refresh measurements
-      if (existingMeasurements.length > 0) {
-        // If using existing measurements, we need to refresh from parent
-        onClose();
-      } else {
-        fetchData();
-      }
+      // Refresh data first, then update SSR quantity
+      fetchData();
       
       // Update SSR quantity after adding measurement
       setTimeout(async () => {
@@ -490,26 +338,13 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       unit: measurement.unit || '',
       is_deduction: measurement.is_deduction || false,
       is_manual_quantity: measurement.is_manual_quantity || false,
-      manual_quantity: measurement.manual_quantity || 0,
-      estimated_quantity: measurement.estimated_quantity || 0,
-      actual_quantity: measurement.actual_quantity || 0,
-      variance: measurement.variance || 0,
-      variance_reason: measurement.variance_reason || ''
+      manual_quantity: measurement.manual_quantity || 0
     });
     // Set the selected rate based on the measurement's line_amount and calculated_quantity
     if (measurement.calculated_quantity && measurement.calculated_quantity > 0) {
       const rate = (measurement.line_amount || 0) / measurement.calculated_quantity;
       setSelectedRate(rate);
     }
-    
-    // Check if conversion was used
-    const originalQuantity = measurement.no_of_units * measurement.length * measurement.width_breadth * measurement.height_depth;
-    if (originalQuantity !== 0 && Math.abs(measurement.calculated_quantity / originalQuantity - 1) > 0.001) {
-      setEnableConversion(true);
-      setConversionFactor(Math.abs(measurement.calculated_quantity) / originalQuantity);
-      setConvertedUnit(measurement.unit || newMeasurement.unit);
-    }
-    
     setShowEditModal(true);
   };
 
@@ -530,47 +365,28 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       // Use the selected rate
       const rate = selectedRate;
       const lineAmount = calculatedQuantity * rate;
-      const variance = calculatedQuantity - (newMeasurement.estimated_quantity || 0);
 
-      const measurementData = {
-        description_of_items: newMeasurement.description_of_items,
-        unit: enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || currentItem.ssr_unit),
-        no_of_units: newMeasurement.no_of_units,
-        length: newMeasurement.length,
-        width_breadth: newMeasurement.width_breadth,
-        height_depth: newMeasurement.height_depth,
-        calculated_quantity: calculateQuantity(),
-        actual_quantity: calculateQuantity(),
-        variance_reason: newMeasurement.variance_reason,
-        line_amount: calculateLineAmount(),
-        is_manual_quantity: newMeasurement.is_manual_quantity || false,
-        manual_quantity: newMeasurement.manual_quantity || 0,
-      };
+      const { error } = await supabase
+        .schema('estimate')
+        .from('item_measurements')
+        .update({
+          description_of_items: newMeasurement.description_of_items,
+          unit: newMeasurement.unit,
+          no_of_units: newMeasurement.no_of_units,
+          length: newMeasurement.length,
+          width_breadth: newMeasurement.width_breadth,
+          height_depth: newMeasurement.height_depth,
+          calculated_quantity: calculateQuantity(),
+          line_amount: calculateLineAmount(),
+          is_manual_quantity: newMeasurement.is_manual_quantity || false,
+          manual_quantity: newMeasurement.manual_quantity || 0,
+          is_deduction: newMeasurement.is_deduction || false,
+          unit: currentItem.ssr_unit
+        })
+        .eq('subwork_item_id', selectedMeasurement.subwork_item_id)
+        .eq('measurement_sr_no', selectedMeasurement.measurement_sr_no);
 
-      // Determine which table to save to based on context
-      if (workId) {
-        // Called from Measurement Book - save to measurement_book table
-        const { error } = await supabase
-          .schema('estimate')
-          .from('measurement_book')
-          .update(measurementData)
-          .eq('work_id', workId)
-          .eq('subwork_item_id', selectedMeasurement.subwork_item_id)
-          .eq('measurement_sr_no', selectedMeasurement.measurement_sr_no);
-        
-        if (error) throw error;
-      } else {
-        // Called from Subworks - save to item_measurements table
-        const { error } = await supabase
-          .schema('estimate')
-          .from('item_measurements')
-          .update(measurementData)
-          .eq('subwork_item_id', selectedMeasurement.subwork_item_id)
-          .eq('measurement_sr_no', selectedMeasurement.measurement_sr_no);
-        
-        if (error) throw error;
-      }
-
+      if (error) throw error;
       
       setShowEditModal(false);
       setSelectedMeasurement(null);
@@ -578,24 +394,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
         no_of_units: 0,
         length: 0,
         width_breadth: 0,
-        height_depth: 0,
-        estimated_quantity: 0,
-        actual_quantity: 0,
-        variance: 0,
-        variance_reason: ''
+        height_depth: 0
       });
       setSelectedRate(0);
-      setEnableConversion(false);
-      setConversionFactor(1);
-      setConvertedUnit('');
       
-      // Refresh measurements
-      if (existingMeasurements.length > 0) {
-        // If using existing measurements, we need to refresh from parent
-        onClose();
-      } else {
-        fetchData();
-      }
+      // Refresh data first, then update SSR quantity
+      fetchData();
       
       // Update SSR quantity after editing measurement
       setTimeout(async () => {
@@ -621,13 +425,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
       if (error) throw error;
       
-      // Refresh measurements
-      if (existingMeasurements.length > 0) {
-        // If using existing measurements, we need to refresh from parent
-        onClose();
-      } else {
-        fetchData();
-      }
+      fetchData();
       
       // Update SSR quantity after deletion
       setTimeout(async () => {
@@ -865,9 +663,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Quantity
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Variance
-                          </th>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Amount
                           </th>
@@ -876,8 +671,8 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {measurements.map((measurement) => (
-                          <tr key={measurement.sr_no || measurement.measurement_sr_no} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 text-sm text-gray-900">{measurement.measurement_sr_no || measurement.sr_no}</td>
+                          <tr key={measurement.id} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 text-sm text-gray-900">{measurement.measurement_sr_no}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.description_of_items || '-'}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.no_of_units}</td>
                             <td className="px-3 py-2 text-sm text-gray-900">{measurement.length}</td>
@@ -899,20 +694,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                                   </span>
                                 )}
                               </div>
-                            </td>
-                            
-                            <td className="px-4 py-3 text-sm text-center">
-                              <span className={`font-medium ${
-                                (measurement.variance || 0) > 0 ? 'text-red-600' : 
-                                (measurement.variance || 0) < 0 ? 'text-green-600' : 'text-gray-900'
-                              }`}>
-                                {measurement.variance?.toFixed(3) || '0.000'}
-                              </span>
-                              {measurement.variance !== undefined && measurement.variance !== 0 && (
-                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${measurement.variance > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                  {measurement.variance > 0 ? '+' : ''}{measurement.variance?.toFixed(3)}
-                                </span>
-                              )}
                             </td>
                             
                             <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -1133,21 +914,17 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     Select Rate
                   </label>
                   <select
-                    value={selectedRate || ''}
+                    value={selectedRate}
                     onChange={(e) => {
-                      const selectedValue = e.target.value;
-                      if (selectedValue) {
-                        const rate = parseFloat(selectedValue);
-                        setSelectedRate(rate);
-                      }
+                      const rate = parseFloat(e.target.value);
+                      setSelectedRate(rate);
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    required
                   >
-                    <option value="">Select rate...</option>
+                    <option value={0}>Select rate...</option>
                     {itemRates.map((rate, index) => (
                       <option key={index} value={rate.rate}>
-                        {rate.description} - ₹{rate.rate.toFixed(2)} per {rate.unit || itemData.ssr_unit}
+                        {rate.description} - ₹{rate.rate} per {rate.unit}
                       </option>
                     ))}
                   </select>
@@ -1243,58 +1020,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   )}
                 </div>
 
-                {/* Unit Conversion */}
-                <div className="flex items-start space-x-3">
-                  <input
-                    type="checkbox"
-                    id="enableConversion"
-                    checked={enableConversion}
-                    onChange={(e) => setEnableConversion(e.target.checked)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1">
-                    <label htmlFor="enableConversion" className="text-sm font-medium text-gray-700">
-                      Convert calculated quantity
-                    </label>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Check this to convert the calculated quantity to different units (e.g., kg to metric ton)
-                    </p>
-                    
-                    {enableConversion && (
-                      <div className="mt-3 grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Conversion Factor
-                          </label>
-                          <input
-                            type="number"
-                            step="0.001"
-                            value={conversionFactor}
-                            onChange={(e) => setConversionFactor(parseFloat(e.target.value) || 1)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="1.0"
-                          />
-                          <p className="text-xs text-gray-400 mt-1">
-                            e.g., 0.001 for kg to metric ton
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Converted Unit
-                          </label>
-                          <input
-                            type="text"
-                            value={convertedUnit}
-                            onChange={(e) => setConvertedUnit(e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="metric ton"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <input
@@ -1313,44 +1038,12 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Estimated Quantity
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={newMeasurement.estimated_quantity}
-                    onChange={(e) => setNewMeasurement({
-                      ...newMeasurement, 
-                      estimated_quantity: parseFloat(e.target.value) || 0
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Variance Reason (if any)
-                  </label>
-                  <input
-                    type="text"
-                    value={newMeasurement.variance_reason}
-                    onChange={(e) => setNewMeasurement({
-                      ...newMeasurement, 
-                      variance_reason: e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Reason for variance (optional)"
-                  />
-                </div>
-
                 {/* Preview */}
                 <div className="bg-gray-50 p-4 rounded-md">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-600">Calculated Quantity:</span>
                     <span className={`font-medium ${newMeasurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
-                      {newMeasurement.is_deduction ? '-' : ''}{calculateQuantity().toFixed(3)} {enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || currentItem.ssr_unit)}
+                      {newMeasurement.is_deduction ? '-' : ''}{calculateQuantity().toFixed(3)} {newMeasurement.unit || currentItem.ssr_unit}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm mt-2">
@@ -1620,21 +1313,18 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     Select Rate *
                   </label>
                   <select
-                    value={selectedRate || ''}
+                    value={selectedRate}
                     onChange={(e) => {
-                      const selectedValue = e.target.value;
-                      if (selectedValue) {
-                        const rate = parseFloat(selectedValue);
-                        setSelectedRate(rate);
-                      }
+                      const rate = parseFloat(e.target.value);
+                      setSelectedRate(rate);
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     required
                   >
-                    <option value="">Select rate...</option>
+                    <option value={0}>Select rate...</option>
                     {itemRates.map((rate, index) => (
                       <option key={index} value={rate.rate}>
-                        {rate.description} - ₹{rate.rate.toFixed(2)} per {rate.unit || itemData.ssr_unit}
+                        {rate.description} - ₹{rate.rate} per {rate.unit}
                       </option>
                     ))}
                   </select>
@@ -1730,58 +1420,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   )}
                 </div>
 
-                {/* Unit Conversion */}
-                <div className="flex items-start space-x-3">
-                  <input
-                    type="checkbox"
-                    id="enableConversion"
-                    checked={enableConversion}
-                    onChange={(e) => setEnableConversion(e.target.checked)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1">
-                    <label htmlFor="enableConversion" className="text-sm font-medium text-gray-700">
-                      Convert calculated quantity
-                    </label>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Check this to convert the calculated quantity to different units (e.g., kg to metric ton)
-                    </p>
-                    
-                    {enableConversion && (
-                      <div className="mt-3 grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Conversion Factor
-                          </label>
-                          <input
-                            type="number"
-                            step="0.001"
-                            value={conversionFactor}
-                            onChange={(e) => setConversionFactor(parseFloat(e.target.value) || 1)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="1.0"
-                          />
-                          <p className="text-xs text-gray-400 mt-1">
-                            e.g., 0.001 for kg to metric ton
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Converted Unit
-                          </label>
-                          <input
-                            type="text"
-                            value={convertedUnit}
-                            onChange={(e) => setConvertedUnit(e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="metric ton"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <input
@@ -1800,43 +1438,11 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Estimated Quantity
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={newMeasurement.estimated_quantity}
-                    onChange={(e) => setNewMeasurement({
-                      ...newMeasurement, 
-                      estimated_quantity: parseFloat(e.target.value) || 0
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Variance Reason (if any)
-                  </label>
-                  <input
-                    type="text"
-                    value={newMeasurement.variance_reason}
-                    onChange={(e) => setNewMeasurement({
-                      ...newMeasurement, 
-                      variance_reason: e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Reason for variance (optional)"
-                  />
-                </div>
-
                 <div className="bg-gray-50 p-3 rounded-md">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Calculated Quantity:</span>
                     <span className="font-medium text-gray-900">
-                      {calculateQuantity().toFixed(3)} {enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || item.ssr_unit)}
+                      {calculateQuantity().toFixed(3)} {newMeasurement.unit || item.ssr_unit}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
@@ -1848,7 +1454,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>Rate Used:</span>
                     <span>
-                      ₹{getSelectedRate().toFixed(2)} per {enableConversion && convertedUnit ? convertedUnit : (newMeasurement.unit || item.ssr_unit)}
+                      ₹{getSelectedRate().toFixed(2)} per {newMeasurement.unit || item.ssr_unit}
                     </span>
                   </div>
                 </div>
@@ -1938,6 +1544,62 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Photos Grid */}
+              {designPhotos.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {designPhotos.map((photo) => (
+                    <div key={photo.id} className="relative group">
+                      <div className="aspect-w-16 aspect-h-12 bg-gray-200 rounded-lg overflow-hidden">
+                        <img
+                          src={photo.photo_url}
+                          alt={photo.photo_name}
+                          className="w-full h-48 object-cover group-hover:opacity-75 transition-opacity"
+                        />
+                      </div>
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleDeletePhoto(photo.id, photo.photo_url)}
+                          className="bg-red-600 text-white rounded-full p-1 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {photo.photo_name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {(photo.file_size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(photo.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <ImageIcon className="mx-auto h-12 w-12 text-gray-300" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No photos uploaded</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Upload design photos to document this work item.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => {
+                    setShowPhotosModal(false);
+                    setPhotoError('');
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>
