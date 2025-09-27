@@ -734,7 +734,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                 const items = estimateData.subworkItems[subwork.subworks_id] || [];
                 if (items.length === 0) return null;
 
-                return ((
+                return (
   <div key={subwork.subworks_id} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
     <PageHeader pageNumber={4 + subworkIndex} />
     
@@ -897,7 +897,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     
     <PageFooter pageNumber={4 + subworkIndex} />
   </div>
-          )
+);
               })}
             </div>
           </div>
