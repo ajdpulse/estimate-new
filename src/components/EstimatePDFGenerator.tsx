@@ -484,22 +484,22 @@ const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                       <div className="flex">
                         <span className="w-40 font-medium">Name of Division</span>
                         <span className="mr-2">:-</span>
-                        <span>{estimateData.work.division || 'Rural Water Supply, Division, Z.P. Chandrapur'}</span>
+                        <span>{estimateData.work.division || '-'}</span>
                       </div>
                       <div className="flex">
                         <span className="w-40 font-medium">Name of Sub- Division</span>
                         <span className="mr-2">:-</span>
-                        <span>{estimateData.work.sub_division || 'Rural Water Supply Sub-Division Chandrapur'}</span>
+                        <span>{estimateData.work.sub_division || '-'}</span>
                       </div>
                       <div className="flex">
                         <span className="w-40 font-medium">Fund Head</span>
                         <span className="mr-2">:-</span>
-                        <span>{estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</span>
+                        <span>{estimateData.work.fund_head || '-'}</span>
                       </div>
                       <div className="flex">
                         <span className="w-40 font-medium">Major Head</span>
                         <span className="mr-2">:-</span>
-                        <span className="italic">{estimateData.work.major_head || '"SBM (G.) Phase-II & 15th Finance Commission - 2024-25"'}</span>
+                        <span className="italic">{estimateData.work.major_head || '-'}</span>
                       </div>
                       <div className="flex">
                         <span className="w-40 font-medium">Minor Head</span>
