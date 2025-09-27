@@ -897,7 +897,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     
     <PageFooter pageNumber={4 + subworkIndex} />
   </div>
-);
+          )
               })}
             </div>
           </div>
