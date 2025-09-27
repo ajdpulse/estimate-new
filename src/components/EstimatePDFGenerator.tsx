@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Work, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial } from '../types';
-import { FileText, Download, Loader2, Eye, Edit2, Settings } from 'lucide-react';
+import { FileText, Download, Loader2, Eye, CreditCard as Edit2, Settings } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -931,3 +931,5 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     </div>
   );
 };
+
+export default EstimatePDFGenerator;
