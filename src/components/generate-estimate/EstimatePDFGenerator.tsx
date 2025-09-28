@@ -683,18 +683,31 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                         <td colSpan={8} className="border border-black p-2">PART- B:- Construction works for E-Tendering</td>
                       </tr>
                       {(() => {
-                        let partBItems = [];
+                        // Calculate Part B total first
                         let partBTotal = 0;
+                        estimateData.subworks.forEach((subwork) => {
+                          const items = estimateData.subworkItems[subwork.subworks_id] || [];
+                          const filteredItems = items.filter(item => item.category === 'construction' || !item.category);
+                          filteredItems.forEach((item) => {
+                            partBTotal += item.total_item_amount || 0;
+                          });
+                        });
+                        
+                        // Now render the items
+                        let partBItems = [];
                         estimateData.subworks.forEach((subwork) => {
                           const items = estimateData.subworkItems[subwork.subworks_id] || [];
                           const filteredItems = items.filter(item => item.category === 'construction' || !item.category);
                           if (filteredItems.length > 0) {
                             filteredItems.forEach((item) => {
                               partBItems.push({ subwork, item });
-                              partBTotal += item.total_item_amount || 0;
                             });
                           }
                         });
+                        
+                        // Store partBTotal in a way that's accessible outside this IIFE
+                        window.currentPartBTotal = partBTotal;
+                        
                         return partBItems.map(({ subwork, item }, index) => {
                           const unitCount = item.ssr_quantity || 0;
                           const itemTotal = item.total_item_amount || 0;
@@ -724,17 +737,17 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                       {/* Add 18% GST */}
                       <tr className="font-bold">
                         <td colSpan={5} className="border border-black p-2 text-right">Add 18 % GST</td>
-                        <td className="border border-black p-2 text-right">{(partBTotal * 0.18).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(partBTotal * 0.18 * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(partBTotal * 0.18 * 0.3).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 0.18).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 0.18 * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 0.18 * 0.3).toFixed(2)}</td>
                       </tr>
 
                       {/* Total of PART-B */}
                       <tr className="font-bold">
                         <td colSpan={5} className="border border-black p-2 text-right">Total of PART - B</td>
-                        <td className="border border-black p-2 text-right">{(partBTotal * 1.18).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(partBTotal * 1.18 * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(partBTotal * 1.18 * 0.3).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 1.18).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 1.18 * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 1.18 * 0.3).toFixed(2)}</td>
                       </tr>
 
                       {/* Add 0.50% Contingencies */}
