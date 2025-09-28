@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import { Work, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial, EstimateTemplate } from '../../types';
+import { Work, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial, ItemRate, EstimateTemplate } from '../../types';
 
 export interface CompleteEstimateData {
   work: Work;
@@ -8,6 +8,7 @@ export interface CompleteEstimateData {
   measurements: { [itemId: string]: ItemMeasurement[] };
   leads: { [itemId: string]: ItemLead[] };
   materials: { [itemId: string]: ItemMaterial[] };
+  rates: { [itemId: string]: ItemRate[] };
 }
 
 export class EstimateSupabaseOperations {
@@ -42,6 +43,7 @@ export class EstimateSupabaseOperations {
       const measurements: { [itemId: string]: ItemMeasurement[] } = {};
       const leads: { [itemId: string]: ItemLead[] } = {};
       const materials: { [itemId: string]: ItemMaterial[] } = {};
+      const rates: { [itemId: string]: ItemRate[] } = {};
 
       for (const subwork of subworks || []) {
         const { data: items } = await supabase
@@ -55,15 +57,17 @@ export class EstimateSupabaseOperations {
 
         // Fetch measurements, leads, and materials for each item
         for (const item of items || []) {
-          const [measurementsRes, leadsRes, materialsRes] = await Promise.all([
+          const [measurementsRes, leadsRes, materialsRes, ratesRes] = await Promise.all([
             supabase.schema('estimate').from('item_measurements').select('*').eq('subwork_item_id', item.sr_no),
             supabase.schema('estimate').from('item_leads').select('*').eq('subwork_item_sr_no', item.sr_no),
-            supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_sr_no', item.sr_no)
+            supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_sr_no', item.sr_no),
+            supabase.schema('estimate').from('item_rates').select('*').eq('subwork_item_sr_no', item.sr_no)
           ]);
 
           measurements[item.id] = measurementsRes.data || [];
           leads[item.id] = leadsRes.data || [];
           materials[item.id] = materialsRes.data || [];
+          rates[item.id] = ratesRes.data || [];
         }
       }
 
@@ -73,7 +77,8 @@ export class EstimateSupabaseOperations {
         subworkItems,
         measurements,
         leads,
-        materials
+        materials,
+        rates
       };
     } catch (error) {
       console.error('Error fetching complete estimate data:', error);
@@ -321,6 +326,24 @@ export class EstimateSupabaseOperations {
               }]);
 
             if (materialError) throw materialError;
+          }
+
+          // Create rates
+          const rates = templateData.rates[item.id] || [];
+          for (const rate of rates) {
+            const { error: rateError } = await supabase
+              .schema('estimate')
+              .from('item_rates')
+              .insert([{
+                subwork_item_sr_no: createdItem.sr_no,
+                description: rate.description,
+                rate: rate.rate,
+                unit: rate.unit,
+                document_reference: rate.document_reference,
+                created_by: userId
+              }]);
+
+            if (rateError) throw rateError;
           }
         }
       }
