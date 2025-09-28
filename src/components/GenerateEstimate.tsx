@@ -18,7 +18,8 @@ import {
   Copy,
   Trash2,
   Plus,
-  BookOpen
+  BookOpen,
+  Calculator
 } from 'lucide-react';
 
 const GenerateEstimate: React.FC = () => {
@@ -38,6 +39,14 @@ const GenerateEstimate: React.FC = () => {
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [showTaxSettings, setShowTaxSettings] = useState(false);
+  const [taxSettings, setTaxSettings] = useState([
+    { id: '1', name: 'GST', percentage: 18, enabled: true },
+    { id: '2', name: 'Labour Cess', percentage: 1, enabled: true },
+    { id: '3', name: 'Contractor Tax', percentage: 2, enabled: false }
+  ]);
+  const [newTaxName, setNewTaxName] = useState('');
+  const [newTaxPercentage, setNewTaxPercentage] = useState('');
 
   useEffect(() => {
     fetchWorks();
@@ -394,6 +403,38 @@ const GenerateEstimate: React.FC = () => {
       alert('Error deleting template');
     }
   };
+
+  const handleAddTax = () => {
+    if (!newTaxName.trim() || !newTaxPercentage) return;
+
+    const newTax = {
+      id: Date.now().toString(),
+      name: newTaxName.trim(),
+      percentage: parseFloat(newTaxPercentage),
+      enabled: true
+    };
+
+    setTaxSettings([...taxSettings, newTax]);
+    setNewTaxName('');
+    setNewTaxPercentage('');
+  };
+
+  const handleRemoveTax = (taxId: string) => {
+    setTaxSettings(taxSettings.filter(tax => tax.id !== taxId));
+  };
+
+  const handleToggleTax = (taxId: string) => {
+    setTaxSettings(taxSettings.map(tax => 
+      tax.id === taxId ? { ...tax, enabled: !tax.enabled } : tax
+    ));
+  };
+
+  const handleUpdateTaxPercentage = (taxId: string, percentage: number) => {
+    setTaxSettings(taxSettings.map(tax => 
+      tax.id === taxId ? { ...tax, percentage } : tax
+    ));
+  };
+
   const handleGeneratePDF = (work: Work) => {
     setSelectedWorkForPDF(work.works_id);
     setShowPDFGenerator(true);
@@ -527,13 +568,22 @@ const GenerateEstimate: React.FC = () => {
             <BookOpen className="h-4 w-4 text-gray-500" />
             <span className="text-sm font-medium text-gray-700">Templates ({templates.length}/10)</span>
           </div>
-          <button
-            onClick={() => setShowTemplates(!showTemplates)}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200 shadow-lg"
-          >
-            <Eye className="w-4 h-4 mr-2" />
-            {showTemplates ? 'Hide Templates' : 'View Templates'}
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowTemplates(!showTemplates)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200 shadow-lg"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              {showTemplates ? 'Hide Templates' : 'View Templates'}
+            </button>
+            <button
+              onClick={() => setShowTaxSettings(true)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200 shadow-lg"
+            >
+              <Calculator className="w-4 h-4 mr-2" />
+              Tax Settings
+            </button>
+          </div>
         </div>
       </div>
 
@@ -702,6 +752,7 @@ const GenerateEstimate: React.FC = () => {
       {showPDFGenerator && (
         <EstimatePDFGenerator
           workId={selectedWorkForPDF}
+          taxSettings={taxSettings}
           isOpen={showPDFGenerator}
           onClose={() => {
             setShowPDFGenerator(false);
@@ -792,6 +843,134 @@ const GenerateEstimate: React.FC = () => {
                       Save Template
                     </>
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tax Settings Modal */}
+      {showTaxSettings && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Tax Settings for Recap Sheet</h3>
+                <button
+                  onClick={() => setShowTaxSettings(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Close</span>
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                {/* Current Taxes */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Current Taxes</h4>
+                  <div className="space-y-2">
+                    {taxSettings.map((tax) => (
+                      <div key={tax.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={tax.enabled}
+                            onChange={() => handleToggleTax(tax.id)}
+                            className="h-4 w-4 text-violet-600 focus:ring-violet-500 border-gray-300 rounded"
+                          />
+                          <span className={`font-medium ${tax.enabled ? 'text-gray-900' : 'text-gray-500'}`}>
+                            {tax.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="number"
+                            value={tax.percentage}
+                            onChange={(e) => handleUpdateTaxPercentage(tax.id, parseFloat(e.target.value) || 0)}
+                            className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                          />
+                          <span className="text-sm text-gray-500">%</span>
+                          <button
+                            onClick={() => handleRemoveTax(tax.id)}
+                            className="text-red-600 hover:text-red-800 p-1 rounded"
+                            title="Remove Tax"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Add New Tax */}
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Add New Tax</h4>
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="text"
+                      value={newTaxName}
+                      onChange={(e) => setNewTaxName(e.target.value)}
+                      placeholder="Tax name (e.g., VAT, Service Tax)"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                    />
+                    <input
+                      type="number"
+                      value={newTaxPercentage}
+                      onChange={(e) => setNewTaxPercentage(e.target.value)}
+                      placeholder="Rate"
+                      className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                    />
+                    <span className="text-sm text-gray-500">%</span>
+                    <button
+                      onClick={handleAddTax}
+                      disabled={!newTaxName.trim() || !newTaxPercentage}
+                      className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preview */}
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Preview (Enabled Taxes)</h4>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>₹ 1,00,000</span>
+                      </div>
+                      {taxSettings.filter(tax => tax.enabled).map((tax) => (
+                        <div key={tax.id} className="flex justify-between text-gray-600">
+                          <span>{tax.name} ({tax.percentage}%):</span>
+                          <span>₹ {((100000 * tax.percentage) / 100).toLocaleString('hi-IN')}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between font-semibold border-t pt-1 mt-2">
+                        <span>Total:</span>
+                        <span>₹ {(100000 + taxSettings.filter(tax => tax.enabled).reduce((sum, tax) => sum + (100000 * tax.percentage / 100), 0)).toLocaleString('hi-IN')}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowTaxSettings(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500"
+                >
+                  Close
                 </button>
               </div>
             </div>
