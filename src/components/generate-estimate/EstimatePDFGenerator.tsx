@@ -874,18 +874,6 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                                     </React.Fragment>
                                   );
                                 })}
-
-                                {/* Add some empty rows for manual entries */}
-                                {Array.from({ length: 8 }, (_, index) => (
-                                  <tr key={`empty-${index}`}>
-                                    <td className="border border-black p-4" style={{ border: '1px solid black', padding: '16px', height: '40px' }}></td>
-                                    <td className="border border-black p-4" style={{ border: '1px solid black', padding: '16px' }}></td>
-                                    <td className="border border-black p-4" style={{ border: '1px solid black', padding: '16px' }}></td>
-                                    <td className="border border-black p-4" style={{ border: '1px solid black', padding: '16px' }}></td>
-                                    <td className="border border-black p-4" style={{ border: '1px solid black', padding: '16px' }}></td>
-                                    <td className="border border-black p-4" style={{ border: '1px solid black', padding: '16px' }}></td>
-                                  </tr>
-                                ))}
                               </tbody>
                             </table>
                           </div>
