@@ -860,35 +860,38 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                                         <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
                                         <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
                                         <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3 text-center font-bold text-lg text-green-600" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: '#16a34a' }}>
-                      <div className="border-2 border-black shadow-lg">
-                        <table className="w-full border-collapse" style={{ borderCollapse: 'collapse', fontSize: '11px' }}>
-                            <tr className="bg-gradient-to-r from-blue-50 to-indigo-100">
-                              <th className="border border-black p-2 text-center font-bold" style={{ width: '45%', border: '1px solid black', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }}>
-                                      {itemIndex < items.filter(i => (estimateData.measurements[i.sr_no] || []).length > 0).length - 1 && (
-                                      
-                              <th className="border border-black p-2 text-center font-bold" style={{ width: '8%', border: '1px solid black', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }}>
-                                     
-                                      )}
-                              <th className="border border-black p-2 text-center font-bold" style={{ width: '11%', border: '1px solid black', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }}>
-                                  );
-                                })}
-                              <th className="border border-black p-2 text-center font-bold" style={{ width: '11%', border: '1px solid black', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }}>
-                                {/* Add some empty rows for manual entries */}
-                                {Array.from({ length: 8 }, (_, index) => (
-                              <th className="border border-black p-2 text-center font-bold" style={{ width: '12%', border: '1px solid black', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }}>
-                                    <td className="border border-black p-4" style={{ border: '1px solid black', padding: '16px', height: '40px' }}></td>
-                                    <td className="border border-black p-4" style={{ border: '1px solid black', padding: '16px' }}></td>
-                              <th className="border border-black p-2 text-center font-bold" style={{ width: '13%', border: '1px solid black', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }}>
-                                    <td className="border border-black p-4" style={{ border: '1px solid black', padding: '16px' }}></td>
-                                    <td className="border border-black p-4" style={{ border: '1px solid black', padding: '16px' }}></td>
-                                    <td className="border border-black p-4" style={{ border: '1px solid black', padding: '16px' }}></td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
+                          {hasValidMeasurements 
+                            ? formatNumber(measurements.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0))
+                            : ''
+                          }
+                        </td>
+                      </tr>
+
+                      {/* Spacing row between items */}
+                      {itemIndex < items.filter(i => (estimateData.measurements[i.sr_no] || []).length > 0).length - 1 && (
+                        <tr>
+                          <td className="border border-black p-1" colSpan={6} style={{ border: '1px solid black', padding: '4px' }}></td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* Add some empty rows for manual entries */}
+                {Array.from({ length: 6 }, (_, index) => (
+                  <tr key={`empty-${index}`}>
+                    <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px', height: '32px' }}></td>
+                    <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                    <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                    <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                    <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                    <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
                         
                         <PageFooter pageNumber={pageNumber} />
                       </div>
