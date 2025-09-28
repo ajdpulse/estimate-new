@@ -643,9 +643,39 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                       {/* Total of PART-A */}
                       <tr className="font-bold">
                         <td colSpan={5} className="border border-black p-2 text-right">Total of PART - A</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4 * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4 * 0.3).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(() => {
+                          let partATotal = 0;
+                          estimateData.subworks.forEach((subwork) => {
+                            const items = estimateData.subworkItems[subwork.subworks_id] || [];
+                            const filteredItems = items.filter(item => item.category === 'purchasing' || item.category === 'materials');
+                            filteredItems.forEach((item) => {
+                              partATotal += item.total_item_amount || 0;
+                            });
+                          });
+                          return partATotal.toFixed(2);
+                        })()}</td>
+                        <td className="border border-black p-2 text-right">{(() => {
+                          let partATotal = 0;
+                          estimateData.subworks.forEach((subwork) => {
+                            const items = estimateData.subworkItems[subwork.subworks_id] || [];
+                            const filteredItems = items.filter(item => item.category === 'purchasing' || item.category === 'materials');
+                            filteredItems.forEach((item) => {
+                              partATotal += item.total_item_amount || 0;
+                            });
+                          });
+                          return (partATotal * 0.7).toFixed(2);
+                        })()}</td>
+                        <td className="border border-black p-2 text-right">{(() => {
+                          let partATotal = 0;
+                          estimateData.subworks.forEach((subwork) => {
+                            const items = estimateData.subworkItems[subwork.subworks_id] || [];
+                            const filteredItems = items.filter(item => item.category === 'purchasing' || item.category === 'materials');
+                            filteredItems.forEach((item) => {
+                              partATotal += item.total_item_amount || 0;
+                            });
+                          });
+                          return (partATotal * 0.3).toFixed(2);
+                        })()}</td>
                       </tr>
 
                       {/* PART-B: Construction works for E-Tendering */}
