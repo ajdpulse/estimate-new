@@ -799,50 +799,46 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                           <h3 className="text-lg font-bold mt-4">Measurement Sheet for Sub-work: {subwork.subworks_name}</h3>
                         </div>
 
-                        {/* Measurement details for each item */}
-                        {items.map((item, itemIndex) => {
-                          const itemMeasurements = estimateData.measurements[item.id] || [];
-                          
-                          if (itemMeasurements.length === 0) return null;
-
-                          return (
-                            <div key={item.id} className="mb-8">
-                              <h4 className="font-bold mb-3 text-sm">Item: {item.description_of_item}</h4>
-                              
-                              <div className="mb-4">
-                                <h5 className="font-semibold mb-2 text-xs">Measurements:</h5>
-                                <table className="w-full border-collapse border border-black text-xs">
-                                  <thead>
-                                    <tr className="bg-gray-100">
-                                      <th className="border border-black p-2">Sr. No</th>
-                                      <th className="border border-black p-2">Description</th>
-                                      <th className="border border-black p-2">No. of Units</th>
-                                      <th className="border border-black p-2">Length</th>
-                                      <th className="border border-black p-2">Width</th>
-                                      <th className="border border-black p-2">Height</th>
-                                      <th className="border border-black p-2">Quantity</th>
-                                      <th className="border border-black p-2">Unit</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {itemMeasurements.map((measurement, idx) => (
-                                      <tr key={measurement.id}>
-                                        <td className="border border-black p-2 text-center">{idx + 1}</td>
-                                        <td className="border border-black p-2">{measurement.description_of_items}</td>
-                                        <td className="border border-black p-2 text-center">{measurement.no_of_units}</td>
-                                        <td className="border border-black p-2 text-center">{measurement.length}</td>
-                                        <td className="border border-black p-2 text-center">{measurement.width_breadth}</td>
-                                        <td className="border border-black p-2 text-center">{measurement.height_depth}</td>
-                                        <td className="border border-black p-2 text-center">{measurement.calculated_quantity}</td>
-                                        <td className="border border-black p-2 text-center">{measurement.unit}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          );
-                        })}
+                        {/* Combined measurement table for all items */}
+                        <table className="w-full border-collapse border border-black text-xs mb-6">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="border border-black p-2">Sr. No</th>
+                              <th className="border border-black p-2">Item</th>
+                              <th className="border border-black p-2">Description</th>
+                              <th className="border border-black p-2">No. of Units</th>
+                              <th className="border border-black p-2">Length</th>
+                              <th className="border border-black p-2">Width</th>
+                              <th className="border border-black p-2">Height</th>
+                              <th className="border border-black p-2">Quantity</th>
+                              <th className="border border-black p-2">Unit</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(() => {
+                              let measurementRowIndex = 1;
+                              return items.map((item) => {
+                                const itemMeasurements = estimateData.measurements[item.id] || [];
+                                
+                                if (itemMeasurements.length === 0) return null;
+                                
+                                return itemMeasurements.map((measurement, idx) => (
+                                  <tr key={`${item.id}-${measurement.id}`}>
+                                    <td className="border border-black p-2 text-center">{measurementRowIndex++}</td>
+                                    <td className="border border-black p-2">{item.item_number}</td>
+                                    <td className="border border-black p-2">{measurement.description_of_items}</td>
+                                    <td className="border border-black p-2 text-center">{measurement.no_of_units}</td>
+                                    <td className="border border-black p-2 text-center">{measurement.length}</td>
+                                    <td className="border border-black p-2 text-center">{measurement.width_breadth}</td>
+                                    <td className="border border-black p-2 text-center">{measurement.height_depth}</td>
+                                    <td className="border border-black p-2 text-center">{measurement.calculated_quantity}</td>
+                                    <td className="border border-black p-2 text-center">{measurement.unit}</td>
+                                  </tr>
+                                ));
+                              }).flat().filter(Boolean);
+                            })()}
+                          </tbody>
+                        </table>
                       </div>
                       
                       <PageFooter pageNumber={pageNumber + 1} />
