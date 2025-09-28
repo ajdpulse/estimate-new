@@ -144,15 +144,14 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
         subworkItems[subwork.subworks_id] = items || [];
 
-        // Fetch measurements for each item
+        // Fetch measurements for each item using sr_no as subwork_item_id
         for (const item of items || []) {
           const { data: measurementsRes } = await supabase
             .schema('estimate')
             .from('item_measurements')
             .select('*')
-            .eq('subwork_item_id', item.sr_no);
-
-          measurements[item.id] = measurementsRes || [];
+            .eq('subwork_item_id', item.sr_no)
+          measurements[item.sr_no] = measurementsRes || [];
         }
       }
 
@@ -161,8 +160,8 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
         subworks: subworks || [],
         subworkItems,
         measurements,
-        leads,
-        materials
+        leads: {},
+        materials: {}
       });
 
     } catch (error) {
