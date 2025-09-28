@@ -168,6 +168,13 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     }
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('hi-IN', {
+      style: 'currency',
+      currency: 'INR',
+    }).format(amount);
+  };
+
   const calculateTotalEstimate = () => {
     if (!estimateData) return 0;
     
@@ -180,13 +187,6 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     });
     
     return total;
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('hi-IN', {
-      style: 'currency',
-      currency: 'INR',
-    }).format(amount);
   };
 
   const generatePDF = async () => {
