@@ -1,10 +1,28 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Work, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial } from '../types';
-import { FileText, Download, Loader2, Eye, CreditCard as Edit2, Settings } from 'lucide-react';
+import LoadingSpinner from './common/LoadingSpinner';
+import { 
+  FileText, 
+  Download, 
+  X, 
+  Settings as SettingsIcon,
+  Eye,
+  EyeOff,
+  Plus,
+  Trash2,
+  Calculator
+} from 'lucide-react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import 'jspdf-autotable';
+
+interface TaxSetting {
+  id: string;
+  name: string;
+  percentage: number;
+  enabled: boolean;
+}
 
 interface EstimateData {
   work: Work;
@@ -15,73 +33,50 @@ interface EstimateData {
   materials: { [itemId: string]: ItemMaterial[] };
 }
 
-interface DocumentSettings {
-  header: {
-    zilla: string;
-    division: string;
-    subDivision: string;
-    title: string;
-  };
-  footer: {
-    preparedBy: string;
-    designation: string;
-  };
-  pageSettings: {
-    showPageNumbers: boolean;
-    pageNumberPosition: 'top' | 'bottom';
-    marginTop: number;
-    marginBottom: number;
-  };
-}
-
 interface EstimatePDFGeneratorProps {
   workId: string;
-  taxSettings?: Array<{
-    id: string;
-    name: string;
-    percentage: number;
-    enabled: boolean;
-  }>;
+  taxSettings: TaxSetting[];
+  onTaxSettingsChange: (settings: TaxSetting[]) => void;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
+const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
   workId,
-  taxSettings = [],
+  taxSettings,
   onTaxSettingsChange,
   isOpen,
   onClose
 }) => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
   const [estimateData, setEstimateData] = useState<EstimateData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [showSettings, setShowSettings] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const printRef = useRef<HTMLDivElement>(null);
-
-  // Default document settings
-  const [documentSettings, setDocumentSettings] = useState<DocumentSettings>({
-    header: {
-      zilla: "ZILLA PARISHAD, CHANDRAPUR",
-      division: "RURAL WATER SUPPLY DIVISION, Z.P., CHANDRAPUR",
-      subDivision: "RURAL WATER SUPPLY SUB-DIVISION (Z.P.), CHANDRAPUR",
-      title: "ESTIMATE"
-    },
-    footer: {
-      preparedBy: "Pragati Bahu Uddeshiya Sanstha, Warora, Tah.- Chandrapur",
-      designation: "Sub Divisional Engineer Z.P Rural Water supply Sub-Division, Chandrapur"
-    },
-    pageSettings: {
-      showPageNumbers: true,
-      pageNumberPosition: 'bottom',
-      marginTop: 20,
-      marginBottom: 20
-    }
+  
+  // Document settings
+  const [headerSettings, setHeaderSettings] = useState({
+    line1: 'ZILLA PARISHAD, CHANDRAPUR',
+    line2: 'Rural Water Supply, Division, Z.P. Chandrapur',
+    line3: 'Rural Water Supply Sub-Division Chandrapur'
+  });
+  
+  const [footerSettings, setFooterSettings] = useState({
+    line1: 'Pragati Bahu Uddeshiya Sanstha, Warora, Tah.- Chandrapur',
+    line2: 'Sub Divisional Engineer Z.P Rural Water supply Sub-Division, Chandrapur'
+  });
+  
+  const [pageSettings, setPageSettings] = useState({
+    showPageNumbers: true,
+    pageNumberPosition: 'bottom'
   });
 
-  React.useEffect(() => {
+  // Tax settings state
+  const [newTaxName, setNewTaxName] = useState('');
+  const [newTaxPercentage, setNewTaxPercentage] = useState('');
+
+  useEffect(() => {
     if (isOpen && workId) {
       fetchEstimateData();
     }
@@ -101,18 +96,6 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
       if (workError) throw workError;
 
-      // Update document settings with work data
-      if (work) {debugger;
-        setDocumentSettings(prev => ({
-          ...prev,
-          header: {
-            ...prev.header,
-            division: work.division || prev.header.division,
-            subDivision: work.sub_division || prev.header.subDivision
-          }
-        }));
-      }
-
       // Fetch subworks
       const { data: subworks, error: subworksError } = await supabase
         .schema('estimate')
@@ -123,7 +106,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
       if (subworksError) throw subworksError;
 
-      // Fetch subwork items for all subworks
+      // Fetch all related data
       const subworkItems: { [subworkId: string]: SubworkItem[] } = {};
       const measurements: { [itemId: string]: ItemMeasurement[] } = {};
       const leads: { [itemId: string]: ItemLead[] } = {};
@@ -143,8 +126,8 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
         for (const item of items || []) {
           const [measurementsRes, leadsRes, materialsRes] = await Promise.all([
             supabase.schema('estimate').from('item_measurements').select('*').eq('subwork_item_id', item.sr_no),
-            supabase.schema('estimate').from('item_leads').select('*').eq('subwork_item_id', item.sr_no),
-            supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_id', item.sr_no)
+            supabase.schema('estimate').from('item_leads').select('*').eq('subwork_item_sr_no', item.sr_no),
+            supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_sr_no', item.sr_no)
           ]);
 
           measurements[item.id] = measurementsRes.data || [];
@@ -169,6 +152,13 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     }
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('hi-IN', {
+      style: 'currency',
+      currency: 'INR',
+    }).format(amount);
+  };
+
   const calculateTotalEstimate = () => {
     if (!estimateData) return 0;
     
@@ -183,1004 +173,570 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     return total;
   };
 
+  const handleTaxToggle = (taxId: string) => {
+    const updatedTaxes = taxSettings.map(tax => 
+      tax.id === taxId ? { ...tax, enabled: !tax.enabled } : tax
+    );
+    onTaxSettingsChange(updatedTaxes);
+  };
+
+  const handleTaxPercentageChange = (taxId: string, percentage: number) => {
+    const updatedTaxes = taxSettings.map(tax => 
+      tax.id === taxId ? { ...tax, percentage } : tax
+    );
+    onTaxSettingsChange(updatedTaxes);
+  };
+
+  const handleRemoveTax = (taxId: string) => {
+    const updatedTaxes = taxSettings.filter(tax => tax.id !== taxId);
+    onTaxSettingsChange(updatedTaxes);
+  };
+
+  const handleAddTax = () => {
+    if (!newTaxName.trim() || !newTaxPercentage) return;
+    
+    const newTax = {
+      id: Date.now().toString(),
+      name: newTaxName.trim(),
+      percentage: parseFloat(newTaxPercentage),
+      enabled: true
+    };
+    
+    onTaxSettingsChange([...taxSettings, newTax]);
+    setNewTaxName('');
+    setNewTaxPercentage('');
+  };
+
   const generatePDF = async () => {
-    if (!printRef.current || !estimateData) return;
+    if (!estimateData) return;
 
     try {
-      setLoading(true);
-      
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const margin = 10;
-      const contentWidth = pageWidth - (margin * 2);
-      const contentHeight = pageHeight - (margin * 2);
+      setGenerating(true);
 
-      // Get all page elements
-      const pages = printRef.current.querySelectorAll('.pdf-page');
-      
-      for (let i = 0; i < pages.length; i++) {
-        if (i > 0) {
-          pdf.addPage();
-        }
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.width;
+      const pageHeight = pdf.internal.pageSize.height;
+      let yPosition = 20;
 
-        const pageElement = pages[i] as HTMLElement;
-        const canvas = await html2canvas(pageElement, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          width: pageElement.scrollWidth,
-          height: pageElement.scrollHeight
+      // Header
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(headerSettings.line1, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 8;
+
+      pdf.setFontSize(12);
+      pdf.text(headerSettings.line2, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 6;
+
+      pdf.setFontSize(10);
+      pdf.text(headerSettings.line3, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      // Work details
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('ESTIMATE DETAILS', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Work ID: ${estimateData.work.works_id}`, 20, yPosition);
+      yPosition += 6;
+      pdf.text(`Work Name: ${estimateData.work.work_name}`, 20, yPosition);
+      yPosition += 6;
+      pdf.text(`Division: ${estimateData.work.division || 'N/A'}`, 20, yPosition);
+      yPosition += 15;
+
+      // Estimate table
+      const tableData: any[] = [];
+      let srNo = 1;
+
+      estimateData.subworks.forEach(subwork => {
+        const items = estimateData.subworkItems[subwork.subworks_id] || [];
+        
+        // Add subwork header
+        tableData.push([
+          { content: subwork.subworks_name, colSpan: 6, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }
+        ]);
+
+        items.forEach(item => {
+          tableData.push([
+            srNo++,
+            item.item_number || '',
+            item.description_of_item,
+            item.ssr_quantity || 0,
+            item.ssr_unit || '',
+            formatCurrency(item.total_item_amount || 0)
+          ]);
         });
+      });
 
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = contentWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // Calculate totals
+      const subtotal = calculateTotalEstimate();
+      const enabledTaxes = taxSettings.filter(tax => tax.enabled);
+      let totalTaxAmount = 0;
 
-        // Add image to PDF
-        pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, Math.min(imgHeight, contentHeight));
+      enabledTaxes.forEach(tax => {
+        totalTaxAmount += (subtotal * tax.percentage) / 100;
+      });
 
-        // Add page number if enabled
-        if (documentSettings.pageSettings.showPageNumbers) {
-          const pageNum = i + 1;
-          const totalPages = pages.length;
-          const pageText = `Page ${pageNum} of ${totalPages}`;
-          
-          pdf.setFontSize(10);
-          pdf.setTextColor(100);
-          
-          if (documentSettings.pageSettings.pageNumberPosition === 'bottom') {
-            pdf.text(pageText, pageWidth / 2, pageHeight - 5, { align: 'center' });
-          } else {
-            pdf.text(pageText, pageWidth / 2, 10, { align: 'center' });
-          }
+      const grandTotal = subtotal + totalTaxAmount;
+
+      // Add totals to table
+      tableData.push([
+        { content: 'SUBTOTAL', colSpan: 5, styles: { fontStyle: 'bold', halign: 'right' } },
+        { content: formatCurrency(subtotal), styles: { fontStyle: 'bold' } }
+      ]);
+
+      enabledTaxes.forEach(tax => {
+        const taxAmount = (subtotal * tax.percentage) / 100;
+        tableData.push([
+          { content: `${tax.name} (${tax.percentage}%)`, colSpan: 5, styles: { halign: 'right' } },
+          formatCurrency(taxAmount)
+        ]);
+      });
+
+      tableData.push([
+        { content: 'GRAND TOTAL', colSpan: 5, styles: { fontStyle: 'bold', halign: 'right', fillColor: [220, 220, 220] } },
+        { content: formatCurrency(grandTotal), styles: { fontStyle: 'bold', fillColor: [220, 220, 220] } }
+      ]);
+
+      (pdf as any).autoTable({
+        head: [['Sr.', 'Item No.', 'Description', 'Qty', 'Unit', 'Amount (₹)']],
+        body: tableData,
+        startY: yPosition,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [100, 100, 100] },
+        margin: { left: 20, right: 20 }
+      });
+
+      // Footer
+      const finalY = (pdf as any).lastAutoTable.finalY + 20;
+      pdf.setFontSize(8);
+      pdf.text(footerSettings.line1, pageWidth / 2, finalY, { align: 'center' });
+      pdf.text(footerSettings.line2, pageWidth / 2, finalY + 5, { align: 'center' });
+
+      // Page numbers
+      if (pageSettings.showPageNumbers) {
+        const pageCount = pdf.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          pdf.setPage(i);
+          pdf.setFontSize(8);
+          pdf.text(`Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
         }
       }
 
-      const fileName = `Estimate_${estimateData.work.works_id}_${new Date().toISOString().split('T')[0]}.pdf`;
-      pdf.save(fileName);
+      // Save PDF
+      pdf.save(`Estimate_${estimateData.work.works_id}.pdf`);
 
     } catch (error) {
       console.error('Error generating PDF:', error);
+      alert('Error generating PDF');
     } finally {
-      setLoading(false);
+      setGenerating(false);
     }
   };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('hi-IN', {
-      style: 'currency',
-      currency: 'INR',
-    }).format(amount);
-  };
-
-  const PageHeader: React.FC<{ pageNumber?: number }> = ({ pageNumber }) => (
-    <div className="text-center mb-6 pb-4 border-b-2 border-gray-300">
-      <h1 className="text-lg font-bold text-red-600 mb-2">{documentSettings.header.zilla}</h1>
-      <h2 className="text-base font-semibold text-blue-600 mb-1">{documentSettings.header.division}</h2>
-      <h3 className="text-sm font-medium text-blue-600 mb-3">{documentSettings.header.subDivision}</h3>
-      {pageNumber && documentSettings.pageSettings.showPageNumbers && documentSettings.pageSettings.pageNumberPosition === 'top' && (
-        <div className="text-xs text-gray-500">Page {pageNumber}</div>
-      )}
-    </div>
-  );
-
-  const PageFooter: React.FC<{ pageNumber?: number }> = ({ pageNumber }) => (
-    <div className="mt-8 pt-4 border-t-2 border-gray-300">
-      <div className="flex justify-between items-end">
-        <div className="text-left">
-          <p className="text-sm font-medium">Prepared By:</p>
-          <p className="text-xs mt-2">{documentSettings.footer.preparedBy}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm font-medium">{documentSettings.footer.designation}</p>
-        </div>
-      </div>
-      {pageNumber && documentSettings.pageSettings.showPageNumbers && documentSettings.pageSettings.pageNumberPosition === 'bottom' && (
-        <div className="text-center text-xs text-gray-500 mt-2">Page {pageNumber}</div>
-      )}
-    </div>
-  );
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-4 mx-auto p-5 border w-11/12 max-w-7xl shadow-lg rounded-md bg-white min-h-[90vh]">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-gray-900">Generate Estimate Report</h3>
-          <div className="flex items-center space-x-2">
-            {estimateData && (
-              <>
-                <button
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </button>
-                <button
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  {showPreview ? 'Hide Preview' : 'Show Preview'}
-                </button>
-                <button
-                  onClick={generatePDF}
-                  disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="w-4 h-4 mr-2" />
-                  )}
-                  Generate PDF
-                </button>
-              </>
-            )}
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-hidden">
+      <div className="h-full flex bg-white">
+        
         {/* Settings Panel */}
         {showSettings && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-            <h4 className="text-md font-medium text-gray-900 mb-4">Document Settings</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h5 className="text-sm font-medium text-gray-700 mb-2">Header Settings</h5>
+          <div className="w-1/3 border-r border-gray-200 overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-gray-900">Document Settings</h2>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                >
+                  <EyeOff className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Header Settings */}
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Header Settings</h3>
                 <div className="space-y-2">
                   <input
                     type="text"
-                    placeholder="Zilla Parishad"
-                    value={documentSettings.header.zilla}
-                    onChange={(e) => setDocumentSettings(prev => ({
-                      ...prev,
-                      header: { ...prev.header, zilla: e.target.value }
-                    }))}
-                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                    value={headerSettings.line1}
+                    onChange={(e) => setHeaderSettings({...headerSettings, line1: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <input
                     type="text"
-                    placeholder="Division"
-                    value={documentSettings.header.division}
-                    onChange={(e) => setDocumentSettings(prev => ({
-                      ...prev,
-                      header: { ...prev.header, division: e.target.value }
-                    }))}
-                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                    value={headerSettings.line2}
+                    onChange={(e) => setHeaderSettings({...headerSettings, line2: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <input
                     type="text"
-                    placeholder="Sub Division"
-                    value={documentSettings.header.subDivision}
-                    onChange={(e) => setDocumentSettings(prev => ({
-                      ...prev,
-                      header: { ...prev.header, subDivision: e.target.value }
-                    }))}
-                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                    value={headerSettings.line3}
+                    onChange={(e) => setHeaderSettings({...headerSettings, line3: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
-              <div>
-                <h5 className="text-sm font-medium text-gray-700 mb-2">Footer Settings</h5>
+
+              {/* Footer Settings */}
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Footer Settings</h3>
                 <div className="space-y-2">
                   <input
                     type="text"
-                    placeholder="Prepared By"
-                    value={documentSettings.footer.preparedBy}
-                    onChange={(e) => setDocumentSettings(prev => ({
-                      ...prev,
-                      footer: { ...prev.footer, preparedBy: e.target.value }
-                    }))}
-                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                    value={footerSettings.line1}
+                    onChange={(e) => setFooterSettings({...footerSettings, line1: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <input
                     type="text"
-                    placeholder="Designation"
-                    value={documentSettings.footer.designation}
-                    onChange={(e) => setDocumentSettings(prev => ({
-                      ...prev,
-                      footer: { ...prev.footer, designation: e.target.value }
-                    }))}
-                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                    value={footerSettings.line2}
+                    onChange={(e) => setFooterSettings({...footerSettings, line2: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
-              <div>
-                <h5 className="text-sm font-medium text-gray-700 mb-2">Page Settings</h5>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={documentSettings.pageSettings.showPageNumbers}
-                      onChange={(e) => setDocumentSettings(prev => ({
-                        ...prev,
-                        pageSettings: { ...prev.pageSettings, showPageNumbers: e.target.checked }
-                      }))}
-                      className="mr-2"
-                    />
-                    <span className="text-xs">Show Page Numbers</span>
+
+              {/* Page Settings */}
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Page Settings</h3>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="showPageNumbers"
+                    checked={pageSettings.showPageNumbers}
+                    onChange={(e) => setPageSettings({...pageSettings, showPageNumbers: e.target.checked})}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="showPageNumbers" className="text-sm text-gray-700">
+                    Show Page Numbers
                   </label>
-                  <select
-                    value={documentSettings.pageSettings.pageNumberPosition}
-                    onChange={(e) => setDocumentSettings(prev => ({
-                      ...prev,
-                      pageSettings: { ...prev.pageSettings, pageNumberPosition: e.target.value as 'top' | 'bottom' }
-                    }))}
-                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                  >
-                    <option value="bottom">Page Numbers at Bottom</option>
-                    <option value="top">Page Numbers at Top</option>
-                  </select>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {loading && !estimateData && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <span className="ml-2 text-gray-600">Loading estimate data...</span>
-          </div>
-        )}
-
-        {estimateData && showPreview && (
-          <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[70vh] overflow-y-auto">
-            <div ref={printRef} className="bg-white">
-              
-              {/* Page 1: Cover Page */}
-              <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
-                <PageHeader pageNumber={1} />
-                
-                <div className="flex-1 flex flex-col justify-center">
-                  <div className="text-center border-2 border-black p-8">
-                    <h1 className="text-2xl font-bold underline mb-8">{documentSettings.header.title}</h1>
-                    
-                    <div className="mb-6">
-                      <p className="text-lg font-semibold mb-2">{estimateData.work.work_name}</p>
-                      <p className="text-base">Tah: Chandrapur, Dist:- Chandrapur</p>
-                    </div>
-                    
-                    <div className="mb-8">
-                      <p className="text-lg mb-2">( 2024-25)</p>
-                      <p className="text-xl font-bold">ESTIMATED COST. Rs. {calculateTotalEstimate().toLocaleString('hi-IN')}</p>
-                    </div>
-                    
-                    <div className="mt-12">
-                      <p className="text-lg font-semibold mb-6">OFFICE OF THE</p>
-                      <div className="flex justify-center space-x-8">
-                        <div className="border border-black p-4 text-center min-w-[200px]">
-                          <p className="font-medium">Sub Divisional Engineer</p>
-                          <p className="text-sm">Rural Water Supply(Z.P.) Sub-</p>
-                          <p className="text-sm">Division, Chandrapur.</p>
-                        </div>
-                        <div className="border border-black p-4 text-center min-w-[200px]">
-                          <p className="font-medium">Executive Engineer</p>
-                          <p className="text-sm">Rural Water Supply Dn.</p>
-                          <p className="text-sm">Z.P, Chandrapur.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <PageFooter pageNumber={1} />
+                <select
+                  value={pageSettings.pageNumberPosition}
+                  onChange={(e) => setPageSettings({...pageSettings, pageNumberPosition: e.target.value})}
+                  className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="bottom">Page Numbers at Bottom</option>
+                  <option value="top">Page Numbers at Top</option>
+                </select>
               </div>
 
-              {/* Page 2: Details Page */}
-              <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
-                <PageHeader pageNumber={2} />
+              {/* Tax Settings */}
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Tax Settings for Recap Sheet</h3>
                 
-                <div className="flex-1">
-                  <div className="text-center mb-6">
-                    <h3 className="text-xl font-bold underline">{documentSettings.header.title}</h3>
-                    <p className="mt-2">{estimateData.work.work_name}</p>
-                    <p>Tah: Chandrapur, Dist:- Chandrapur</p>
-                  </div>
+                {/* Current Taxes */}
+                <div className="space-y-3 mb-4">
+                  {taxSettings.map((tax) => (
+                    <div key={tax.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={tax.enabled}
+                          onChange={() => handleTaxToggle(tax.id)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className={`text-sm font-medium ${tax.enabled ? 'text-gray-900' : 'text-gray-500'}`}>
+                          {tax.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          value={tax.percentage}
+                          onChange={(e) => handleTaxPercentageChange(tax.id, parseFloat(e.target.value) || 0)}
+                          className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                        />
+                        <span className="text-sm text-gray-600">%</span>
+                        <button
+                          onClick={() => handleRemoveTax(tax.id)}
+                          className="text-red-600 hover:text-red-800 p-1 rounded"
+                          title="Remove Tax"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-                  <div className="grid grid-cols-2 gap-6 mb-8 text-sm">
-                    <div className="space-y-3">
-                      <div className="flex">
-                        <span className="w-40 font-medium">Name of Division</span>
-                        <span className="mr-2">:-</span>
-                        <span>{estimateData.work.division || '-'}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="w-40 font-medium">Name of Sub- Division</span>
-                        <span className="mr-2">:-</span>
-                        <span>{estimateData.work.sub_division || '-'}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="w-40 font-medium">Fund Head</span>
-                        <span className="mr-2">:-</span>
-                        <span>{estimateData.work.fund_head || '-'}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="w-40 font-medium">Major Head</span>
-                        <span className="mr-2">:-</span>
-                        <span className="italic">{estimateData.work.major_head || '-'}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="w-40 font-medium">Minor Head</span>
-                        <span className="mr-2">:-</span>
-                        <span>{estimateData.work.minor_head || '-'}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="w-40 font-medium">Service Head</span>
-                        <span className="mr-2">:-</span>
-                        <span>{estimateData.work.service_head || '-'}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="w-40 font-medium">Departmental Head</span>
-                        <span className="mr-2">:-</span>
-                        <span>{estimateData.work.departmental_head || '-'}</span>
-                      </div>
-                    </div>
-                    <div>
-                      {/* Additional content can be added here if needed */}
-                    </div>
-                  </div>
-
-                  <div className="mb-8">
-                    <div className="flex justify-between items-center mb-6 text-lg">
-                      <span className="font-bold">Estimated Cost Rs.</span>
-                      <span className="font-bold">{calculateTotalEstimate().toLocaleString('hi-IN')}</span>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 gap-4 text-sm">
-                      <div className="space-y-2">
-                        <div className="flex">
-                          <span className="w-48 font-medium">Administrative Approval No.</span>
-                          <span className="mr-2">:-</span>
-                          <span>-</span>
-                        </div>
-                        <div className="flex">
-                          <span className="w-48 font-medium">Technically Sanctioned under</span>
-                          <span className="mr-2">:-</span>
-                          <span>-</span>
-                        </div>
-                        <div className="flex">
-                          <span className="w-48 font-medium">Estimate Prepared By</span>
-                          <span className="mr-2">:-</span>
-                          <span>{documentSettings.footer.preparedBy}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="w-48 font-medium">Checked By.</span>
-                          <span className="mr-2">:-</span>
-                          <span>-</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-center mb-6">
-                    <h4 className="font-bold text-base">General Description</h4>
-                    <p className="mt-2">------------------------- Attached Separately -------------------------</p>
+                {/* Add New Tax */}
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <h5 className="text-sm font-medium text-blue-900 mb-2">Add New Tax</h5>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      placeholder="Tax name"
+                      value={newTaxName}
+                      onChange={(e) => setNewTaxName(e.target.value)}
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Rate"
+                      value={newTaxPercentage}
+                      onChange={(e) => setNewTaxPercentage(e.target.value)}
+                      className="w-20 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                    />
+                    <button
+                      onClick={handleAddTax}
+                      disabled={!newTaxName.trim() || !newTaxPercentage}
+                      className="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-                
-                <PageFooter pageNumber={2} />
-              </div>
 
-              {/* Page 3: Recapitulation Sheet */}
-              <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
-                <PageHeader pageNumber={3} />
-                
-                <div className="flex-1">
-                  <div className="text-center mb-6">
-                    <p className="text-sm">Fund Head :- {estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
-                    <p className="text-sm font-semibold">NAME OF WORK: {estimateData.work.work_name}</p>
-                    <p className="text-sm">Village :- Nakoda, GP :- Nakoda, Tah :- Chandrapur</p>
-                    <h3 className="text-lg font-bold mt-4">RECAPITULATION SHEET</h3>
-                  </div>
-
-                  <table className="w-full border-collapse border border-black text-xs mb-6">
-  <thead>
-    <tr className="bg-gray-100">
-      <th className="border border-black p-2 text-center">Sr. No</th>
-      <th className="border border-black p-2">Type of work</th>
-      <th className="border border-black p-2">Item of Work</th>
-      <th className="border border-black p-2">No. of unit</th>
-      <th className="border border-black p-2">Amount per unit (Rs.)</th>
-      <th className="border border-black p-2">Total Amount (Rs.)</th>
-      <th className="border border-black p-2">SBM (G) (70%) (Rs.)</th>
-      <th className="border border-black p-2">Convergence-15th Finance Commission (30%) (Rs.)</th>
-    </tr>
-  </thead>
-  <tbody>
-    {/* PART-A: Purchasing Items including GST & all Taxes */}
-    <tr className="bg-gray-200 font-bold">
-      <td colSpan={8} className="border border-black p-2">PART-A :- Purchasing Items including GST & all Taxes</td>
-    </tr>
-    {(() => {
-      let partAItems = [];
-      let partATotal = 0;
-      estimateData.subworks.forEach((subwork) => {
-        const items = estimateData.subworkItems[subwork.subworks_id] || [];
-        const filteredItems = items.filter(item => item.category === 'purchasing' || item.category === 'materials');
-        if (filteredItems.length > 0) {
-          filteredItems.forEach((item) => {
-            partAItems.push({ subwork, item });
-            partATotal += item.total_item_amount || 0;
-          });
-        }
-      });
-      return partAItems.map(({ subwork, item }, index) => {
-        const unitCount = item.ssr_quantity || 0;
-        const itemTotal = item.total_item_amount || 0;
-        return (
-          <tr key={`part-a-${item.id || index}`}>
-            <td className="border border-black p-2 text-center">{index + 1}</td>
-            <td className="border border-black p-2">{subwork.subworks_name}</td> {/* Dynamic type of work */}
-            <td className="border border-black p-2">{item.descriptionofitem || 'N/A'}</td> {/* Dynamic item of work */}
-            <td className="border border-black p-2 text-center">{unitCount}</td>
-            <td className="border border-black p-2 text-right">{itemTotal > 0 ? (itemTotal / Math.max(unitCount, 1)).toFixed(2) : '0.00'}</td>
-            <td className="border border-black p-2 text-right">{itemTotal.toFixed(2)}</td>
-            <td className="border border-black p-2 text-right">{(itemTotal * 0.7).toFixed(2)}</td>
-            <td className="border border-black p-2 text-right">{(itemTotal * 0.3).toFixed(2)}</td>
-          </tr>
-        );
-      });
-    })()}
-    
-    {/* Total of PART-A */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Total of PART - A</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4 * 0.3).toFixed(2)}</td>
-    </tr>
-
-    {/* PART-B: Construction works for E-Tendering */}
-    <tr className="bg-gray-200 font-bold">
-      <td colSpan={8} className="border border-black p-2">PART- B:- Construction works for E-Tendering</td>
-    </tr>
-    {(() => {
-      let partBItems = [];
-      let partBTotal = 0;
-      estimateData.subworks.forEach((subwork) => {
-        const items = estimateData.subworkItems[subwork.subworks_id] || [];
-        const filteredItems = items.filter(item => item.category === 'construction' || !item.category);
-        if (filteredItems.length > 0) {
-          filteredItems.forEach((item) => {
-            partBItems.push({ subwork, item });
-            partBTotal += item.total_item_amount || 0;
-          });
-        }
-      });
-      return partBItems.map(({ subwork, item }, index) => {
-        const unitCount = item.ssr_quantity || 0;
-        const itemTotal = item.total_item_amount || 0;
-        return (
-          <tr key={`part-b-${item.id || index}`}>
-            <td className="border border-black p-2 text-center">{index + 1}</td>
-            <td className="border border-black p-2">{subwork.subworks_name}</td> {/* Dynamic type of work */}
-            <td className="border border-black p-2">{item.descriptionofitem || 'N/A'}</td> {/* Dynamic item of work */}
-            <td className="border border-black p-2 text-center">{unitCount}</td>
-            <td className="border border-black p-2 text-right">{itemTotal > 0 ? (itemTotal / Math.max(unitCount, 1)).toFixed(2) : '0.00'}</td>
-            <td className="border border-black p-2 text-right">{itemTotal.toFixed(2)}</td>
-            <td className="border border-black p-2 text-right">{(itemTotal * 0.7).toFixed(2)}</td>
-            <td className="border border-black p-2 text-right">{(itemTotal * 0.3).toFixed(2)}</td>
-          </tr>
-        );
-      });
-    })()}
-    
-    {/* Total */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Total</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.3).toFixed(2)}</td>
-    </tr>
-
-    {/* Add 18% GST */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Add 18 % GST</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18 * 0.3).toFixed(2)}</td>
-    </tr>
-
-    {/* Total of PART-B */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Total of PART - B</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18 * 0.3).toFixed(2)}</td>
-    </tr>
-
-    {/* Add 0.50% Contingencies */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Add 0.50 % Contingencies</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.3).toFixed(2)}</td>
-    </tr>
-
-    {/* Inspection charges 0.50% */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Inspection charges 0.50%</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">0.00</td>
-    </tr>
-
-    {/* DPR charges 5% or 1 Lakh whichever is less */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">DPR charges 5% or 1 Lakh whichever is less</td>
-      <td className="border border-black p-2 text-right">{Math.min(calculateTotalEstimate() * 0.05, 100000).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{Math.min(calculateTotalEstimate() * 0.05, 100000).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">0.00</td>
-    </tr>
-
-    {/* Gross Total Estimated Amount */}
-    <tr className="font-bold bg-gray-100 text-lg">
-      <td colSpan={5} className="border border-black p-2 text-right">Gross Total Estimated Amount</td>
-      <td className="border border-black p-2 text-right">{calculateTotalEstimate().toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.3).toFixed(2)}</td>
-    </tr>
-  </tbody>
-</table>
-                </div>
-                
-                <PageFooter pageNumber={3} />
-              </div>
-
-              {/* Measurement Detail Pages for Each Subwork Item */}
-              {(() => {
-                let pageNumber = 4;
-                const measurementPages = [];
-                
-                estimateData.subworks.forEach((subwork) => {
-                  const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                  
-                  items.forEach((item) => {
-                    const itemMeasurements = estimateData.measurements[item.id] || [];
-                    const itemLeads = estimateData.leads[item.id] || [];
-                    const itemMaterials = estimateData.materials[item.id] || [];
-                    
-                    // Only create a page if there are measurements, leads, or materials
-                    if (itemMeasurements.length > 0 || itemLeads.length > 0 || itemMaterials.length > 0) {
-                      measurementPages.push(
-                        <div key={`measurement-${item.id}`} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
-                          <PageHeader pageNumber={pageNumber} />
-                          
-                          <div className="flex-1">
-                            <div className="text-center mb-6">
-                              <p className="text-sm">Fund Head :- {estimateData.work.fund_head || '-'}</p>
-                              <p className="text-sm font-semibold">NAME OF WORK: {estimateData.work.work_name}</p>
-                              <p className="text-sm">Village :- {estimateData.work.village || 'N/A'}, GP :- {estimateData.work.grampanchayat || 'N/A'}, Tah :- {estimateData.work.taluka || 'N/A'}</p>
-                              <h3 className="text-lg font-bold mt-4">MEASUREMENT DETAILS</h3>
-                              <h4 className="text-base font-semibold mt-2">Subwork: {subwork.subworks_name}</h4>
-                              <h5 className="text-sm font-medium mt-1">Item: {item.description_of_item}</h5>
-                            </div>
-
-                            {/* Item Summary */}
-                            <div className="mb-6 bg-gray-50 p-4 rounded">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <span className="font-medium">Item Number:</span> {item.item_number || 'N/A'}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Category:</span> {item.category || 'N/A'}
-                                </div>
-                                <div>
-                                  <span className="font-medium">SSR Quantity:</span> {item.ssr_quantity || 0} {item.ssr_unit || ''}
-                                </div>
-                                <div>
-                                  <span className="font-medium">SSR Rate:</span> ₹{(item.ssr_rate || 0).toLocaleString('hi-IN')}
-                                </div>
-                                <div className="col-span-2">
-                                  <span className="font-medium">Total Amount:</span> ₹{(item.total_item_amount || 0).toLocaleString('hi-IN')}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Measurements Table */}
-                            {itemMeasurements.length > 0 && (
-                              <div className="mb-6">
-                                <h5 className="font-bold mb-3 text-sm bg-blue-100 p-2">MEASUREMENTS</h5>
-                                <table className="w-full border-collapse border border-black text-xs">
-                                  <thead>
-                                    <tr className="bg-gray-100">
-                                      <th className="border border-black p-2">Sr. No</th>
-                                      <th className="border border-black p-2">Description of Items</th>
-                                      <th className="border border-black p-2">No. of Units</th>
-                                      <th className="border border-black p-2">Length (m)</th>
-                                      <th className="border border-black p-2">Width/Breadth (m)</th>
-                                      <th className="border border-black p-2">Height/Depth (m)</th>
-                                      <th className="border border-black p-2">Calculated Quantity</th>
-                                      <th className="border border-black p-2">Unit</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {itemMeasurements.map((measurement, idx) => (
-                                      <tr key={measurement.sr_no || idx}>
-                                        <td className="border border-black p-2 text-center">{idx + 1}</td>
-                                        <td className="border border-black p-2">{measurement.description_of_items || 'N/A'}</td>
-                                        <td className="border border-black p-2 text-center">{measurement.no_of_units || 1}</td>
-                                        <td className="border border-black p-2 text-center">{(measurement.length || 0).toFixed(3)}</td>
-                                        <td className="border border-black p-2 text-center">{(measurement.width_breadth || 0).toFixed(3)}</td>
-                                        <td className="border border-black p-2 text-center">{(measurement.height_depth || 0).toFixed(3)}</td>
-                                        <td className="border border-black p-2 text-center">{(measurement.calculated_quantity || 0).toFixed(3)}</td>
-                                        <td className="border border-black p-2 text-center">{measurement.unit || item.ssr_unit || 'N/A'}</td>
-                                      </tr>
-                                    ))}
-                                    <tr className="font-bold bg-gray-100">
-                                      <td colSpan={6} className="border border-black p-2 text-right">Total Calculated Quantity:</td>
-                                      <td className="border border-black p-2 text-center">
-                                        {itemMeasurements.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0).toFixed(3)}
-                                      </td>
-                                      <td className="border border-black p-2 text-center">{item.ssr_unit || 'N/A'}</td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-
-                            {/* Lead Charges Table */}
-                            {itemLeads.length > 0 && (
-                              <div className="mb-6">
-                                <h5 className="font-bold mb-3 text-sm bg-green-100 p-2">LEAD CHARGES</h5>
-                                <table className="w-full border-collapse border border-black text-xs">
-                                  <thead>
-                                    <tr className="bg-gray-100">
-                                      <th className="border border-black p-2">Sr. No</th>
-                                      <th className="border border-black p-2">Material</th>
-                                      <th className="border border-black p-2">Location of Quarry</th>
-                                      <th className="border border-black p-2">Lead Distance (Km)</th>
-                                      <th className="border border-black p-2">Lead Charges (₹)</th>
-                                      <th className="border border-black p-2">Initial Lead Charges (₹)</th>
-                                      <th className="border border-black p-2">Net Lead Charges (₹)</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {itemLeads.map((lead, idx) => (
-                                      <tr key={lead.sr_no || idx}>
-                                        <td className="border border-black p-2 text-center">{idx + 1}</td>
-                                        <td className="border border-black p-2">{lead.material || 'N/A'}</td>
-                                        <td className="border border-black p-2">{lead.location_of_quarry || 'N/A'}</td>
-                                        <td className="border border-black p-2 text-center">{(lead.lead_in_km || 0).toFixed(2)}</td>
-                                        <td className="border border-black p-2 text-right">{(lead.lead_charges || 0).toLocaleString('hi-IN')}</td>
-                                        <td className="border border-black p-2 text-right">{(lead.initial_lead_charges || 0).toLocaleString('hi-IN')}</td>
-                                        <td className="border border-black p-2 text-right">{(lead.net_lead_charges || 0).toLocaleString('hi-IN')}</td>
-                                      </tr>
-                                    ))}
-                                    <tr className="font-bold bg-gray-100">
-                                      <td colSpan={6} className="border border-black p-2 text-right">Total Net Lead Charges:</td>
-                                      <td className="border border-black p-2 text-right">
-                                        ₹{itemLeads.reduce((sum, l) => sum + (l.net_lead_charges || 0), 0).toLocaleString('hi-IN')}
-                                      </td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-
-                            {/* Materials Table */}
-                            {itemMaterials.length > 0 && (
-                              <div className="mb-6">
-                                <h5 className="font-bold mb-3 text-sm bg-purple-100 p-2">MATERIALS</h5>
-                                <table className="w-full border-collapse border border-black text-xs">
-                                  <thead>
-                                    <tr className="bg-gray-100">
-                                      <th className="border border-black p-2">Sr. No</th>
-                                      <th className="border border-black p-2">Material Name</th>
-                                      <th className="border border-black p-2">Required Quantity</th>
-                                      <th className="border border-black p-2">Unit</th>
-                                      <th className="border border-black p-2">Rate per Unit (₹)</th>
-                                      <th className="border border-black p-2">Total Material Cost (₹)</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {itemMaterials.map((material, idx) => (
-                                      <tr key={material.sr_no || idx}>
-                                        <td className="border border-black p-2 text-center">{idx + 1}</td>
-                                        <td className="border border-black p-2">{material.material_name || 'N/A'}</td>
-                                        <td className="border border-black p-2 text-center">{(material.required_quantity || 0).toFixed(3)}</td>
-                                        <td className="border border-black p-2 text-center">{material.unit || 'N/A'}</td>
-                                        <td className="border border-black p-2 text-right">{(material.rate_per_unit || 0).toLocaleString('hi-IN')}</td>
-                                        <td className="border border-black p-2 text-right">{(material.total_material_cost || 0).toLocaleString('hi-IN')}</td>
-                                      </tr>
-                                    ))}
-                                    <tr className="font-bold bg-gray-100">
-                                      <td colSpan={5} className="border border-black p-2 text-right">Total Material Cost:</td>
-                                      <td className="border border-black p-2 text-right">
-                                        ₹{itemMaterials.reduce((sum, m) => sum + (m.total_material_cost || 0), 0).toLocaleString('hi-IN')}
-                                      </td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-
-                            {/* Summary Section */}
-                            <div className="mt-6 bg-yellow-50 p-4 rounded border">
-                              <h5 className="font-bold mb-2 text-sm">ITEM SUMMARY</h5>
-                              <div className="grid grid-cols-2 gap-4 text-xs">
-                                <div>
-                                  <span className="font-medium">Total Measurements:</span> {itemMeasurements.length}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Total Lead Entries:</span> {itemLeads.length}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Total Materials:</span> {itemMaterials.length}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Item Total Amount:</span> ₹{(item.total_item_amount || 0).toLocaleString('hi-IN')}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <PageFooter pageNumber={pageNumber} />
+                {/* Tax Preview */}
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">Preview (Sample ₹1,00,000)</h5>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span>₹1,00,000</span>
+                    </div>
+                    {taxSettings.filter(tax => tax.enabled).map((tax) => {
+                      const amount = (100000 * tax.percentage) / 100;
+                      return (
+                        <div key={tax.id} className="flex justify-between text-blue-600">
+                          <span>{tax.name} ({tax.percentage}%):</span>
+                          <span>₹{amount.toLocaleString('hi-IN')}</span>
                         </div>
                       );
-                      pageNumber++;
-                    }
-                  });
-                });
-                
-                return measurementPages;
-              })()}
-
-              {/* Sub-work Detail Pages */}
-              {estimateData.subworks.map((subwork, subworkIndex) => {
-                const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                if (items.length === 0) return null;
-
-                return (
-  <div key={subwork.subworks_id} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
-    <PageHeader pageNumber={(() => {
-      // Calculate page number after measurement pages
-      let pageNum = 4;
-      estimateData.subworks.forEach((sw, idx) => {
-        if (idx < subworkIndex) {
-          const swItems = estimateData.subworkItems[sw.subworks_id] || [];
-          swItems.forEach((item) => {
-            const hasDetails = (estimateData.measurements[item.id] || []).length > 0 ||
-                             (estimateData.leads[item.id] || []).length > 0 ||
-                             (estimateData.materials[item.id] || []).length > 0;
-            if (hasDetails) pageNum++;
-          });
-        }
-      });
-      // Add current subwork measurement pages
-      const currentItems = estimateData.subworkItems[subwork.subworks_id] || [];
-      currentItems.forEach((item) => {
-        const hasDetails = (estimateData.measurements[item.id] || []).length > 0 ||
-                         (estimateData.leads[item.id] || []).length > 0 ||
-                         (estimateData.materials[item.id] || []).length > 0;
-        if (hasDetails) pageNum++;
-      });
-      return pageNum;
-    })()} />
-    
-    <div className="flex-1">
-      <div className="text-center mb-6">
-        <p className="text-sm">Fund Head :- {estimateData.work.fund_head || '-'}</p>
-        <p className="text-sm">Village :- {estimateData.work.village || 'N/A'}, GP :- {estimateData.work.grampanchayat || 'N/A'}, Tah :- {estimateData.work.taluka || 'N/A'}</p>
-        <h3 className="text-lg font-bold mt-4">Sub-work: {subwork.subworks_name}</h3>
-      </div>
-
-      <table className="w-full border-collapse border border-black text-xs mb-6">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="border border-black p-2">Sr. No</th>
-            <th className="border border-black p-2">Description of Sub Work</th>
-            <th className="border border-black p-2">No.</th>
-            <th className="border border-black p-2">Unit</th>
-            <th className="border border-black p-2">Amount (Rs.)</th>
-            <th className="border border-black p-2">Total Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item, index) => (
-            <tr key={item.id}>
-              <td className="border border-black p-2 text-center">{index + 1}</td>
-              <td className="border border-black p-2">{item.description_of_item}</td>
-              <td className="border border-black p-2 text-center">{item.ssr_quantity}</td>
-              <td className="border border-black p-2 text-center">{item.ssr_unit}</td>
-              <td className="border border-black p-2 text-right">
-                {(item.ssr_rate || 0).toLocaleString('hi-IN')}
-              </td>
-              <td className="border border-black p-2 text-right">
-                {(item.total_item_amount || 0).toLocaleString('hi-IN')}
-              </td>
-            </tr>
-          ))}
-          <tr className="font-bold bg-gray-100">
-            <td colSpan={5} className="border border-black p-2 text-center">Total Rs</td>
-            <td className="border border-black p-2 text-right">
-              {items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0).toLocaleString('hi-IN')}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      {/* Item Details */}
-      {items.map((item) => {
-        const itemMeasurements = estimateData.measurements[item.id] || [];
-        const itemLeads = estimateData.leads[item.id] || [];
-        const itemMaterials = estimateData.materials[item.id] || [];
-        
-        const hasDetails = itemMeasurements.length > 0 || itemLeads.length > 0 || itemMaterials.length > 0;
-        
-        if (!hasDetails) return null;
-
-        return (
-          <div key={item.id} className="mb-6">
-            <h4 className="font-bold mb-3 text-sm">Item: {item.description_of_item}</h4>
-            
-            {/* Measurements */}
-            {itemMeasurements.length > 0 && (
-              <div className="mb-4">
-                <h5 className="font-semibold mb-2 text-xs">Measurements:</h5>
-                <table className="w-full border-collapse border border-black text-xs">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border border-black p-1">Sr. No</th>
-                      <th className="border border-black p-1">Description</th>
-                      <th className="border border-black p-1">No. of Units</th>
-                      <th className="border border-black p-1">Length</th>
-                      <th className="border border-black p-1">Width</th>
-                      <th className="border border-black p-1">Height</th>
-                      <th className="border border-black p-1">Quantity</th>
-                      <th className="border border-black p-1">Unit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itemMeasurements.map((measurement, idx) => (
-                      <tr key={measurement.id}>
-                        <td className="border border-black p-1 text-center">{idx + 1}</td>
-                        <td className="border border-black p-1">{measurement.description_of_items}</td>
-                        <td className="border border-black p-1 text-center">{measurement.no_of_units}</td>
-                        <td className="border border-black p-1 text-center">{measurement.length}</td>
-                        <td className="border border-black p-1 text-center">{measurement.width_breadth}</td>
-                        <td className="border border-black p-1 text-center">{measurement.height_depth}</td>
-                        <td className="border border-black p-1 text-center">{measurement.calculated_quantity}</td>
-                        <td className="border border-black p-1 text-center">{measurement.unit}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    })}
+                    <hr className="my-2" />
+                    <div className="flex justify-between font-bold">
+                      <span>Grand Total:</span>
+                      <span>
+                        ₹{(100000 + taxSettings.filter(tax => tax.enabled).reduce((sum, tax) => sum + (100000 * tax.percentage) / 100, 0)).toLocaleString('hi-IN')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-
-            {/* Leads */}
-            {itemLeads.length > 0 && (
-              <div className="mb-4">
-                <h5 className="font-semibold mb-2 text-xs">Lead Charges:</h5>
-                <table className="w-full border-collapse border border-black text-xs">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border border-black p-1">Sr. No</th>
-                      <th className="border border-black p-1">Material</th>
-                      <th className="border border-black p-1">Location of Quarry</th>
-                      <th className="border border-black p-1">Lead (Km)</th>
-                      <th className="border border-black p-1">Lead Charges</th>
-                      <th className="border border-black p-1">Net Lead Charges</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itemLeads.map((lead, idx) => (
-                      <tr key={lead.id}>
-                        <td className="border border-black p-1 text-center">{idx + 1}</td>
-                        <td className="border border-black p-1">{lead.material}</td>
-                        <td className="border border-black p-1">{lead.location_of_quarry}</td>
-                        <td className="border border-black p-1 text-center">{lead.lead_in_km}</td>
-                        <td className="border border-black p-1 text-right">{lead.lead_charges.toLocaleString('hi-IN')}</td>
-                        <td className="border border-black p-1 text-right">{lead.net_lead_charges.toLocaleString('hi-IN')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Materials */}
-            {itemMaterials.length > 0 && (
-              <div className="mb-4">
-                <h5 className="font-semibold mb-2 text-xs">Materials:</h5>
-                <table className="w-full border-collapse border border-black text-xs">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border border-black p-1">Sr. No</th>
-                      <th className="border border-black p-1">Material Name</th>
-                      <th className="border border-black p-1">Required Quantity</th>
-                      <th className="border border-black p-1">Unit</th>
-                      <th className="border border-black p-1">Rate per Unit</th>
-                      <th className="border border-black p-1">Total Cost</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itemMaterials.map((material, idx) => (
-                      <tr key={material.id}>
-                        <td className="border border-black p-1 text-center">{idx + 1}</td>
-                        <td className="border border-black p-1">{material.material_name}</td>
-                        <td className="border border-black p-1 text-center">{material.required_quantity}</td>
-                        <td className="border border-black p-1 text-center">{material.unit}</td>
-                        <td className="border border-black p-1 text-right">{material.rate_per_unit.toLocaleString('hi-IN')}</td>
-                        <td className="border border-black p-1 text-right">{material.total_material_cost.toLocaleString('hi-IN')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-    
-    <PageFooter pageNumber={(() => {
-      // Calculate page number after measurement pages
-      let pageNum = 4;
-      estimateData.subworks.forEach((sw, idx) => {
-        if (idx < subworkIndex) {
-          const swItems = estimateData.subworkItems[sw.subworks_id] || [];
-          swItems.forEach((item) => {
-            const hasDetails = (estimateData.measurements[item.id] || []).length > 0 ||
-                             (estimateData.leads[item.id] || []).length > 0 ||
-                             (estimateData.materials[item.id] || []).length > 0;
-            if (hasDetails) pageNum++;
-          });
-        }
-      });
-      // Add current subwork measurement pages
-      const currentItems = estimateData.subworkItems[subwork.subworks_id] || [];
-      currentItems.forEach((item) => {
-        const hasDetails = (estimateData.measurements[item.id] || []).length > 0 ||
-                         (estimateData.leads[item.id] || []).length > 0 ||
-                         (estimateData.materials[item.id] || []).length > 0;
-        if (hasDetails) pageNum++;
-      });
-      return pageNum;
-    })()} />
-  </div>
-);
-              })}
             </div>
           </div>
         )}
 
-        {!loading && !estimateData && (
-          <div className="text-center py-12">
-            <FileText className="mx-auto h-12 w-12 text-gray-300" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No estimate data found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Unable to load estimate data for the selected work.
-            </p>
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
+            <div className="flex items-center space-x-3">
+              <FileText className="h-6 w-6 text-blue-600" />
+              <h1 className="text-xl font-semibold text-gray-900">Generate Estimate Report</h1>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              {!showSettings && (
+                <button
+                  onClick={() => setShowSettings(true)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <SettingsIcon className="w-4 h-4 mr-2" />
+                  Settings
+                </button>
+              )}
+              
+              <button
+                onClick={() => setShowPreview(!showPreview)}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {showPreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                {showPreview ? 'Hide Preview' : 'Show Preview'}
+              </button>
+              
+              <button
+                onClick={generatePDF}
+                disabled={generating || !estimateData}
+                className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {generating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    Generate PDF
+                  </>
+                )}
+              </button>
+              
+              <button
+                onClick={onClose}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-        )}
-      </div>
 
-      <style jsx>{`
-        @media print {
-          .pdf-page {
-            page-break-after: always;
-            min-height: 297mm;
-            width: 210mm;
-          }
-        }
-        
-        .pdf-page {
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
-          margin-bottom: 20px;
-        }
-      `}</style>
+          {/* Content */}
+          <div className="flex-1 overflow-auto bg-gray-50">
+            {loading ? (
+              <div className="flex items-center justify-center h-full">
+                <LoadingSpinner text="Loading estimate data..." />
+              </div>
+            ) : estimateData ? (
+              <div className="p-6">
+                {showPreview ? (
+                  <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl mx-auto">
+                    {/* Preview content */}
+                    <div className="text-center mb-8">
+                      <h1 className="text-xl font-bold text-red-600 mb-2">{headerSettings.line1}</h1>
+                      <h2 className="text-lg text-blue-600 mb-1">{headerSettings.line2}</h2>
+                      <h3 className="text-base text-blue-600">{headerSettings.line3}</h3>
+                    </div>
+                    
+                    <div className="mb-6">
+                      <h2 className="text-lg font-bold text-center mb-4">ESTIMATE DETAILS</h2>
+                      <div className="text-sm space-y-1">
+                        <p><strong>Work ID:</strong> {estimateData.work.works_id}</p>
+                        <p><strong>Work Name:</strong> {estimateData.work.work_name}</p>
+                        <p><strong>Division:</strong> {estimateData.work.division || 'N/A'}</p>
+                      </div>
+                    </div>
+
+                    {/* Estimate table preview */}
+                    <div className="overflow-x-auto mb-6">
+                      <table className="min-w-full border border-gray-300 text-sm">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="border border-gray-300 px-2 py-1">Sr.</th>
+                            <th className="border border-gray-300 px-2 py-1">Item No.</th>
+                            <th className="border border-gray-300 px-2 py-1">Description</th>
+                            <th className="border border-gray-300 px-2 py-1">Qty</th>
+                            <th className="border border-gray-300 px-2 py-1">Unit</th>
+                            <th className="border border-gray-300 px-2 py-1">Amount (₹)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {estimateData.subworks.map((subwork, subworkIndex) => {
+                            const items = estimateData.subworkItems[subwork.subworks_id] || [];
+                            return (
+                              <React.Fragment key={subwork.subworks_id}>
+                                <tr>
+                                  <td colSpan={6} className="border border-gray-300 px-2 py-1 font-bold bg-gray-50">
+                                    {subwork.subworks_name}
+                                  </td>
+                                </tr>
+                                {items.map((item, itemIndex) => (
+                                  <tr key={item.id}>
+                                    <td className="border border-gray-300 px-2 py-1 text-center">
+                                      {subworkIndex + 1}.{itemIndex + 1}
+                                    </td>
+                                    <td className="border border-gray-300 px-2 py-1">{item.item_number || ''}</td>
+                                    <td className="border border-gray-300 px-2 py-1">{item.description_of_item}</td>
+                                    <td className="border border-gray-300 px-2 py-1 text-center">{item.ssr_quantity || 0}</td>
+                                    <td className="border border-gray-300 px-2 py-1 text-center">{item.ssr_unit || ''}</td>
+                                    <td className="border border-gray-300 px-2 py-1 text-right">
+                                      {formatCurrency(item.total_item_amount || 0)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </React.Fragment>
+                            );
+                          })}
+                          
+                          {/* Totals */}
+                          <tr className="bg-gray-50">
+                            <td colSpan={5} className="border border-gray-300 px-2 py-1 text-right font-bold">
+                              SUBTOTAL:
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1 text-right font-bold">
+                              {formatCurrency(calculateTotalEstimate())}
+                            </td>
+                          </tr>
+                          
+                          {taxSettings.filter(tax => tax.enabled).map((tax) => {
+                            const taxAmount = (calculateTotalEstimate() * tax.percentage) / 100;
+                            return (
+                              <tr key={tax.id}>
+                                <td colSpan={5} className="border border-gray-300 px-2 py-1 text-right">
+                                  {tax.name} ({tax.percentage}%):
+                                </td>
+                                <td className="border border-gray-300 px-2 py-1 text-right">
+                                  {formatCurrency(taxAmount)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          
+                          <tr className="bg-gray-100">
+                            <td colSpan={5} className="border border-gray-300 px-2 py-1 text-right font-bold">
+                              GRAND TOTAL:
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1 text-right font-bold">
+                              {formatCurrency(
+                                calculateTotalEstimate() + 
+                                taxSettings.filter(tax => tax.enabled).reduce((sum, tax) => 
+                                  sum + (calculateTotalEstimate() * tax.percentage) / 100, 0
+                                )
+                              )}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="text-center text-sm text-gray-600 mt-8">
+                      <p>{footerSettings.line1}</p>
+                      <p>{footerSettings.line2}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-16">
+                    <FileText className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">PDF Preview</h3>
+                    <p className="text-gray-500 mb-4">
+                      Click "Show Preview" to see how your PDF will look, or "Generate PDF" to download.
+                    </p>
+                    <div className="flex items-center justify-center space-x-4">
+                      <button
+                        onClick={() => setShowPreview(true)}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Show Preview
+                      </button>
+                      <button
+                        onClick={generatePDF}
+                        disabled={generating}
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Generate PDF
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <FileText className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Data Available</h3>
+                  <p className="text-gray-500">Unable to load estimate data for the selected work.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
