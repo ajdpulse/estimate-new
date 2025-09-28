@@ -512,7 +512,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                         <span className="mr-2">:-</span>
                         <span>{estimateData.work.fund_head || '-'}</span>
                       </div>
-                      <div className="flex justify-center">
+                      <div className="flex">
                         <span className="w-40 font-medium">Major Head</span>
                         <span className="mr-2">:-</span>
                         <span className="italic">{estimateData.work.major_head || '-'}</span>
