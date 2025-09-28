@@ -155,27 +155,19 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
       setEstimateData({
         work,
         subworks: subworks || [],
-        subworkItems,
-        measurements,
-        leads,
-        materials
-      });
-
-    } catch (error) {
+    // Add dynamic taxes from settings
+    const enabledTaxes = taxSettings.filter(tax => tax.enabled);
       console.error('Error fetching estimate data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('hi-IN', {
+    enabledTaxes.forEach(tax => {
+      const taxAmount = runningTotal * (tax.percentage / 100);
       style: 'currency',
       currency: 'INR',
     }).format(amount);
   };
 
-  const calculateTotalEstimate = () => {
+      pdf.text(`${tax.name} (${tax.percentage}%)`, margin + 95, currentY + 5, { align: 'right' });
     if (!estimateData) return 0;
     
     let total = 0;

@@ -576,13 +576,6 @@ const GenerateEstimate: React.FC = () => {
               <Eye className="w-4 h-4 mr-2" />
               {showTemplates ? 'Hide Templates' : 'View Templates'}
             </button>
-            <button
-              onClick={() => setShowTaxSettings(true)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200 shadow-lg"
-            >
-              <Calculator className="w-4 h-4 mr-2" />
-              Tax Settings
-            </button>
           </div>
         </div>
       </div>
@@ -713,6 +706,13 @@ const GenerateEstimate: React.FC = () => {
                   
                   <div className="ml-6">
                     <div className="flex items-center space-x-3">
+                      <button
+                        onClick={() => setShowTaxSettings(true)}
+                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-2xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300"
+                      >
+                        <Calculator className="w-4 h-4 mr-2" />
+                        Tax Settings
+                      </button>
                       <button
                         onClick={() => handleSaveAsTemplate(work)}
                         disabled={templates.length >= 10}
