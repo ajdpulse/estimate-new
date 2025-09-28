@@ -734,171 +734,123 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                 const items = estimateData.subworkItems[subwork.subworks_id] || [];
                 if (items.length === 0) return null;
 
+                const pageNumber = 4 + (subworkIndex * 2); // Each subwork now takes 2 pages (cost + measurement)
+                
                 return (
-                  <div key={subwork.subworks_id} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
-                    <PageHeader pageNumber={4 + subworkIndex} />
-                    
-                    <div className="flex-1">
-                      <div className="text-center mb-6">
-                        <p className="text-sm">Fund Head :- {estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
-                        <p className="text-sm">Village :- Nakoda, GP :- Nakoda, Tah :- Chandrapur</p>
-                        <h3 className="text-lg font-bold mt-4">Sub-work: {subwork.subworks_name}</h3>
-                      </div>
+                  <React.Fragment key={subwork.subworks_id}>
+                    {/* Cost Sheet Page */}
+                    <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                      <PageHeader pageNumber={pageNumber} />
+                      
+                      <div className="flex-1">
+                        <div className="text-center mb-6">
+                          <p className="text-sm">Fund Head :- {estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
+                          <p className="text-sm">Village :- Nakoda, GP :- Nakoda, Tah :- Chandrapur</p>
+                          <h3 className="text-lg font-bold mt-4">Sub-work: {subwork.subworks_name}</h3>
+                        </div>
 
-                      <table className="w-full border-collapse border border-black text-xs mb-6">
-                        <thead>
-                          <tr className="bg-gray-100">
-                            <th className="border border-black p-2">Sr. No</th>
-                            <th className="border border-black p-2">Description of Sub Work</th>
-                            <th className="border border-black p-2">No.</th>
-                            <th className="border border-black p-2">Unit</th>
-                            <th className="border border-black p-2">Amount (Rs.)</th>
-                            <th className="border border-black p-2">Total Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {items.map((item, index) => (
-                            <tr key={item.id}>
-                              <td className="border border-black p-2 text-center">{index + 1}</td>
-                              <td className="border border-black p-2">{item.description_of_item}</td>
-                              <td className="border border-black p-2 text-center">{item.ssr_quantity}</td>
-                              <td className="border border-black p-2 text-center">{item.ssr_unit}</td>
+                        <table className="w-full border-collapse border border-black text-xs mb-6">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="border border-black p-2">Sr. No</th>
+                              <th className="border border-black p-2">Description of Sub Work</th>
+                              <th className="border border-black p-2">No.</th>
+                              <th className="border border-black p-2">Unit</th>
+                              <th className="border border-black p-2">Amount (Rs.)</th>
+                              <th className="border border-black p-2">Total Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {items.map((item, index) => (
+                              <tr key={item.id}>
+                                <td className="border border-black p-2 text-center">{index + 1}</td>
+                                <td className="border border-black p-2">{item.description_of_item}</td>
+                                <td className="border border-black p-2 text-center">{item.ssr_quantity}</td>
+                                <td className="border border-black p-2 text-center">{item.ssr_unit}</td>
+                                <td className="border border-black p-2 text-right">
+                                  {(item.ssr_rate || 0).toLocaleString('hi-IN')}
+                                </td>
+                                <td className="border border-black p-2 text-right">
+                                  {(item.total_item_amount || 0).toLocaleString('hi-IN')}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="font-bold bg-gray-100">
+                              <td colSpan={5} className="border border-black p-2 text-center">Total Rs</td>
                               <td className="border border-black p-2 text-right">
-                                {(item.ssr_rate || 0).toLocaleString('hi-IN')}
-                              </td>
-                              <td className="border border-black p-2 text-right">
-                                {(item.total_item_amount || 0).toLocaleString('hi-IN')}
+                                {items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0).toLocaleString('hi-IN')}
                               </td>
                             </tr>
-                          ))}
-                          <tr className="font-bold bg-gray-100">
-                            <td colSpan={5} className="border border-black p-2 text-center">Total Rs</td>
-                            <td className="border border-black p-2 text-right">
-                              {items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0).toLocaleString('hi-IN')}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      <PageFooter pageNumber={pageNumber} />
+                    </div>
 
-                      {/* Item Details */}
-                      {items.map((item) => {
-                        const itemMeasurements = estimateData.measurements[item.id] || [];
-                        const itemLeads = estimateData.leads[item.id] || [];
-                        const itemMaterials = estimateData.materials[item.id] || [];
-                        
-                        const hasDetails = itemMeasurements.length > 0 || itemLeads.length > 0 || itemMaterials.length > 0;
-                        
-                        if (!hasDetails) return null;
+                    {/* Measurement Sheet Page */}
+                    <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                      <PageHeader pageNumber={pageNumber + 1} />
+                      
+                      <div className="flex-1">
+                        <div className="text-center mb-6">
+                          <p className="text-sm">Fund Head :- {estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
+                          <p className="text-sm">Village :- Nakoda, GP :- Nakoda, Tah :- Chandrapur</p>
+                          <h3 className="text-lg font-bold mt-4">Measurement Sheet for Sub-work: {subwork.subworks_name}</h3>
+                        </div>
 
-                        return (
-                          <div key={item.id} className="mb-6">
-                            <h4 className="font-bold mb-3 text-sm">Item: {item.description_of_item}</h4>
-                            
-                            {/* Measurements */}
-                            {itemMeasurements.length > 0 && (
+                        {/* Measurement details for each item */}
+                        {items.map((item, itemIndex) => {
+                          const itemMeasurements = estimateData.measurements[item.id] || [];
+                          
+                          if (itemMeasurements.length === 0) return null;
+
+                          return (
+                            <div key={item.id} className="mb-8">
+                              <h4 className="font-bold mb-3 text-sm">Item: {item.description_of_item}</h4>
+                              
                               <div className="mb-4">
                                 <h5 className="font-semibold mb-2 text-xs">Measurements:</h5>
                                 <table className="w-full border-collapse border border-black text-xs">
                                   <thead>
                                     <tr className="bg-gray-100">
-                                      <th className="border border-black p-1">Sr. No</th>
-                                      <th className="border border-black p-1">Description</th>
-                                      <th className="border border-black p-1">No. of Units</th>
-                                      <th className="border border-black p-1">Length</th>
-                                      <th className="border border-black p-1">Width</th>
-                                      <th className="border border-black p-1">Height</th>
-                                      <th className="border border-black p-1">Quantity</th>
-                                      <th className="border border-black p-1">Unit</th>
+                                      <th className="border border-black p-2">Sr. No</th>
+                                      <th className="border border-black p-2">Description</th>
+                                      <th className="border border-black p-2">No. of Units</th>
+                                      <th className="border border-black p-2">Length</th>
+                                      <th className="border border-black p-2">Width</th>
+                                      <th className="border border-black p-2">Height</th>
+                                      <th className="border border-black p-2">Quantity</th>
+                                      <th className="border border-black p-2">Unit</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {itemMeasurements.map((measurement, idx) => (
                                       <tr key={measurement.id}>
-                                        <td className="border border-black p-1 text-center">{idx + 1}</td>
-                                        <td className="border border-black p-1">{measurement.description_of_items}</td>
-                                        <td className="border border-black p-1 text-center">{measurement.no_of_units}</td>
-                                        <td className="border border-black p-1 text-center">{measurement.length}</td>
-                                        <td className="border border-black p-1 text-center">{measurement.width_breadth}</td>
-                                        <td className="border border-black p-1 text-center">{measurement.height_depth}</td>
-                                        <td className="border border-black p-1 text-center">{measurement.calculated_quantity}</td>
-                                        <td className="border border-black p-1 text-center">{measurement.unit}</td>
+                                        <td className="border border-black p-2 text-center">{idx + 1}</td>
+                                        <td className="border border-black p-2">{measurement.description_of_items}</td>
+                                        <td className="border border-black p-2 text-center">{measurement.no_of_units}</td>
+                                        <td className="border border-black p-2 text-center">{measurement.length}</td>
+                                        <td className="border border-black p-2 text-center">{measurement.width_breadth}</td>
+                                        <td className="border border-black p-2 text-center">{measurement.height_depth}</td>
+                                        <td className="border border-black p-2 text-center">{measurement.calculated_quantity}</td>
+                                        <td className="border border-black p-2 text-center">{measurement.unit}</td>
                                       </tr>
                                     ))}
                                   </tbody>
                                 </table>
                               </div>
-                            )}
-
-                            {/* Leads */}
-                            {itemLeads.length > 0 && (
-                              <div className="mb-4">
-                                <h5 className="font-semibold mb-2 text-xs">Lead Charges:</h5>
-                                <table className="w-full border-collapse border border-black text-xs">
-                                  <thead>
-                                    <tr className="bg-gray-100">
-                                      <th className="border border-black p-1">Sr. No</th>
-                                      <th className="border border-black p-1">Material</th>
-                                      <th className="border border-black p-1">Location of Quarry</th>
-                                      <th className="border border-black p-1">Lead (Km)</th>
-                                      <th className="border border-black p-1">Lead Charges</th>
-                                      <th className="border border-black p-1">Net Lead Charges</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {itemLeads.map((lead, idx) => (
-                                      <tr key={lead.id}>
-                                        <td className="border border-black p-1 text-center">{idx + 1}</td>
-                                        <td className="border border-black p-1">{lead.material}</td>
-                                        <td className="border border-black p-1">{lead.location_of_quarry}</td>
-                                        <td className="border border-black p-1 text-center">{lead.lead_in_km}</td>
-                                        <td className="border border-black p-1 text-right">{lead.lead_charges.toLocaleString('hi-IN')}</td>
-                                        <td className="border border-black p-1 text-right">{lead.net_lead_charges.toLocaleString('hi-IN')}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-
-                            {/* Materials */}
-                            {itemMaterials.length > 0 && (
-                              <div className="mb-4">
-                                <h5 className="font-semibold mb-2 text-xs">Materials:</h5>
-                                <table className="w-full border-collapse border border-black text-xs">
-                                  <thead>
-                                    <tr className="bg-gray-100">
-                                      <th className="border border-black p-1">Sr. No</th>
-                                      <th className="border border-black p-1">Material Name</th>
-                                      <th className="border border-black p-1">Required Quantity</th>
-                                      <th className="border border-black p-1">Unit</th>
-                                      <th className="border border-black p-1">Rate per Unit</th>
-                                      <th className="border border-black p-1">Total Cost</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {itemMaterials.map((material, idx) => (
-                                      <tr key={material.id}>
-                                        <td className="border border-black p-1 text-center">{idx + 1}</td>
-                                        <td className="border border-black p-1">{material.material_name}</td>
-                                        <td className="border border-black p-1 text-center">{material.required_quantity}</td>
-                                        <td className="border border-black p-1 text-center">{material.unit}</td>
-                                        <td className="border border-black p-1 text-right">{material.rate_per_unit.toLocaleString('hi-IN')}</td>
-                                        <td className="border border-black p-1 text-right">{material.total_material_cost.toLocaleString('hi-IN')}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      <PageFooter pageNumber={pageNumber + 1} />
                     </div>
-                    
-                    <PageFooter pageNumber={4 + subworkIndex} />
-                  </div>
+                  </React.Fragment>
                 );
               })}
+
             </div>
           </div>
         )}
