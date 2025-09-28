@@ -32,14 +32,14 @@ export const EstimateSubworkDetails: React.FC<EstimateSubworkDetailsProps> = ({
   let currentPageNumber = startingPageNumber;
 
   return (
-    <div className="subwork-details">
+    <div className="subwork-details" style={{ pageBreakInside: 'avoid' }}>
       {estimateData.subworks.map((subwork, subworkIndex) => {
         const items = estimateData.subworkItems[subwork.subworks_id] || [];
         
         return (
-          <div key={subwork.subworks_id} className="page-break bg-white p-6 min-h-screen flex flex-col">
+          <div key={subwork.subworks_id} className="page-break bg-white p-6 min-h-screen flex flex-col" style={{ pageBreakBefore: 'always', pageBreakAfter: 'always' }}>
             {/* Header Section */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-6" style={{ fontSize: '14px', fontWeight: 'bold' }}>
               <h1 className="text-lg font-bold text-black mb-2">
                 {headerSettings.line1}
               </h1>
@@ -67,15 +67,15 @@ export const EstimateSubworkDetails: React.FC<EstimateSubworkDetailsProps> = ({
 
             {/* Measurement Table */}
             <div className="flex-1">
-              <table className="w-full border-collapse border-2 border-black text-sm">
+              <table className="w-full border-collapse border-2 border-black text-sm" style={{ borderCollapse: 'collapse', width: '100%' }}>
                 <thead>
-                  <tr className="bg-white">
-                    <th className="border border-black p-2 text-center font-bold w-2/5">Items</th>
-                    <th className="border border-black p-2 text-center font-bold w-12">Nos.</th>
-                    <th className="border border-black p-2 text-center font-bold w-16">Length</th>
-                    <th className="border border-black p-2 text-center font-bold w-16">Breadth</th>
-                    <th className="border border-black p-2 text-center font-bold w-16">Height/Depth</th>
-                    <th className="border border-black p-2 text-center font-bold w-16">Qty.</th>
+                  <tr className="bg-white" style={{ backgroundColor: 'white' }}>
+                    <th className="border border-black p-2 text-center font-bold w-2/5" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>Items</th>
+                    <th className="border border-black p-2 text-center font-bold w-12" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>Nos.</th>
+                    <th className="border border-black p-2 text-center font-bold w-16" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>Length</th>
+                    <th className="border border-black p-2 text-center font-bold w-16" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>Breadth</th>
+                    <th className="border border-black p-2 text-center font-bold w-16" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>Height/Depth</th>
+                    <th className="border border-black p-2 text-center font-bold w-16" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>Qty.</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -87,26 +87,26 @@ export const EstimateSubworkDetails: React.FC<EstimateSubworkDetailsProps> = ({
                       <React.Fragment key={item.id}>
                         {/* Item Header Row */}
                         <tr>
-                          <td className="border border-black p-2 font-bold">
+                          <td className="border border-black p-2 font-bold" style={{ border: '1px solid black', padding: '8px', fontWeight: 'bold' }}>
                             Item No.{itemIndex + 1} :
                           </td>
-                          <td className="border border-black p-2"></td>
-                          <td className="border border-black p-2"></td>
-                          <td className="border border-black p-2"></td>
-                          <td className="border border-black p-2"></td>
-                          <td className="border border-black p-2"></td>
+                          <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                          <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                          <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                          <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                          <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
                         </tr>
                         
                         {/* Item Description Row */}
                         <tr>
-                          <td className="border border-black p-2 text-justify leading-tight">
+                          <td className="border border-black p-2 text-justify leading-tight" style={{ border: '1px solid black', padding: '8px', textAlign: 'justify', lineHeight: '1.2' }}>
                             {item.description_of_item}
                           </td>
-                          <td className="border border-black p-2"></td>
-                          <td className="border border-black p-2"></td>
-                          <td className="border border-black p-2"></td>
-                          <td className="border border-black p-2"></td>
-                          <td className="border border-black p-2"></td>
+                          <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                          <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                          <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                          <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                          <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
                         </tr>
 
                         {/* Measurement Rows */}
