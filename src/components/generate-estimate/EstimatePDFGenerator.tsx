@@ -716,25 +716,25 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                       {/* Total */}
                       <tr className="font-bold">
                         <td colSpan={5} className="border border-black p-2 text-right">Total</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.3).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{partBTotal.toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(partBTotal * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(partBTotal * 0.3).toFixed(2)}</td>
                       </tr>
 
                       {/* Add 18% GST */}
                       <tr className="font-bold">
                         <td colSpan={5} className="border border-black p-2 text-right">Add 18 % GST</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18 * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18 * 0.3).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(partBTotal * 0.18).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(partBTotal * 0.18 * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(partBTotal * 0.18 * 0.3).toFixed(2)}</td>
                       </tr>
 
                       {/* Total of PART-B */}
                       <tr className="font-bold">
                         <td colSpan={5} className="border border-black p-2 text-right">Total of PART - B</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18 * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18 * 0.3).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(partBTotal * 1.18).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(partBTotal * 1.18 * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(partBTotal * 1.18 * 0.3).toFixed(2)}</td>
                       </tr>
 
                       {/* Add 0.50% Contingencies */}
