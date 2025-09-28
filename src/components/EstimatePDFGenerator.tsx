@@ -86,6 +86,47 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     }
   }, [isOpen, workId]);
 
+  const handleTaxToggle = (taxId: string) => {
+    if (onTaxSettingsChange) {
+      const updatedTaxSettings = taxSettings.map(tax => 
+        tax.id === taxId ? { ...tax, enabled: !tax.enabled } : tax
+      );
+      onTaxSettingsChange(updatedTaxSettings);
+    }
+  };
+
+  const handleTaxPercentageChange = (taxId: string, percentage: number) => {
+    if (onTaxSettingsChange) {
+      const updatedTaxSettings = taxSettings.map(tax => 
+        tax.id === taxId ? { ...tax, percentage } : tax
+      );
+      onTaxSettingsChange(updatedTaxSettings);
+    }
+  };
+
+  const handleRemoveTax = (taxId: string) => {
+    if (onTaxSettingsChange) {
+      const updatedTaxSettings = taxSettings.filter(tax => tax.id !== taxId);
+      onTaxSettingsChange(updatedTaxSettings);
+    }
+  };
+
+  const handleAddTax = () => {
+    if (!newTaxName.trim() || !newTaxPercentage || !onTaxSettingsChange) return;
+    
+    const newTax = {
+      id: Date.now().toString(),
+      name: newTaxName.trim(),
+      percentage: parseFloat(newTaxPercentage),
+      enabled: true
+    };
+    
+    const updatedTaxSettings = [...taxSettings, newTax];
+    onTaxSettingsChange(updatedTaxSettings);
+    setNewTaxName('');
+    setNewTaxPercentage('');
+  };
+
   const fetchEstimateData = async () => {
     try {
       setLoading(true);
