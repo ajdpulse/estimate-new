@@ -155,13 +155,14 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
       setEstimateData({
         work,
         subworks: subworks || [],
-    // Add dynamic taxes from settings
-    const enabledTaxes = taxSettings.filter(tax => tax.enabled);
       console.error('Error fetching estimate data:', error);
     } finally {
       setLoading(false);
     enabledTaxes.forEach(tax => {
       const taxAmount = runningTotal * (tax.percentage / 100);
+      
+      // Add dynamic taxes from settings
+      const enabledTaxes = taxSettings.filter(tax => tax.enabled);
       style: 'currency',
       currency: 'INR',
     }).format(amount);
