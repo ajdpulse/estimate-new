@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Work, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial } from '../types';
+import { Work, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial } from '../../types';
 import LoadingSpinner from '../common/LoadingSpinner';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -144,17 +144,15 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
         subworkItems[subwork.subworks_id] = items || [];
 
-        // Fetch measurements, leads, and materials for each item
+        // Fetch measurements for each item
         for (const item of items || []) {
-          const [measurementsRes, leadsRes, materialsRes] = await Promise.all([
-            supabase.schema('estimate').from('item_measurements').select('*').eq('subwork_item_id', item.sr_no),
-            supabase.schema('estimate').from('item_leads').select('*').eq('subwork_item_id', item.sr_no),
-            supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_id', item.sr_no)
-          ]);
+          const { data: measurementsRes } = await supabase
+            .schema('estimate')
+            .from('item_measurements')
+            .select('*')
+            .eq('subwork_item_id', item.sr_no);
 
-          measurements[item.id] = measurementsRes.data || [];
-          leads[item.id] = leadsRes.data || [];
-          materials[item.id] = materialsRes.data || [];
+          measurements[item.id] = measurementsRes || [];
         }
       }
 
@@ -412,7 +410,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                       }))}
                       className="mr-2"
                     />
-                    Show Page Numbers
+                    <span className="text-xs">Show Page Numbers</span>
                   </label>
                   <select
                     value={documentSettings.pageSettings.pageNumberPosition}
@@ -422,8 +420,8 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                     }))}
                     className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
                   >
-                    <option value="top">Top</option>
-                    <option value="bottom">Bottom</option>
+                    <option value="bottom">Page Numbers at Bottom</option>
+                    <option value="top">Page Numbers at Top</option>
                   </select>
                 </div>
               </div>
@@ -589,160 +587,160 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                   </div>
 
                   <table className="w-full border-collapse border border-black text-xs mb-6">
-  <thead>
-    <tr className="bg-gray-100">
-      <th className="border border-black p-2 text-center">Sr. No</th>
-      <th className="border border-black p-2">Type of work</th>
-      <th className="border border-black p-2">Item of Work</th>
-      <th className="border border-black p-2">No. of unit</th>
-      <th className="border border-black p-2">Amount per unit (Rs.)</th>
-      <th className="border border-black p-2">Total Amount (Rs.)</th>
-      <th className="border border-black p-2">SBM (G) (70%) (Rs.)</th>
-      <th className="border border-black p-2">Convergence-15th Finance Commission (30%) (Rs.)</th>
-    </tr>
-  </thead>
-  <tbody>
-    {/* PART-A: Purchasing Items including GST & all Taxes */}
-    <tr className="bg-gray-200 font-bold">
-      <td colSpan={8} className="border border-black p-2">PART-A :- Purchasing Items including GST & all Taxes</td>
-    </tr>
-    {(() => {
-      let partAItems = [];
-      let partATotal = 0;
-      estimateData.subworks.forEach((subwork) => {
-        const items = estimateData.subworkItems[subwork.subworks_id] || [];
-        const filteredItems = items.filter(item => item.category === 'purchasing' || item.category === 'materials');
-        if (filteredItems.length > 0) {
-          filteredItems.forEach((item) => {
-            partAItems.push({ subwork, item });
-            partATotal += item.total_item_amount || 0;
-          });
-        }
-      });
-      return partAItems.map(({ subwork, item }, index) => {
-        const unitCount = item.ssr_quantity || 0;
-        const itemTotal = item.total_item_amount || 0;
-        return (
-          <tr key={`part-a-${item.id || index}`}>
-            <td className="border border-black p-2 text-center">{index + 1}</td>
-            <td className="border border-black p-2">{subwork.subworks_name}</td> {/* Dynamic type of work */}
-            <td className="border border-black p-2">{item.descriptionofitem || 'N/A'}</td> {/* Dynamic item of work */}
-            <td className="border border-black p-2 text-center">{unitCount}</td>
-            <td className="border border-black p-2 text-right">{itemTotal > 0 ? (itemTotal / Math.max(unitCount, 1)).toFixed(2) : '0.00'}</td>
-            <td className="border border-black p-2 text-right">{itemTotal.toFixed(2)}</td>
-            <td className="border border-black p-2 text-right">{(itemTotal * 0.7).toFixed(2)}</td>
-            <td className="border border-black p-2 text-right">{(itemTotal * 0.3).toFixed(2)}</td>
-          </tr>
-        );
-      });
-    })()}
-    
-    {/* Total of PART-A */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Total of PART - A</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4 * 0.3).toFixed(2)}</td>
-    </tr>
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-black p-2 text-center">Sr. No</th>
+                        <th className="border border-black p-2">Type of work</th>
+                        <th className="border border-black p-2">Item of Work</th>
+                        <th className="border border-black p-2">No. of unit</th>
+                        <th className="border border-black p-2">Amount per unit (Rs.)</th>
+                        <th className="border border-black p-2">Total Amount (Rs.)</th>
+                        <th className="border border-black p-2">SBM (G) (70%) (Rs.)</th>
+                        <th className="border border-black p-2">Convergence-15th Finance Commission (30%) (Rs.)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* PART-A: Purchasing Items including GST & all Taxes */}
+                      <tr className="bg-gray-200 font-bold">
+                        <td colSpan={8} className="border border-black p-2">PART-A :- Purchasing Items including GST & all Taxes</td>
+                      </tr>
+                      {(() => {
+                        let partAItems = [];
+                        let partATotal = 0;
+                        estimateData.subworks.forEach((subwork) => {
+                          const items = estimateData.subworkItems[subwork.subworks_id] || [];
+                          const filteredItems = items.filter(item => item.category === 'purchasing' || item.category === 'materials');
+                          if (filteredItems.length > 0) {
+                            filteredItems.forEach((item) => {
+                              partAItems.push({ subwork, item });
+                              partATotal += item.total_item_amount || 0;
+                            });
+                          }
+                        });
+                        return partAItems.map(({ subwork, item }, index) => {
+                          const unitCount = item.ssr_quantity || 0;
+                          const itemTotal = item.total_item_amount || 0;
+                          return (
+                            <tr key={`part-a-${item.id || index}`}>
+                              <td className="border border-black p-2 text-center">{index + 1}</td>
+                              <td className="border border-black p-2">{subwork.subworks_name}</td>
+                              <td className="border border-black p-2">{item.description_of_item || 'N/A'}</td>
+                              <td className="border border-black p-2 text-center">{unitCount}</td>
+                              <td className="border border-black p-2 text-right">{itemTotal > 0 ? (itemTotal / Math.max(unitCount, 1)).toFixed(2) : '0.00'}</td>
+                              <td className="border border-black p-2 text-right">{itemTotal.toFixed(2)}</td>
+                              <td className="border border-black p-2 text-right">{(itemTotal * 0.7).toFixed(2)}</td>
+                              <td className="border border-black p-2 text-right">{(itemTotal * 0.3).toFixed(2)}</td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                      
+                      {/* Total of PART-A */}
+                      <tr className="font-bold">
+                        <td colSpan={5} className="border border-black p-2 text-right">Total of PART - A</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4 * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.4 * 0.3).toFixed(2)}</td>
+                      </tr>
 
-    {/* PART-B: Construction works for E-Tendering */}
-    <tr className="bg-gray-200 font-bold">
-      <td colSpan={8} className="border border-black p-2">PART- B:- Construction works for E-Tendering</td>
-    </tr>
-    {(() => {
-      let partBItems = [];
-      let partBTotal = 0;
-      estimateData.subworks.forEach((subwork) => {
-        const items = estimateData.subworkItems[subwork.subworks_id] || [];
-        const filteredItems = items.filter(item => item.category === 'construction' || !item.category);
-        if (filteredItems.length > 0) {
-          filteredItems.forEach((item) => {
-            partBItems.push({ subwork, item });
-            partBTotal += item.total_item_amount || 0;
-          });
-        }
-      });
-      return partBItems.map(({ subwork, item }, index) => {
-        const unitCount = item.ssr_quantity || 0;
-        const itemTotal = item.total_item_amount || 0;
-        return (
-          <tr key={`part-b-${item.id || index}`}>
-            <td className="border border-black p-2 text-center">{index + 1}</td>
-            <td className="border border-black p-2">{subwork.subworks_name}</td> {/* Dynamic type of work */}
-            <td className="border border-black p-2">{item.descriptionofitem || 'N/A'}</td> {/* Dynamic item of work */}
-            <td className="border border-black p-2 text-center">{unitCount}</td>
-            <td className="border border-black p-2 text-right">{itemTotal > 0 ? (itemTotal / Math.max(unitCount, 1)).toFixed(2) : '0.00'}</td>
-            <td className="border border-black p-2 text-right">{itemTotal.toFixed(2)}</td>
-            <td className="border border-black p-2 text-right">{(itemTotal * 0.7).toFixed(2)}</td>
-            <td className="border border-black p-2 text-right">{(itemTotal * 0.3).toFixed(2)}</td>
-          </tr>
-        );
-      });
-    })()}
-    
-    {/* Total */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Total</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.3).toFixed(2)}</td>
-    </tr>
+                      {/* PART-B: Construction works for E-Tendering */}
+                      <tr className="bg-gray-200 font-bold">
+                        <td colSpan={8} className="border border-black p-2">PART- B:- Construction works for E-Tendering</td>
+                      </tr>
+                      {(() => {
+                        let partBItems = [];
+                        let partBTotal = 0;
+                        estimateData.subworks.forEach((subwork) => {
+                          const items = estimateData.subworkItems[subwork.subworks_id] || [];
+                          const filteredItems = items.filter(item => item.category === 'construction' || !item.category);
+                          if (filteredItems.length > 0) {
+                            filteredItems.forEach((item) => {
+                              partBItems.push({ subwork, item });
+                              partBTotal += item.total_item_amount || 0;
+                            });
+                          }
+                        });
+                        return partBItems.map(({ subwork, item }, index) => {
+                          const unitCount = item.ssr_quantity || 0;
+                          const itemTotal = item.total_item_amount || 0;
+                          return (
+                            <tr key={`part-b-${item.id || index}`}>
+                              <td className="border border-black p-2 text-center">{index + 1}</td>
+                              <td className="border border-black p-2">{subwork.subworks_name}</td>
+                              <td className="border border-black p-2">{item.description_of_item || 'N/A'}</td>
+                              <td className="border border-black p-2 text-center">{unitCount}</td>
+                              <td className="border border-black p-2 text-right">{itemTotal > 0 ? (itemTotal / Math.max(unitCount, 1)).toFixed(2) : '0.00'}</td>
+                              <td className="border border-black p-2 text-right">{itemTotal.toFixed(2)}</td>
+                              <td className="border border-black p-2 text-right">{(itemTotal * 0.7).toFixed(2)}</td>
+                              <td className="border border-black p-2 text-right">{(itemTotal * 0.3).toFixed(2)}</td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                      
+                      {/* Total */}
+                      <tr className="font-bold">
+                        <td colSpan={5} className="border border-black p-2 text-right">Total</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.3).toFixed(2)}</td>
+                      </tr>
 
-    {/* Add 18% GST */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Add 18 % GST</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18 * 0.3).toFixed(2)}</td>
-    </tr>
+                      {/* Add 18% GST */}
+                      <tr className="font-bold">
+                        <td colSpan={5} className="border border-black p-2 text-right">Add 18 % GST</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18 * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 0.18 * 0.3).toFixed(2)}</td>
+                      </tr>
 
-    {/* Total of PART-B */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Total of PART - B</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18 * 0.3).toFixed(2)}</td>
-    </tr>
+                      {/* Total of PART-B */}
+                      <tr className="font-bold">
+                        <td colSpan={5} className="border border-black p-2 text-right">Total of PART - B</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18 * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.6 * 1.18 * 0.3).toFixed(2)}</td>
+                      </tr>
 
-    {/* Add 0.50% Contingencies */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Add 0.50 % Contingencies</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.3).toFixed(2)}</td>
-    </tr>
+                      {/* Add 0.50% Contingencies */}
+                      <tr className="font-bold">
+                        <td colSpan={5} className="border border-black p-2 text-right">Add 0.50 % Contingencies</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.3).toFixed(2)}</td>
+                      </tr>
 
-    {/* Inspection charges 0.50% */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">Inspection charges 0.50%</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">0.00</td>
-    </tr>
+                      {/* Inspection charges 0.50% */}
+                      <tr className="font-bold">
+                        <td colSpan={5} className="border border-black p-2 text-right">Inspection charges 0.50%</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">0.00</td>
+                      </tr>
 
-    {/* DPR charges 5% or 1 Lakh whichever is less */}
-    <tr className="font-bold">
-      <td colSpan={5} className="border border-black p-2 text-right">DPR charges 5% or 1 Lakh whichever is less</td>
-      <td className="border border-black p-2 text-right">{Math.min(calculateTotalEstimate() * 0.05, 100000).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{Math.min(calculateTotalEstimate() * 0.05, 100000).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">0.00</td>
-    </tr>
+                      {/* DPR charges 5% or 1 Lakh whichever is less */}
+                      <tr className="font-bold">
+                        <td colSpan={5} className="border border-black p-2 text-right">DPR charges 5% or 1 Lakh whichever is less</td>
+                        <td className="border border-black p-2 text-right">{Math.min(calculateTotalEstimate() * 0.05, 100000).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{Math.min(calculateTotalEstimate() * 0.05, 100000).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">0.00</td>
+                      </tr>
 
-    {/* Gross Total Estimated Amount */}
-    <tr className="font-bold bg-gray-100 text-lg">
-      <td colSpan={5} className="border border-black p-2 text-right">Gross Total Estimated Amount</td>
-      <td className="border border-black p-2 text-right">{calculateTotalEstimate().toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.7).toFixed(2)}</td>
-      <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.3).toFixed(2)}</td>
-    </tr>
-  </tbody>
-</table>
+                      {/* Gross Total Estimated Amount */}
+                      <tr className="font-bold bg-gray-100 text-lg">
+                        <td colSpan={5} className="border border-black p-2 text-right">Gross Total Estimated Amount</td>
+                        <td className="border border-black p-2 text-right">{calculateTotalEstimate().toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.3).toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
                 
                 <PageFooter pageNumber={3} />
               </div>
 
-              {/* Measurement Pages for Each Subwork */}
+              {/* Measurement Pages - Traditional Format */}
               {(() => {
                 let pageNumber = 4;
                 const measurementPages = [];
@@ -764,11 +762,23 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                         
                         <div className="flex-1">
                           {/* Traditional Measurement Header */}
-                          <div className="text-center mb-6">
-                            <h3 className="text-lg font-bold mb-4">
+                          <div className="text-center mb-6" style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                            <h2 className="text-base font-bold text-black mb-4">
+                              NAME OF WORK: {estimateData.work.work_name}
+                            </h2>
+                            
+                            {/* Location Information */}
+                            <div className="text-sm text-black mb-4">
+                              <span>Village :- {estimateData.work.village || 'N/A'}, </span>
+                              <span>GP :- {estimateData.work.grampanchayat || 'N/A'}, </span>
+                              <span>Tah :- {estimateData.work.taluka || 'Chandrapur'}</span>
+                            </div>
+                            
+                            <h3 className="text-base font-bold text-black mb-4">
                               Sub-Work :- {subwork.subworks_name}
                             </h3>
-                            <h2 className="text-xl font-bold underline">
+                            
+                            <h2 className="text-lg font-bold text-black underline mb-6">
                               MEASUREMENT
                             </h2>
                           </div>
@@ -878,7 +888,8 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                                 );
 
                                 // Add spacing row between items (except for last item)
-                                if (itemIndex < items.filter(i => (estimateData.measurements[i.id] || []).length > 0).length - 1) {
+                                const itemsWithMeasurements = items.filter(i => (estimateData.measurements[i.id] || []).length > 0);
+                                if (itemIndex < itemsWithMeasurements.length - 1) {
                                   rows.push(
                                     <tr key={`spacing-${item.id}`}>
                                       <td className="border border-black p-1" colSpan={6} style={{ border: '1px solid black', padding: '4px' }}></td>
@@ -915,31 +926,35 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
               })()}
 
               {/* Sub-work Detail Pages */}
-              {(() => {
-                // Calculate starting page number after measurement pages
-                let startingPageNumber = 4;
-                estimateData.subworks.forEach((subwork) => {
-                  const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                  const hasAnyMeasurements = items.some(item => {
-                    const itemMeasurements = estimateData.measurements[item.id] || [];
-                    return itemMeasurements.length > 0;
-                  });
-                  if (hasAnyMeasurements) {
-                    startingPageNumber++;
-                  }
-                });
-                
-                return estimateData.subworks.map((subwork, subworkIndex) => {
+              {estimateData.subworks.map((subwork, subworkIndex) => {
                 const items = estimateData.subworkItems[subwork.subworks_id] || [];
                 if (items.length === 0) return null;
 
+                // Calculate page number for this subwork detail page
+                let detailPageNumber = 4;
+                // Add pages for measurement sheets
+                estimateData.subworks.forEach((sw, idx) => {
+                  if (idx < subworkIndex) {
+                    const swItems = estimateData.subworkItems[sw.subworks_id] || [];
+                    const hasAnyMeasurements = swItems.some(item => {
+                      const itemMeasurements = estimateData.measurements[item.id] || [];
+                      return itemMeasurements.length > 0;
+                    });
+                    if (hasAnyMeasurements) {
+                      detailPageNumber++;
+                    }
+                  }
+                });
+
                 return (
                   <div key={subwork.subworks_id} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
-                    <PageHeader pageNumber={startingPageNumber + subworkIndex} />
+                    <PageHeader pageNumber={detailPageNumber} />
                     
                     <div className="flex-1">
                       <div className="text-center mb-6">
-                        <h3 className="text-xl font-bold underline">{subwork.subworks_name}</h3>
+                        <p className="text-sm">Fund Head :- {estimateData.work.fund_head || '-'}</p>
+                        <p className="text-sm">Village :- {estimateData.work.village || 'N/A'}, GP :- {estimateData.work.grampanchayat || 'N/A'}, Tah :- {estimateData.work.taluka || 'N/A'}</p>
+                        <h3 className="text-lg font-bold mt-4">Sub-work: {subwork.subworks_name}</h3>
                       </div>
 
                       <table className="w-full border-collapse border border-black text-xs mb-6">
@@ -978,15 +993,39 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                       </table>
                     </div>
                     
-                    <PageFooter pageNumber={startingPageNumber + subworkIndex} />
+                    <PageFooter pageNumber={detailPageNumber} />
                   </div>
                 );
-                });
-              })()}
+              })}
             </div>
           </div>
         )}
+
+        {!loading && !estimateData && (
+          <div className="text-center py-12">
+            <FileText className="mx-auto h-12 w-12 text-gray-300" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No estimate data found</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Unable to load estimate data for the selected work.
+            </p>
+          </div>
+        )}
       </div>
+
+      <style jsx>{`
+        @media print {
+          .pdf-page {
+            page-break-after: always;
+            min-height: 297mm;
+            width: 210mm;
+          }
+        }
+        
+        .pdf-page {
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          margin-bottom: 20px;
+        }
+      `}</style>
     </div>
   );
 };
