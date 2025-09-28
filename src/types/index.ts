@@ -43,6 +43,10 @@ export interface Work {
   work_name: string;
   division?: string;
   sub_division?: string;
+  village?: string;
+  grampanchayat?: string;
+  taluka?: string;
+  district?: string;
   fund_head?: string;
   major_head?: string;
   minor_head?: string;
