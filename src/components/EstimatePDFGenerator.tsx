@@ -165,10 +165,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
       
       // Add dynamic taxes from settings
       const enabledTaxes = taxSettings.filter(tax => tax.enabled);
-      style: 'currency',
-      currency: 'INR',
-    }).format(amount);
-  };
+      // Tax processing logic can be added here if needed
 
       pdf.text(`${tax.name} (${tax.percentage}%)`, margin + 95, currentY + 5, { align: 'right' });
     if (!estimateData) return 0;
@@ -250,6 +247,10 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
   const PageHeader: React.FC<{ pageNumber?: number }> = ({ pageNumber }) => (
     <div className="text-center mb-6 pb-4 border-b-2 border-gray-300">
+      style: 'currency',
+      currency: 'INR',
+    }).format(amount);
+  };
       <h1 className="text-lg font-bold text-red-600 mb-2">{documentSettings.header.zilla}</h1>
       <h2 className="text-base font-semibold text-blue-600 mb-1">{documentSettings.header.division}</h2>
       <h3 className="text-sm font-medium text-blue-600 mb-3">{documentSettings.header.subDivision}</h3>
