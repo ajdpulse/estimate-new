@@ -80,6 +80,15 @@ export const EstimateCoverPages: React.FC<EstimateCoverPagesProps> = ({
                 </div>
               </div>
               
+              {/* Location Information */}
+              {(work.taluka || work.district) && (
+                <div className="text-center text-sm text-gray-700">
+                  {work.taluka && work.district && (
+                    <span>Tah: {work.taluka}, Dist:- {work.district}</span>
+                  )}
+                </div>
+              )}
+              
               <div className="border-t pt-4">
                 <h2 className="text-xl font-bold mb-4 text-center">
                   {work.work_name}
@@ -87,6 +96,18 @@ export const EstimateCoverPages: React.FC<EstimateCoverPagesProps> = ({
               </div>
               
               <div className="grid grid-cols-1 gap-2 text-sm">
+                {work.village && (
+                  <div>
+                    <span className="font-semibold">Village:</span>
+                    <span className="ml-2">{work.village}</span>
+                  </div>
+                )}
+                {work.grampanchayat && (
+                  <div>
+                    <span className="font-semibold">Gram Panchayat:</span>
+                    <span className="ml-2">{work.grampanchayat}</span>
+                  </div>
+                )}
                 {work.division && (
                   <div>
                     <span className="font-semibold">Division:</span>
@@ -181,6 +202,46 @@ export const EstimateCoverPages: React.FC<EstimateCoverPagesProps> = ({
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
                       {work.division}
+                    </td>
+                  </tr>
+                )}
+                {work.village && (
+                  <tr>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-700 bg-gray-50">
+                      Village
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {work.village}
+                    </td>
+                  </tr>
+                )}
+                {work.grampanchayat && (
+                  <tr>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-700 bg-gray-50">
+                      Gram Panchayat
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {work.grampanchayat}
+                    </td>
+                  </tr>
+                )}
+                {work.taluka && (
+                  <tr>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-700 bg-gray-50">
+                      Taluka
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {work.taluka}
+                    </td>
+                  </tr>
+                )}
+                {work.district && (
+                  <tr>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-700 bg-gray-50">
+                      District
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {work.district}
                     </td>
                   </tr>
                 )}
