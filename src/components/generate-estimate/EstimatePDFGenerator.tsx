@@ -400,11 +400,33 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                 </div>
               </div>
               <div>
-                    <PageFooter pageNumber={startingPageNumber + subworkIndex} />
-                  </div>
-                );
-                });
-              })()}
+                <h5 className="text-sm font-medium text-gray-700 mb-2">Page Settings</h5>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={documentSettings.pageSettings.showPageNumbers}
+                      onChange={(e) => setDocumentSettings(prev => ({
+                        ...prev,
+                        pageSettings: { ...prev.pageSettings, showPageNumbers: e.target.checked }
+                      }))}
+                      className="mr-2"
+                    />
+                    Show Page Numbers
+                  </label>
+                  <select
+                    value={documentSettings.pageSettings.pageNumberPosition}
+                    onChange={(e) => setDocumentSettings(prev => ({
+                      ...prev,
+                      pageSettings: { ...prev.pageSettings, pageNumberPosition: e.target.value as 'top' | 'bottom' }
+                    }))}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                  >
+                    <option value="top">Top</option>
+                    <option value="bottom">Bottom</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -914,26 +936,12 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                 return (
                   <div key={subwork.subworks_id} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
                     <PageHeader pageNumber={startingPageNumber + subworkIndex} />
-              <td className="border border-black p-2">{item.description_of_item}</td>
-              <td className="border border-black p-2 text-center">{item.ssr_quantity}</td>
-              <td className="border border-black p-2 text-center">{item.ssr_unit}</td>
-              <td className="border border-black p-2 text-right">
-                {(item.ssr_rate || 0).toLocaleString('hi-IN')}
-              </td>
-              <td className="border border-black p-2 text-right">
-                {(item.total_item_amount || 0).toLocaleString('hi-IN')}
-              </td>
-            </tr>
-          ))}
-          <tr className="font-bold bg-gray-100">
-            <td colSpan={5} className="border border-black p-2 text-center">Total Rs</td>
-            <td className="border border-black p-2 text-right">
-              {items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0).toLocaleString('hi-IN')}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+                    
+                    <div className="flex-1">
+                      <div className="text-center mb-6">
+                        <h3 className="text-xl font-bold underline">{subwork.subworks_name}</h3>
+                      </div>
+
                       <table className="w-full border-collapse border border-black text-xs mb-6">
                         <thead>
                           <tr className="bg-gray-100">
@@ -969,6 +977,17 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                         </tbody>
                       </table>
                     </div>
+                    
+                    <PageFooter pageNumber={startingPageNumber + subworkIndex} />
+                  </div>
+                );
+                });
+              })()}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
