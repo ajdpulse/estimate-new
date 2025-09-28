@@ -1047,11 +1047,118 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                                 </th>
                                 <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '13%' }}>
                                   Height/<br/>Depth
+                            <thead>
+                              <tr className="bg-gradient-to-r from-blue-50 to-indigo-100">
+                                <th className="border border-black p-2 text-center font-bold" style={{ width: '45%', border: '1px solid black', padding: '6px', fontWeight: 'bold' }}>
+                                  Items
                                 </th>
-                                <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '13%' }}>
+                                <th className="border border-black p-2 text-center font-bold" style={{ width: '11%', border: '1px solid black', padding: '6px', fontWeight: 'bold' }}>
+                                  Nos.
+                                </th>
+                                <th className="border border-black p-2 text-center font-bold" style={{ width: '11%', border: '1px solid black', padding: '6px', fontWeight: 'bold' }}>
+                                  Length
+                                </th>
+                                <th className="border border-black p-2 text-center font-bold" style={{ width: '11%', border: '1px solid black', padding: '6px', fontWeight: 'bold' }}>
+                                  Breadth
+                                </th>
+                                <th className="border border-black p-2 text-center font-bold" style={{ width: '11%', border: '1px solid black', padding: '6px', fontWeight: 'bold' }}>
+                                  Height/<br/>Depth
+                                </th>
+                                <th className="border border-black p-2 text-center font-bold" style={{ width: '11%', border: '1px solid black', padding: '6px', fontWeight: 'bold' }}>
                                   Qty.
                                 </th>
                               </tr>
+                            </thead>
+                            <tbody>
+                              {itemsWithMeasurements.map((item, itemIndex) => {
+                                const itemMeasurements = estimateData.measurements[item.sr_no] || [];
+                                
+                                return (
+                                  <React.Fragment key={item.id}>
+                                    {/* Item Header Row */}
+                                    <tr>
+                                      <td className="border border-black p-2 font-bold bg-gradient-to-r from-yellow-50 to-amber-100" style={{ border: '1px solid black', padding: '4px', fontWeight: 'bold' }}>
+                                        Item No.{itemIndex + 1} :-
+                                      </td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                    </tr>
+                                    
+                                    {/* Item Description Row */}
+                                    <tr>
+                                      <td className="border border-black p-2 text-justify leading-tight" style={{ border: '1px solid black', padding: '6px', textAlign: 'justify', lineHeight: '1.3', fontSize: '10px' }}>
+                                        {item.description_of_item}
+                                      </td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                    </tr>
+                                </th>
+                                    {/* Measurement Data Rows */}
+                                    {itemMeasurements.map((measurement, measurementIndex) => (
+                                      <tr key={measurementIndex} className="hover:bg-blue-50 transition-colors">
+                                        <td className="border border-black p-2 text-right pr-4 text-gray-700" style={{ border: '1px solid black', padding: '4px', textAlign: 'right', paddingRight: '8px' }}>
+                                          {measurement.description_of_items || ''}
+                                        </td>
+                                        <td className="border border-black p-2 text-center font-medium text-blue-600" style={{ border: '1px solid black', padding: '4px', textAlign: 'center', fontWeight: '500' }}>
+                                          {measurement.no_of_units || 1}
+                                        </td>
+                                        <td className="border border-black p-2 text-center font-medium text-blue-600" style={{ border: '1px solid black', padding: '4px', textAlign: 'center', fontWeight: '500' }}>
+                                          {(measurement.length || 0).toFixed(2)}
+                                        </td>
+                                        <td className="border border-black p-2 text-center font-medium text-blue-600" style={{ border: '1px solid black', padding: '4px', textAlign: 'center', fontWeight: '500' }}>
+                                          {(measurement.width_breadth || 0).toFixed(2)}
+                                        </td>
+                                        <td className="border border-black p-2 text-center font-medium text-blue-600" style={{ border: '1px solid black', padding: '4px', textAlign: 'center', fontWeight: '500' }}>
+                                          {(measurement.height_depth || 0).toFixed(2)}
+                                        </td>
+                                        <td className="border border-black p-2 text-center font-bold text-green-600" style={{ border: '1px solid black', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>
+                                          {(measurement.calculated_quantity || 0).toFixed(2)}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '13%' }}>
+                                    {/* Total Row for Item */}
+                                    <tr className="bg-gradient-to-r from-green-50 to-emerald-100">
+                                      <td className="border border-black p-2 text-right font-bold pr-4" style={{ border: '1px solid black', padding: '4px', textAlign: 'right', paddingRight: '8px', fontWeight: 'bold' }}>
+                                        Total
+                                      </td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-1" style={{ border: '1px solid black', padding: '4px' }}></td>
+                                      <td className="border border-black p-2 text-center font-bold text-green-700 bg-green-100" style={{ border: '1px solid black', padding: '4px', textAlign: 'center', fontWeight: 'bold', backgroundColor: '#dcfce7' }}>
+                                        {itemMeasurements.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0).toFixed(2)}
+                                      </td>
+                                    </tr>
+                                  Qty.
+                                    {/* Spacing row between items */}
+                                    {itemIndex < itemsWithMeasurements.length - 1 && (
+                                      <tr style={{ height: '8px' }}>
+                                        <td className="border border-black" style={{ border: '1px solid black', height: '8px' }} colSpan={6}></td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
+                                </th>
+                              {/* Add empty rows for manual entries */}
+                              {Array.from({ length: 6 }, (_, index) => (
+                                <tr key={`empty-${index}`} style={{ height: '18px' }}>
+                                  <td className="border border-black" style={{ border: '1px solid black', height: '18px' }}></td>
+                                  <td className="border border-black" style={{ border: '1px solid black' }}></td>
+                                  <td className="border border-black" style={{ border: '1px solid black' }}></td>
+                                  <td className="border border-black" style={{ border: '1px solid black' }}></td>
+                                  <td className="border border-black" style={{ border: '1px solid black' }}></td>
+                                  <td className="border border-black" style={{ border: '1px solid black' }}></td>
+                                </tr>
+                              ))}
+                            </tbody>
                             </thead>
                             <tbody>
                               {items.map((item, itemIndex) => {
@@ -1131,46 +1238,14 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                                       {totalQuantity.toFixed(2)}
                                     </td>
                                   </tr>
-                                );
-
-                                // Add spacing row between items (except for last item)
-                                const itemsWithMeasurements = items.filter(i => (estimateData.measurements[i.id] || []).length > 0);
-                                if (itemIndex < itemsWithMeasurements.length - 1) {
-                                  rows.push(
-                                    <tr key={`spacing-${item.id}`}>
-                                      <td className="border border-black p-1" colSpan={6} style={{ border: '1px solid black', padding: '4px' }}></td>
-                                    </tr>
-                                  );
-                                }
-
-                                return rows;
-                              })}
-                              
-                              {/* Add some empty rows for manual entries */}
-                              {Array.from({ length: 8 }, (_, index) => (
-                                <tr key={`empty-${index}`}>
-                                  <td className="border border-black p-2 h-8" style={{ border: '1px solid black', padding: '8px', height: '32px' }}></td>
-                                  <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                  <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                  <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                  <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                  <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                </tr>
-                              ))}
-                            </tbody>
                           </table>
-                        <h4 className="text-sm font-bold underline">
-                        
-                        <PageFooter pageNumber={pageNumber} />
+                        </div>
                       </div>
-                    );
-                    pageNumber++;
-                  }
-                });
-                
-                return measurementPages;
-              })()}
-            </div>
+                      
+                      <PageFooter pageNumber={4 + subworkIndex} />
+                    </div>
+                  );
+                })}
           </div>
         )}
 
