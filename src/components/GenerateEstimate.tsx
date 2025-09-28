@@ -746,6 +746,7 @@ const GenerateEstimate: React.FC = () => {
         <EstimatePDFGenerator
           workId={selectedWorkForPDF}
           taxSettings={taxSettings}
+          onTaxSettingsChange={setTaxSettings}
           isOpen={showPDFGenerator}
           onClose={() => {
             setShowPDFGenerator(false);

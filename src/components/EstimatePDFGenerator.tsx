@@ -49,6 +49,7 @@ interface EstimatePDFGeneratorProps {
 export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
   workId,
   taxSettings = [],
+  onTaxSettingsChange,
   isOpen,
   onClose
 }) => {
