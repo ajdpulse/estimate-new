@@ -107,7 +107,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
       if (workError) throw workError;
 
       // Update document settings with work data
-      if (work) {debugger;
+      if (work) {
         setDocumentSettings(prev => ({
           ...prev,
           header: {
