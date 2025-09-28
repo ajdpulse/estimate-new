@@ -784,10 +784,10 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                                   <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '12%', border: '2px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold' }}>
                                     Breadth
                                   </th>
-                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '13%', border: '2px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '10%', border: '2px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold' }}>
                                     Height/<br/>Depth
                                   </th>
-                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '13%', border: '2px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '10%', border: '2px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold' }}>
                                     Qty.
                                   </th>
                                 </tr>
