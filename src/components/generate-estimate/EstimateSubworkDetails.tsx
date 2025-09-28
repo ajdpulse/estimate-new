@@ -114,6 +114,7 @@ export const EstimateSubworkDetails: React.FC<EstimateSubworkDetailsProps> = ({
                         const measurements = estimateData.measurements[item.id] || [];
                         const leads = estimateData.leads[item.id] || [];
                         const materials = estimateData.materials[item.id] || [];
+                        const rates = estimateData.rates[item.id] || [];
                         
                         return (
                           <React.Fragment key={item.id}>
@@ -147,74 +148,109 @@ export const EstimateSubworkDetails: React.FC<EstimateSubworkDetailsProps> = ({
                               </td>
                             </tr>
 
-                            {/* Measurements Details */}
-                            {measurements.length > 0 && (
+                            {/* Combined Details Section */}
+                            {(measurements.length > 0 || leads.length > 0 || materials.length > 0 || rates.length > 0) && (
                               <tr>
-                                <td colSpan={7} className="px-3 py-2 bg-green-50 border-t border-green-200">
-                                  <div className="text-xs">
-                                    <div className="font-semibold text-green-800 mb-2">Measurements:</div>
-                                    <div className="grid grid-cols-1 gap-1">
-                                      {measurements.map((measurement, idx) => (
-                                        <div key={idx} className="flex justify-between items-center">
-                                          <span className="text-green-700">
-                                            {measurement.description_of_items || 'Measurement'} - 
-                                            Units: {measurement.no_of_units}, 
-                                            L: {measurement.length}, 
-                                            W: {measurement.width_breadth}, 
-                                            H: {measurement.height_depth}
-                                          </span>
-                                          <span className="font-medium text-green-800">
-                                            Qty: {formatNumber(measurement.calculated_quantity)} {measurement.unit}
-                                          </span>
+                                <td colSpan={7} className="px-3 py-2 bg-gray-50 border-t border-gray-200">
+                                  <div className="text-xs space-y-3">
+                                    
+                                    {/* Measurements Section */}
+                                    {measurements.length > 0 && (
+                                      <div>
+                                        <div className="font-semibold text-green-800 mb-2 flex items-center">
+                                          <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                                          Measurements:
                                         </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
+                                        <div className="bg-green-50 rounded p-2 space-y-1">
+                                          {measurements.map((measurement, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-green-700">
+                                              <span className="flex-1">
+                                                {measurement.description_of_items || 'Measurement'} - 
+                                                Units: {measurement.no_of_units}, 
+                                                L: {measurement.length}, 
+                                                W: {measurement.width_breadth}, 
+                                                H: {measurement.height_depth}
+                                              </span>
+                                              <span className="font-medium text-green-800 ml-2">
+                                                Qty: {formatNumber(measurement.calculated_quantity)} {measurement.unit}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
 
-                            {/* Leads Details */}
-                            {leads.length > 0 && (
-                              <tr>
-                                <td colSpan={7} className="px-3 py-2 bg-blue-50 border-t border-blue-200">
-                                  <div className="text-xs">
-                                    <div className="font-semibold text-blue-800 mb-2">Lead Charges:</div>
-                                    <div className="grid grid-cols-1 gap-1">
-                                      {leads.map((lead, idx) => (
-                                        <div key={idx} className="flex justify-between items-center">
-                                          <span className="text-blue-700">
-                                            {lead.material} - {lead.location_of_quarry} ({lead.lead_in_km} km)
-                                          </span>
-                                          <span className="font-medium text-blue-800">
-                                            ₹{formatNumber(lead.net_lead_charges)}
-                                          </span>
+                                    {/* Rates Section */}
+                                    {rates.length > 0 && (
+                                      <div>
+                                        <div className="font-semibold text-indigo-800 mb-2 flex items-center">
+                                          <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+                                          Rates:
                                         </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
+                                        <div className="bg-indigo-50 rounded p-2 space-y-1">
+                                          {rates.map((rate, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-indigo-700">
+                                              <span className="flex-1">
+                                                {rate.description} ({rate.unit})
+                                                {rate.document_reference && (
+                                                  <span className="text-xs text-indigo-500 ml-1">
+                                                    - Ref: {rate.document_reference}
+                                                  </span>
+                                                )}
+                                              </span>
+                                              <span className="font-medium text-indigo-800 ml-2">
+                                                ₹{formatNumber(rate.rate)}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
 
-                            {/* Materials Details */}
-                            {materials.length > 0 && (
-                              <tr>
-                                <td colSpan={7} className="px-3 py-2 bg-purple-50 border-t border-purple-200">
-                                  <div className="text-xs">
-                                    <div className="font-semibold text-purple-800 mb-2">Materials:</div>
-                                    <div className="grid grid-cols-1 gap-1">
-                                      {materials.map((material, idx) => (
-                                        <div key={idx} className="flex justify-between items-center">
-                                          <span className="text-purple-700">
-                                            {material.material_name} - {formatNumber(material.required_quantity)} {material.unit} @ ₹{formatNumber(material.rate_per_unit)}
-                                          </span>
-                                          <span className="font-medium text-purple-800">
-                                            {formatCurrency(material.total_material_cost)}
-                                          </span>
+                                    {/* Lead Charges Section */}
+                                    {leads.length > 0 && (
+                                      <div>
+                                        <div className="font-semibold text-blue-800 mb-2 flex items-center">
+                                          <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                                          Lead Charges:
                                         </div>
-                                      ))}
-                                    </div>
+                                        <div className="bg-blue-50 rounded p-2 space-y-1">
+                                          {leads.map((lead, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-blue-700">
+                                              <span className="flex-1">
+                                                {lead.material} - {lead.location_of_quarry} ({lead.lead_in_km} km)
+                                              </span>
+                                              <span className="font-medium text-blue-800 ml-2">
+                                                ₹{formatNumber(lead.net_lead_charges)}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Materials Section */}
+                                    {materials.length > 0 && (
+                                      <div>
+                                        <div className="font-semibold text-purple-800 mb-2 flex items-center">
+                                          <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                                          Materials:
+                                        </div>
+                                        <div className="bg-purple-50 rounded p-2 space-y-1">
+                                          {materials.map((material, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-purple-700">
+                                              <span className="flex-1">
+                                                {material.material_name} - {formatNumber(material.required_quantity)} {material.unit} @ ₹{formatNumber(material.rate_per_unit)}
+                                              </span>
+                                              <span className="font-medium text-purple-800 ml-2">
+                                                {formatCurrency(material.total_material_cost)}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
                                   </div>
                                 </td>
                               </tr>
