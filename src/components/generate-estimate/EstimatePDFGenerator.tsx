@@ -474,7 +474,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                         </div>
                         <div className="border border-black p-4 text-center min-w-[200px]">
                           <p className="font-medium">{estimateData.work.sanctioning_authority || 'Executive Engineer'}</p>
-                          <p className="text-sm">{estimateData.work.division || 'Rural Water Supply Dn.'}</p>
+                          <p className="text-sm">{estimateData.work.division}</p>
                           <p className="text-sm">Z.P, {estimateData.work.district || 'Chandrapur'}.</p>
                         </div>
                       </div>
