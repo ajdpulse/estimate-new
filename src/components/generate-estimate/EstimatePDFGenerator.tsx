@@ -502,7 +502,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                         <span className="mr-2">:-</span>
                         <span>{estimateData.work.division || '-'}</span>
                       </div>
-                      <div className="flex justify-center">
+                      <div className="flex">
                         <span className="w-40 font-medium">Name of Sub- Division</span>
                         <span className="mr-2">:-</span>
                         <span>{estimateData.work.sub_division || '-'}</span>
