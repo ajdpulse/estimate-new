@@ -449,26 +449,33 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                     
                     <div className="mb-6">
                       <p className="text-lg font-semibold mb-2">{estimateData.work.work_name}</p>
-                      <p className="text-base">Tah: Chandrapur, Dist:- Chandrapur</p>
+                      <p className="text-base">
+                        {estimateData.work.taluka && `Tah: ${estimateData.work.taluka}`}
+                        {estimateData.work.taluka && estimateData.work.district && ', '}
+                        {estimateData.work.district && `Dist:- ${estimateData.work.district}`}
+                        {!estimateData.work.taluka && !estimateData.work.district && 'Tah: Chandrapur, Dist:- Chandrapur'}
+                      </p>
                     </div>
                     
                     <div className="mb-8">
                       <p className="text-lg mb-2">( 2024-25)</p>
-                      <p className="text-xl font-bold">ESTIMATED COST. Rs. {calculateTotalEstimate().toLocaleString('hi-IN')}</p>
+                      <p className="text-xl font-bold">ESTIMATED COST. Rs. {(estimateData.work.total_estimated_cost || calculateTotalEstimate()).toLocaleString('hi-IN')}</p>
                     </div>
                     
                     <div className="mt-12">
                       <p className="text-lg font-semibold mb-6">OFFICE OF THE</p>
                       <div className="flex justify-center space-x-8">
                         <div className="border border-black p-4 text-center min-w-[200px]">
-                          <p className="font-medium">Sub Divisional Engineer</p>
-                          <p className="text-sm">Rural Water Supply(Z.P.) Sub-</p>
-                          <p className="text-sm">Division, Chandrapur.</p>
+                          <p className="font-medium">{estimateData.work.departmental_head || 'Sub Divisional Engineer'}</p>
+                          <p className="text-sm">{estimateData.work.sub_division || 'Rural Water Supply(Z.P.) Sub-'}</p>
+                          <p className="text-sm">{estimateData.work.sub_division ? '' : 'Division, '}
+                            {estimateData.work.district || 'Chandrapur'}.
+                          </p>
                         </div>
                         <div className="border border-black p-4 text-center min-w-[200px]">
-                          <p className="font-medium">Executive Engineer</p>
-                          <p className="text-sm">Rural Water Supply Dn.</p>
-                          <p className="text-sm">Z.P, Chandrapur.</p>
+                          <p className="font-medium">{estimateData.work.sanctioning_authority || 'Executive Engineer'}</p>
+                          <p className="text-sm">{estimateData.work.division || 'Rural Water Supply Dn.'}</p>
+                          <p className="text-sm">Z.P, {estimateData.work.district || 'Chandrapur'}.</p>
                         </div>
                       </div>
                     </div>
