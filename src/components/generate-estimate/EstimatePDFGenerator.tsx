@@ -695,6 +695,10 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                         
                         // Now render the items
                         let partBItems = [];
+                        
+                        // Store partBTotal in a way that's accessible outside this IIFE
+                        window.currentPartBTotal = partBTotal;
+                        
                         estimateData.subworks.forEach((subwork) => {
                           const items = estimateData.subworkItems[subwork.subworks_id] || [];
                           const filteredItems = items.filter(item => item.category === 'construction' || !item.category);
@@ -729,9 +733,9 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                       {/* Total */}
                       <tr className="font-bold">
                         <td colSpan={5} className="border border-black p-2 text-right">Total</td>
-                        <td className="border border-black p-2 text-right">{partBTotal.toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(partBTotal * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(partBTotal * 0.3).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{(window.currentPartBTotal || 0).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 0.7).toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 0.3).toFixed(2)}</td>
                       </tr>
 
                       {/* Add 18% GST */}
