@@ -5,6 +5,19 @@ import { Work, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial } f
 import LoadingSpinner from '../common/LoadingSpinner';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import {
+  X,
+  Download,
+  Settings,
+  Eye,
+  Printer,
+  Save,
+  Plus,
+  Trash2,
+  Calendar,
+  FileText,
+  Loader2
+} from "lucide-react";
 
 interface EstimateData {
   work: Work;
