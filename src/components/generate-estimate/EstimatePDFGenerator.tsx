@@ -772,7 +772,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                             <table className="w-full border-collapse border-2 border-black" style={{ borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr className="bg-white">
-                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '20%', border: '2px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '40%', border: '2px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold' }}>
                                     Items
                                   </th>
                                   <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '10%', border: '2px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold' }}>
