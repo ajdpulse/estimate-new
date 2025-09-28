@@ -866,9 +866,9 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                             <tr className="bg-gradient-to-r from-blue-50 to-indigo-100">
                               <th className="border border-black p-2 text-center font-bold" style={{ width: '45%', border: '1px solid black', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }}>
                                       {itemIndex < items.filter(i => (estimateData.measurements[i.sr_no] || []).length > 0).length - 1 && (
-                                      </tr>
+                                      
                               <th className="border border-black p-2 text-center font-bold" style={{ width: '8%', border: '1px solid black', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }}>
-                                        </tr>
+                                     
                                       )}
                               <th className="border border-black p-2 text-center font-bold" style={{ width: '11%', border: '1px solid black', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }}>
                                   );
