@@ -261,7 +261,6 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   };
 
  const handleAddItem = async () => {
-    debugger
     if (!newItem.description_of_item || !user) return;
 
     // Validate that at least one rate entry is complete
@@ -346,7 +345,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     }
   };
 
- const handleEditItem = (item: SubworkItem) => {debugger
+ const handleEditItem = (item: SubworkItem) => {
     setSelectedItem(item);
     setDescriptionQuery(item.description_of_item);
 
@@ -377,7 +376,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   };
 
 
-const handleUpdateItem = async () => {debugger
+const handleUpdateItem = async () => {
     if (!newItem.description_of_item || !selectedItem) return;
 
     const validRates = itemRates.filter(rate => rate.description && rate.rate > 0);
@@ -485,7 +484,6 @@ const handleUpdateItem = async () => {debugger
   };
 
   const handleViewMeasurements = (item: SubworkItem) => {
-    debugger;
     setSelectedItem(item);
     const selectedItemSrno = item?.sr_no?.toString();
     const newRatesArray = selectedItemSrno ? itemRatesMap[selectedItemSrno] || [] : [];
@@ -516,7 +514,7 @@ const handleUpdateItem = async () => {debugger
     return `${rates.length} rates (₹${rates.reduce((sum, rate) => sum + rate.rate, 0).toFixed(2)})`;
   };
 
-  const totalItemsAmount = subworkItems.reduce((sum, item) => sum + item.total_item_amount, 0);
+  const totalItemsAmount = Object.values(itemRatesMap).flat().reduce((sum, rate) => sum + rate.rate_total_amount, 0);
 
   const addRateEntry = () => {
     setItemRates(prev => [...prev, { description: '', rate: 0, unit: '' }]);
