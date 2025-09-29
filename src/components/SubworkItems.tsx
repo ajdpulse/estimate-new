@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { SubworkItem, ItemMeasurement, ItemRate } from '../types';
-import { 
-  Plus, 
-  Edit2, 
-  Trash2, 
+import {
+  Plus,
+  Edit2,
+  Trash2,
   Eye,
   Package,
   Calculator,
@@ -21,15 +21,15 @@ interface SubworkItemsProps {
   onClose: () => void;
 }
 
-const SubworkItems: React.FC<SubworkItemsProps> = ({ 
-  subworkId, 
-  subworkName, 
-  isOpen, 
-  onClose 
+const SubworkItems: React.FC<SubworkItemsProps> = ({
+  subworkId,
+  subworkName,
+  isOpen,
+  onClose
 }) => {
   const { user } = useAuth();
   const [subworkItems, setSubworkItems] = useState<SubworkItem[]>([]);
-  const [itemRatesMap, setItemRatesMap] = useState<{[key: string]: ItemRate[]}>({});
+  const [itemRatesMap, setItemRatesMap] = useState<{ [key: string]: ItemRate[] }>({});
   const [loading, setLoading] = useState(false);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [showEditItemModal, setShowEditItemModal] = useState(false);
@@ -39,6 +39,11 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchingSSR, setSearchingSSR] = useState(false);
   const [descriptionQuery, setDescriptionQuery] = useState('');
+  // Map the rates for the selected item to only include their descriptions
+  const [ratesArray, setRatesArray] = useState<ItemRate[]>([]);
+  const [rateDescriptions, setRateDescriptions] = useState<string[]>([]);
+  const [selectedSrNo , setSelectedSrNo] = useState();
+
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [newItem, setNewItem] = useState<Partial<SubworkItem>>({
     description_of_item: '',
@@ -66,7 +71,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
     try {
       setSearchingSSR(true);
-      
+
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ssr-search`;
       const headers = {
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
@@ -103,20 +108,20 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
   const handleDescriptionChange = (value: string) => {
     setDescriptionQuery(value);
-    setNewItem({...newItem, description_of_item: value});
-    
+    setNewItem({ ...newItem, description_of_item: value });
+
     // Clear previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
+
     // If input is empty or too short, clear suggestions
     if (!value || value.trim().length < 2) {
       setSsrSuggestions([]);
       setShowSuggestions(false);
       return;
     }
-    
+
     // Debounce search with new timeout
     searchTimeoutRef.current = setTimeout(() => {
       searchSSRItems(value);
@@ -130,7 +135,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       rate: parseFloat(item.rate_2024_25 || item.rate_2023_24 || '0'),
       unit: item.unit || ''
     };
-    
+
     setItemRates(prev => {
       const updated = [...prev];
       // Replace the first empty entry or add new one
@@ -142,11 +147,11 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       }
       return updated;
     });
-    
+
     setDescriptionQuery(item.description);
     setShowSuggestions(false);
     setSsrSuggestions([]);
-    
+
     // Clear any pending search timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -165,7 +170,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
       if (error) throw error;
       setSubworkItems(data || []);
-      
+
       // Fetch rates for all items
       if (data && data.length > 0) {
         await fetchItemRates(data);
@@ -188,14 +193,14 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
         .single();
 
       if (error) throw error;
-      
+
       // Update the item in the local state
-      setSubworkItems(prev => 
-        prev.map(item => 
+      setSubworkItems(prev =>
+        prev.map(item =>
           item.sr_no === itemSrNo ? data : item
         )
       );
-      
+
       console.log(`Refreshed item ${itemSrNo} data:`, data);
     } catch (error) {
       console.error('Error refreshing item data:', error);
@@ -204,7 +209,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   const fetchItemRates = async (items: SubworkItem[]) => {
     try {
       const itemSrNos = items.map(item => item.sr_no);
-      
+
       const { data: rates, error } = await supabase
         .schema('estimate')
         .from('item_rates')
@@ -215,7 +220,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       if (error) throw error;
 
       // Group rates by subwork_item_sr_no
-      const ratesMap: {[key: string]: ItemRate[]} = {};
+      const ratesMap: { [key: string]: ItemRate[] } = {};
       (rates || []).forEach(rate => {
         const key = rate.subwork_item_sr_no.toString();
         if (!ratesMap[key]) {
@@ -255,7 +260,8 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     }
   };
 
-  const handleAddItem = async () => {
+ const handleAddItem = async () => {
+    debugger
     if (!newItem.description_of_item || !user) return;
 
     // Validate that at least one rate entry is complete
@@ -267,7 +273,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
     try {
       const itemNumber = await generateItemNumber();
-      
+
       // Calculate total amount from all rates (for now, just sum all rates)
       const totalAmount = validRates.reduce((sum, rate) => sum + rate.rate, 0);
 
@@ -283,10 +289,10 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
           category: newItem.category,
           subwork_id: subworkId,
           item_number: itemNumber,
-          ssr_quantity: 1,
-          ssr_rate: totalAmount, // Sum of all rates
-          ssr_unit: mainUnit,
-          total_item_amount: totalAmount,
+          // ssr_quantity: newItem.ssr_quantity,
+          // rate_total_amount: totalAmount,
+          // ssr_unit: mainUnit,
+          // total_item_amount: totalAmount,
           created_by: user.id
         })
         .select()
@@ -294,12 +300,26 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
       if (itemError) throw itemError;
 
-      // Insert all the rates for this item
+      // 🔹 Fetch calculated_quantity from item_measurements for this subwork_item
+      const { data: measurementData, error: measurementError } = await supabase
+        .schema('estimate')
+        .from('item_measurements')
+        .select('calculated_quantity')
+        .eq('subwork_item_id', insertedItem.sr_no)
+        .maybeSingle();
+
+      if (measurementError) throw measurementError;
+
+      const ssrQuantity = measurementData?.calculated_quantity || 1;
+
+      // Insert all the rates for this item linked by subwork_item_sr_no
       const ratesToInsert = validRates.map(rate => ({
         subwork_item_sr_no: insertedItem.sr_no,
         description: rate.description,
         rate: rate.rate,
-        unit: rate.unit,
+        ssr_unit: rate.unit,
+        ssr_quantity: ssrQuantity,
+        rate_total_amount: rate.rate * ssrQuantity,
         created_by: user.id
       }));
 
@@ -309,11 +329,12 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
         .insert(ratesToInsert);
 
       if (ratesError) throw ratesError;
-      
+
       setShowAddItemModal(false);
       setNewItem({
         description_of_item: '',
-        category: ''
+        category: '',
+        ssr_quantity: 1
       });
       setItemRates([{ description: '', rate: 0, unit: '' }]);
       setDescriptionQuery('');
@@ -325,27 +346,29 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     }
   };
 
-  const handleEditItem = (item: SubworkItem) => {
+ const handleEditItem = (item: SubworkItem) => {debugger
     setSelectedItem(item);
     setDescriptionQuery(item.description_of_item);
-    
+
     // Load existing rates for this item
     const existingRates = itemRatesMap[item.sr_no.toString()] || [];
     if (existingRates.length > 0) {
       setItemRates(existingRates.map(rate => ({
         description: rate.description,
         rate: rate.rate,
-        unit: rate.unit || ''
+        unit: rate.unit || '',
+        ssr_quantity: rate.ssr_quantity || 1
       })));
     } else {
       // Fallback to item's main rate if no separate rates exist
       setItemRates([{
         description: item.description_of_item,
-        rate: item.ssr_rate,
-        unit: item.ssr_unit || ''
+        rate: item.rate_total_amount,
+        ssr_unit: item.ssr_unit || '',
+        ssr_quantity: 1
       }]);
     }
-    
+
     setNewItem({
       description_of_item: item.description_of_item,
       category: item.category
@@ -353,7 +376,8 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     setShowEditItemModal(true);
   };
 
-  const handleUpdateItem = async () => {
+
+const handleUpdateItem = async () => {debugger
     if (!newItem.description_of_item || !selectedItem) return;
 
     const validRates = itemRates.filter(rate => rate.description && rate.rate > 0);
@@ -373,7 +397,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
         .update({
           description_of_item: newItem.description_of_item,
           category: newItem.category,
-          ssr_rate: totalAmount,
+          // rate_total_amount: totalAmount,
           ssr_unit: mainUnit,
           total_item_amount: totalAmount
         })
@@ -390,12 +414,26 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
       if (deleteError) throw deleteError;
 
+      // 🔹 Fetch calculated_quantity from item_measurements for this subwork_item
+      const { data: measurementData, error: measurementError } = await supabase
+        .schema('estimate')
+        .from('item_measurements')
+        .select('calculated_quantity')
+        .eq('subwork_item_id', selectedItem.sr_no)
+        .maybeSingle();
+
+      if (measurementError) throw measurementError;
+
+      const ssrQuantity = measurementData?.calculated_quantity || 1;
+
       // Insert updated rates
       const ratesToInsert = validRates.map(rate => ({
         subwork_item_sr_no: selectedItem.sr_no,
         description: rate.description,
         rate: rate.rate,
-        unit: rate.unit,
+        ssr_unit: rate.unit,
+        ssr_quantity: ssrQuantity,
+        rate_total_amount: rate.rate * ssrQuantity,
         created_by: user.id
       }));
 
@@ -405,7 +443,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
         .insert(ratesToInsert);
 
       if (ratesError) throw ratesError;
-      
+
       setShowEditItemModal(false);
       setSelectedItem(null);
       setNewItem({
@@ -447,7 +485,15 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   };
 
   const handleViewMeasurements = (item: SubworkItem) => {
+    debugger;
     setSelectedItem(item);
+    const selectedItemSrno = item?.sr_no?.toString();
+    const newRatesArray = selectedItemSrno ? itemRatesMap[selectedItemSrno] || [] : [];
+    const newRateDescriptions = newRatesArray.map(rate => rate.description);
+    const rateSrNo = newRatesArray.map(rate => rate.sr_no);
+    setRatesArray(newRatesArray);
+    setSelectedSrNo(rateSrNo);
+    setRateDescriptions(newRateDescriptions);
     setShowMeasurementsModal(true);
   };
 
@@ -507,7 +553,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
               <div className="text-sm text-gray-600">
                 Total: {formatCurrency(totalItemsAmount)}
               </div>
-              <button 
+              <button
                 onClick={() => setShowAddItemModal(true)}
                 className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
@@ -522,7 +568,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
               </button>
             </div>
           </div>
-          
+
           <div className="max-h-96 overflow-y-auto">
             {loading ? (
               <div className="text-center py-8">
@@ -591,22 +637,24 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           {itemRatesMap[item.sr_no.toString()] && itemRatesMap[item.sr_no.toString()].length > 0 ? (
                             <div className="space-y-1">
                               {itemRatesMap[item.sr_no.toString()].map((rate, index) => {
-                                // Calculate quantity for this specific rate based on measurements
-                                const rateQuantity = (item.ssr_quantity / itemRatesMap[item.sr_no.toString()].length).toFixed(3);
+                                // Use ssr_quantity from the rate fetched from database
+                                const rateQuantity = rate.ssr_quantity;
                                 return (
                                   <div key={index} className="bg-gray-50 px-2 py-1 rounded text-xs">
-                                    <div className="text-gray-900 font-medium">{rateQuantity} {item.ssr_unit}</div>
+                                    <div className="text-gray-900 font-medium">{rateQuantity} {rate.ssr_unit || item.ssr_unit}</div>
                                   </div>
                                 );
                               })}
                             </div>
                           ) : (
                             <div>
+                              {/* Fallback, if no rates found, show quantity from item */}
                               <div className="font-medium">{item.ssr_quantity} {item.ssr_unit}</div>
                               <div className="text-xs text-gray-500">(Auto-calculated)</div>
                             </div>
                           )}
                         </td>
+
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                           <div>
                             {itemRatesMap[item.sr_no.toString()] && itemRatesMap[item.sr_no.toString()].length > 0 ? (
@@ -629,7 +677,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                           <div className="space-y-1">
                             {itemRatesMap[item.sr_no.toString()] && itemRatesMap[item.sr_no.toString()].length > 0 ? (
                               itemRatesMap[item.sr_no.toString()].map((rate, index) => {
-                                const rateQuantity = item.ssr_quantity / itemRatesMap[item.sr_no.toString()].length;
+                                const rateQuantity = rate.ssr_quantity ?? 0;
                                 const rateAmount = (rateQuantity * rate.rate).toFixed(2);
                                 return (
                                   <div key={index} className="text-xs bg-gray-50 p-1 rounded">
@@ -647,23 +695,24 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                             )}
                           </div>
                         </td>
+
                         <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center space-x-2">
-                            <button 
+                            <button
                               onClick={() => handleViewMeasurements(item)}
                               className="text-purple-600 hover:text-purple-900 p-1 rounded"
                               title="View Measurements"
                             >
                               <Calculator className="w-4 h-4" />
                             </button>
-                            <button 
+                            {/* <button
                               onClick={() => handleEditItem(item)}
                               className="text-green-600 hover:text-green-900 p-1 rounded"
                               title="Edit Item"
                             >
                               <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button 
+                            </button> */}
+                            <button
                               onClick={() => handleDeleteItem(item)}
                               className="text-red-600 hover:text-red-900 p-1 rounded"
                               title="Delete Item"
@@ -685,7 +734,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   Add items to this sub work for detailed estimation.
                 </p>
                 <div className="mt-6">
-                  <button 
+                  <button
                     onClick={() => setShowAddItemModal(true)}
                     className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                   >
@@ -721,7 +770,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -742,7 +791,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   <input
                     type="text"
                     value={newItem.category || ''}
-                    onChange={(e) => setNewItem({...newItem, category: e.target.value})}
+                    onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter category (optional)"
                   />
@@ -761,90 +810,90 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                       {isManualEntry ? 'Switch to SSR Search' : 'Switch to Manual Entry'}
                     </button>
                   </div>
-                  
+
                   {isManualEntry ? (
                     <textarea
                       value={newItem.description_of_item || ''}
-                      onChange={(e) => setNewItem({...newItem, description_of_item: e.target.value})}
+                      onChange={(e) => setNewItem({ ...newItem, description_of_item: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter item description manually..."
                       rows={3}
                       required
                     />
                   ) : (
-                  <div className="relative">
-                    <textarea
-                      value={descriptionQuery}
-                      onChange={(e) => handleDescriptionChange(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter item description manually or search SSR items..."
-                      rows={3}
-                    />
-                    {searchingSSR && (
-                      <div className="absolute right-3 top-3">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      </div>
-                    )}
-                    
-                    {/* SSR Suggestions Dropdown */}
-                    {showSuggestions && ssrSuggestions.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                        <div className="p-2 text-xs text-gray-500 border-b">
-                          <Search className="w-3 h-3 inline mr-1" />
-                          SSR Rate Suggestions from Database
+                    <div className="relative">
+                      <textarea
+                        value={descriptionQuery}
+                        onChange={(e) => handleDescriptionChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter item description manually or search SSR items..."
+                        rows={3}
+                      />
+                      {searchingSSR && (
+                        <div className="absolute right-3 top-3">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                         </div>
-                        {ssrSuggestions.map((item, index) => (
-                          <div
-                            key={index}
-                            onClick={() => selectSSRItem(item)}
-                            className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {item.sr_no && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-2">
-                                      Item {item.sr_no}
-                                    </span>
-                                  )}
-                                  {item.description}
+                      )}
+
+                      {/* SSR Suggestions Dropdown */}
+                      {showSuggestions && ssrSuggestions.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          <div className="p-2 text-xs text-gray-500 border-b">
+                            <Search className="w-3 h-3 inline mr-1" />
+                            SSR Rate Suggestions from Database
+                          </div>
+                          {ssrSuggestions.map((item, index) => (
+                            <div
+                              key={index}
+                              onClick={() => selectSSRItem(item)}
+                              className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {item.sr_no && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-2">
+                                        Item {item.sr_no}
+                                      </span>
+                                    )}
+                                    {item.description}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    Section: {item.section} | Page: {item.page_number}
+                                  </div>
+                                  <div className="flex items-center mt-1 space-x-4">
+                                    {item.unit && (
+                                      <span className="text-xs text-gray-600">
+                                        Unit: <span className="font-medium">{item.unit}</span>
+                                      </span>
+                                    )}
+                                    {item.rate_2024_25 && (
+                                      <span className="text-xs text-green-600">
+                                        Rate 2024-25: <span className="font-medium">₹{item.rate_2024_25}</span>
+                                      </span>
+                                    )}
+                                    {item.rate_2023_24 && (
+                                      <span className="text-xs text-blue-600">
+                                        Rate 2023-24: <span className="font-medium">₹{item.rate_2023_24}</span>
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  Section: {item.section} | Page: {item.page_number}
+                                <div className="ml-2">
+                                  <div className="text-xs text-gray-500">
+                                    {Math.round(item.confidence * 100)}% match
+                                  </div>
+                                  <CheckCircle className="w-4 h-4 text-green-500 mt-1" />
                                 </div>
-                                <div className="flex items-center mt-1 space-x-4">
-                                  {item.unit && (
-                                    <span className="text-xs text-gray-600">
-                                      Unit: <span className="font-medium">{item.unit}</span>
-                                    </span>
-                                  )}
-                                  {item.rate_2024_25 && (
-                                    <span className="text-xs text-green-600">
-                                      Rate 2024-25: <span className="font-medium">₹{item.rate_2024_25}</span>
-                                    </span>
-                                  )}
-                                  {item.rate_2023_24 && (
-                                    <span className="text-xs text-blue-600">
-                                      Rate 2023-24: <span className="font-medium">₹{item.rate_2023_24}</span>
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="ml-2">
-                                <div className="text-xs text-gray-500">
-                                  {Math.round(item.confidence * 100)}% match
-                                </div>
-                                <CheckCircle className="w-4 h-4 text-green-500 mt-1" />
                               </div>
                             </div>
+                          ))}
+                          <div className="p-2 text-xs text-gray-400 text-center border-t">
+                            Click on an item to auto-fill rate and unit from SSR database
                           </div>
-                        ))}
-                        <div className="p-2 text-xs text-gray-400 text-center border-t">
-                          Click on an item to auto-fill rate and unit from SSR database
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -863,7 +912,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                       Add Rate
                     </button>
                   </div>
-                  
+
                   <div className="border border-gray-300 rounded-md overflow-hidden">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -968,7 +1017,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -989,7 +1038,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                   <input
                     type="text"
                     value={newItem.category || ''}
-                    onChange={(e) => setNewItem({...newItem, category: e.target.value})}
+                    onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter category (optional)"
                   />
@@ -1012,7 +1061,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                       </div>
                     )}
-                    
+
                     {/* SSR Suggestions Dropdown */}
                     {showSuggestions && ssrSuggestions.length > 0 && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
@@ -1089,7 +1138,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                       Add Rate
                     </button>
                   </div>
-                  
+
                   <div className="border border-gray-300 rounded-md overflow-hidden">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -1189,14 +1238,17 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
       )}
 
       {/* Measurements Modal */}
+      Then your JSX stays the same:
+
       {showMeasurementsModal && selectedItem && (
-          // No workId passed - indicates Subworks context
         <ItemMeasurements
           item={selectedItem}
           isOpen={showMeasurementsModal}
           onClose={() => setShowMeasurementsModal(false)}
           onItemUpdated={refreshItemData}
-          availableRates={itemRatesMap[selectedItem.sr_no.toString()] || []}
+          availableRates={ratesArray}
+          rateDescriptions={rateDescriptions}
+          selectedSrNo={selectedSrNo}
         />
       )}
     </div>
