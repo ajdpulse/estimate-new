@@ -6,11 +6,11 @@ import { supabase } from '../lib/supabase';
 import { Work, SubWork } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
 import SubworkItems from './SubworkItems';
-import { 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
   Eye,
   FileText,
   IndianRupee,
@@ -30,13 +30,14 @@ const Subworks: React.FC = () => {
   const [subworks, setSubworks] = useState<SubWork[]>([]);
   const [selectedWorkId, setSelectedWorkId] = useState<string>('');
   const [selectedSubworkIds, setSelectedSubworkIds] = useState<string[]>([]);
-  const [subworkItemCounts, setSubworkItemCounts] = useState<{[key: string]: number}>({});
+  const [subworkItemCounts, setSubworkItemCounts] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedSubwork, setSelectedSubwork] = useState<SubWork | null>(null);
+  const totalEstimateSum = works.reduce((acc, work) => acc + (work.total_estimated_cost || 0), 0);
   const [newSubwork, setNewSubwork] = useState<Partial<SubWork>>({
     subworks_name: ''
   });
@@ -50,7 +51,9 @@ const Subworks: React.FC = () => {
   const [uploadingDesign, setUploadingDesign] = useState(false);
 
   // Add state for subwork totals
-  const [subworkTotals, setSubworkTotals] = useState<{[key: string]: number}>({});
+  const [subworkTotals, setSubworkTotals] = useState<Record<string, number>>({});
+  const totalSubworkEstimate = Object.values(subworkTotals || {}).reduce((acc, val) => acc + val, 0);
+  console.log("totalSubworkEstimate", totalSubworkEstimate);
 
   useEffect(() => {
     fetchWorks();
@@ -96,7 +99,7 @@ const Subworks: React.FC = () => {
 
       if (error) throw error;
       setWorks(data || []);
-      
+
       // Auto-select first work if available and no work was selected from navigation
       if (data && data.length > 0 && !selectedWorkId && !location.state?.selectedWorksId) {
         setSelectedWorkId(data[0].works_id);
@@ -126,8 +129,8 @@ const Subworks: React.FC = () => {
 
   const fetchItemCounts = async () => {
     try {
-      const counts: {[key: string]: number} = {};
-      
+      const counts: { [key: string]: number } = {};
+
       for (const subworkId of selectedSubworkIds) {
         const { count, error } = await supabase
           .schema('estimate')
@@ -138,7 +141,7 @@ const Subworks: React.FC = () => {
         if (error) throw error;
         counts[subworkId] = count || 0;
       }
-      
+
       setSubworkItemCounts(counts);
     } catch (error) {
       console.error('Error fetching item counts:', error);
@@ -147,26 +150,82 @@ const Subworks: React.FC = () => {
 
   const fetchSubworkTotals = async () => {
     try {
-      const totals: {[key: string]: number} = {};
-      
+      const totals: { [key: string]: number } = {};
+
       for (const subwork of subworks) {
-        const { data: items, error } = await supabase
+        // Fetch all subwork_items for the current subwork
+        const { data: subworkItems, error: itemsError } = await supabase
           .schema('estimate')
           .from('subwork_items')
-          .select('total_item_amount')
+          .select('sr_no, subwork_id')
           .eq('subwork_id', subwork.subworks_id);
 
-        if (error) throw error;
-        
-        const total = (items || []).reduce((sum, item) => sum + (item.total_item_amount || 0), 0);
-        totals[subwork.subworks_id] = total;
+        if (itemsError) throw itemsError;
+
+        if (subworkItems && subworkItems.length > 0) {
+          // For each subwork_item, calculate sum of rate_total_amount from item_rates and update total_item_amount
+          for (const item of subworkItems) {
+            const { data: rateSums, error: rateError } = await supabase
+              .schema('estimate')
+              .from('item_rates')
+              .select('rate_total_amount')
+              .eq('subwork_item_sr_no', item.sr_no);
+
+            if (rateError) throw rateError;
+
+            const totalForItem = (rateSums || []).reduce((sum, rate) => sum + (rate.rate_total_amount || 0), 0);
+
+            // Update total_item_amount in subwork_items table for this item
+            const { error: updateError } = await supabase
+              .schema('estimate')
+              .from('subwork_items')
+              .update({ total_item_amount: totalForItem })
+              .eq('sr_no', item.sr_no);
+
+            if (updateError) throw updateError;
+          }
+
+          // After all updates, fetch updated total_item_amount sums for current subwork
+          const { data: updatedItems, error: updatedItemsError } = await supabase
+            .schema('estimate')
+            .from('subwork_items')
+            .select('total_item_amount')
+            .eq('subwork_id', subwork.subworks_id);
+
+          if (updatedItemsError) throw updatedItemsError;
+
+          const total = (updatedItems || []).reduce((sum, item) => sum + (item.total_item_amount || 0), 0);
+          totals[subwork.subworks_id] = total;
+
+          // Update subwork_amount in subworks table with the total
+          const { error: subworksUpdateError } = await supabase
+            .schema('estimate')
+            .from('subworks')
+            .update({ subwork_amount: total })
+            .eq('subworks_id', subwork.subworks_id);
+
+          if (subworksUpdateError) throw subworksUpdateError;
+        } else {
+          totals[subwork.subworks_id] = 0;
+
+          // Update subwork_amount to 0 for subworks with no items
+          const { error: subworksUpdateError } = await supabase
+            .schema('estimate')
+            .from('subworks')
+            .update({ subwork_amount: 0 })
+            .eq('subworks_id', subwork.subworks_id);
+
+          if (subworksUpdateError) throw subworksUpdateError;
+        }
       }
-      
+
       setSubworkTotals(totals);
     } catch (error) {
       console.error('Error fetching subwork totals:', error);
     }
   };
+
+
 
   const fetchDesignPhotos = async (subworkId: string) => {
     try {
@@ -223,7 +282,7 @@ const Subworks: React.FC = () => {
 
       // Refresh photos
       fetchDesignPhotos(selectedSubworkForDesign.subworks_id);
-      
+
     } catch (error) {
       console.error('Error uploading design photo:', error);
       alert('Error uploading design photo');
@@ -291,7 +350,7 @@ const Subworks: React.FC = () => {
 
     try {
       const subworksId = await generateSubworkId(selectedWorkId);
-      
+
       const { error } = await supabase
         .schema('estimate')
         .from('subworks')
@@ -303,7 +362,7 @@ const Subworks: React.FC = () => {
         }]);
 
       if (error) throw error;
-      
+
       setShowAddModal(false);
       setNewSubwork({ subworks_name: '' });
       fetchSubworks(selectedWorkId);
@@ -336,7 +395,7 @@ const Subworks: React.FC = () => {
         .eq('sr_no', selectedSubwork.sr_no);
 
       if (error) throw error;
-      
+
       setShowEditModal(false);
       setSelectedSubwork(null);
       setNewSubwork({ subworks_name: '' });
@@ -380,7 +439,7 @@ const Subworks: React.FC = () => {
       alert('Please select at least one subwork to view items');
       return;
     }
-    
+
     const firstSelected = subworks.find(sw => sw.subworks_id === selectedSubworkIds[0]);
     if (firstSelected) {
       setCurrentSubworkForItems({ id: firstSelected.subworks_id, name: firstSelected.subworks_name });
@@ -402,7 +461,7 @@ const Subworks: React.FC = () => {
   };
 
   const selectedWork = works.find(work => work.works_id === selectedWorkId);
-  
+
   const filteredSubworks = subworks.filter(subwork =>
     subwork.subworks_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     subwork.subworks_id.toLowerCase().includes(searchTerm.toLowerCase())
@@ -428,17 +487,17 @@ const Subworks: React.FC = () => {
             {/* Work Selection */}
             <div className="sm:w-48">
               <label className="block text-xs font-medium text-gray-700 mb-1">
-               Select Work ID
+                Select Work ID
               </label>
               <select
                 value={selectedWorkId}
                 onChange={(e) => setSelectedWorkId(e.target.value)}
                 className="block w-full pl-2 pr-6 py-1.5 text-xs border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
               >
-               <option value="">Select Work ID...</option>
+                <option value="">Select Work ID...</option>
                 {works.map((work) => (
                   <option key={work.works_id} value={work.works_id}>
-                   {work.works_id}
+                    {work.works_id}
                   </option>
                 ))}
               </select>
@@ -449,7 +508,7 @@ const Subworks: React.FC = () => {
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Search Sub Works
               </label>
-              <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none" style={{top: '20px'}}>
+              <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none" style={{ top: '20px' }}>
                 <Search className="h-3 w-3 text-gray-400" />
               </div>
               <input
@@ -477,7 +536,7 @@ const Subworks: React.FC = () => {
               </p>
               <div className="flex items-center mt-2 text-sm text-indigo-600">
                 <IndianRupee className="w-3 h-3 mr-1" />
-                <span>Total Estimate: {formatCurrency(selectedWork.total_estimated_cost)}</span>
+                <span>Total Estimate: {formatCurrency(totalSubworkEstimate)}</span>
               </div>
             </div>
             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-indigo-500 to-blue-600 text-white shadow-lg">
@@ -501,7 +560,7 @@ const Subworks: React.FC = () => {
                   <h3 className="text-lg font-semibold text-white">Sub Works</h3>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <button 
+                  <button
                     onClick={() => setShowAddModal(true)}
                     disabled={!selectedWorkId}
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-xl shadow-lg text-xs font-semibold text-white bg-white/20 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all duration-200 disabled:opacity-50 hover:scale-105">
@@ -525,18 +584,16 @@ const Subworks: React.FC = () => {
                   <div
                     key={subwork.sr_no}
                     onClick={() => handleSubworkCheckbox(subwork.subworks_id)}
-                    className={`p-4 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 transition-all duration-200 cursor-pointer ${
-                      selectedSubworkIds.includes(subwork.subworks_id) ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-l-4 border-emerald-500' : ''
-                    }`}
+                    className={`p-4 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 transition-all duration-200 cursor-pointer ${selectedSubworkIds.includes(subwork.subworks_id) ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-l-4 border-emerald-500' : ''
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3">
-                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                            selectedSubworkIds.includes(subwork.subworks_id) 
-                              ? 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-600' 
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${selectedSubworkIds.includes(subwork.subworks_id)
+                              ? 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-600'
                               : 'border-gray-300'
-                          }`}>
+                            }`}>
                             {selectedSubworkIds.includes(subwork.subworks_id) && (
                               <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -560,7 +617,7 @@ const Subworks: React.FC = () => {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setCurrentSubworkForItems({ id: subwork.subworks_id, name: subwork.subworks_name });
@@ -571,7 +628,7 @@ const Subworks: React.FC = () => {
                         >
                           <Plus className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewDesigns(subwork);
@@ -581,7 +638,7 @@ const Subworks: React.FC = () => {
                         >
                           <Camera className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewSubwork(subwork);
@@ -591,7 +648,7 @@ const Subworks: React.FC = () => {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEditSubwork(subwork);
@@ -601,7 +658,7 @@ const Subworks: React.FC = () => {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteSubwork(subwork);
@@ -626,7 +683,7 @@ const Subworks: React.FC = () => {
                   Add sub work items to break down the estimate.
                 </p>
                 <div className="mt-6">
-                  <button 
+                  <button
                     onClick={() => setShowAddModal(true)}
                     disabled={!selectedWorkId}
                     className="inline-flex items-center px-6 py-3 border border-transparent shadow-lg text-sm font-semibold rounded-2xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-300 transition-all duration-300">
@@ -681,7 +738,7 @@ const Subworks: React.FC = () => {
                   ✕
                 </button>
               </div>
-              
+
               {/* Upload Section */}
               <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                 <div className="text-center">
@@ -808,7 +865,7 @@ const Subworks: React.FC = () => {
                   ✕
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -829,7 +886,7 @@ const Subworks: React.FC = () => {
                   <input
                     type="text"
                     value={newSubwork.subworks_name || ''}
-                    onChange={(e) => setNewSubwork({...newSubwork, subworks_name: e.target.value})}
+                    onChange={(e) => setNewSubwork({ ...newSubwork, subworks_name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter sub work name"
                   />
@@ -871,7 +928,7 @@ const Subworks: React.FC = () => {
                   ✕
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Sr No</label>
@@ -929,7 +986,7 @@ const Subworks: React.FC = () => {
                   ✕
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -962,7 +1019,7 @@ const Subworks: React.FC = () => {
                   <input
                     type="text"
                     value={newSubwork.subworks_name || ''}
-                    onChange={(e) => setNewSubwork({...newSubwork, subworks_name: e.target.value})}
+                    onChange={(e) => setNewSubwork({ ...newSubwork, subworks_name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter sub work name"
                   />
