@@ -123,7 +123,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }
   };
 
-  const calculateRateGroups = () => {debugger;
+  const calculateRateGroups = () => {
     const groups: { [key: string]: { rate: number, quantity: number, description?: string } } = {};
 
     measurements.forEach(measurement => {
@@ -207,8 +207,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }
   };
 
-  const handleAddMeasurement = async () => {
-    debugger
+ const handleAddMeasurement = async () => {
     if (!user) return;
 
     // if (selectedRate === 0) {
@@ -231,10 +230,9 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
       const { data: rateData, error: rateFetchError } = await supabase
         .schema('estimate')
         .from('item_rates')
-        .select('sr_no, subwork_item_sr_no')
+        .select('sr_no, subwork_item_sr_no, rate')
         .eq('description', selectedDescription)   // Now using description instead of sr_no
         .single();
-
 
       if (rateFetchError) throw rateFetchError;
       const subworkItemId = rateData?.subwork_item_sr_no;
@@ -248,7 +246,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
           subwork_item_id: subworkItemId,   // 🔹 Corrected
           measurement_sr_no: nextSrNo,
           calculated_quantity: calculatedQuantity,
-          line_amount: lineAmount,
+          line_amount: rateData?.rate *calculatedQuantity,
           unit: newMeasurement.unit || null,
           is_deduction: newMeasurement.is_deduction || false,
           is_manual_quantity: newMeasurement.is_manual_quantity || false,
@@ -259,11 +257,17 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
 
       if (error) throw error;
 
-      // 🔹 Update ssr_quantity in item_rates with calculated_quantity
+      // 🔹 Update ssr_quantity and rate_total_amount in item_rates
+      const fetchedRate = rateData?.rate;
+      const rateTotalAmount = calculatedQuantity * fetchedRate;
+
       const { error: updateRateError } = await supabase
         .schema('estimate')
         .from('item_rates')
-        .update({ ssr_quantity: calculatedQuantity })
+        .update({
+          ssr_quantity: calculatedQuantity,
+          rate_total_amount: rateTotalAmount
+        })
         .eq('sr_no', rateSrNo);
 
       if (updateRateError) throw updateRateError;
@@ -379,8 +383,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   };
 
 const handleUpdateMeasurement = async () => {
-  debugger;
-  debugger;
   if (!selectedMeasurement || !user) return;
 
   if (selectedRate === 0) {
@@ -394,19 +396,19 @@ const handleUpdateMeasurement = async () => {
       (newMeasurement.width_breadth || 0) *
       (newMeasurement.height_depth || 0);
 
-    // Use the selected rate
     const rate = selectedRate;
-    const lineAmount = calculatedQuantity * rate;
 
-    // 🔹 Fetch rate_sr_no from item_rates
-    const { data: rateData, error: rateFetchError } = await supabase
+    // Fetch rate data (remove .single(), use first entry)
+    const { data: rateDataArray, error: rateFetchError } = await supabase
       .schema('estimate')
       .from('item_rates')
-      .select('sr_no')
-      .eq('subwork_item_sr_no', selectedMeasurement.subwork_item_id)
-      .single();
-
+      .select('sr_no, rate, subwork_item_sr_no')
+      .eq('subwork_item_sr_no', selectedMeasurement.subwork_item_id);
+    
     if (rateFetchError) throw rateFetchError;
+    if (!rateDataArray || rateDataArray.length === 0) throw new Error('No rate data found');
+    const rateData = rateDataArray[0];
+
     const rateSrNo = rateData?.sr_no;
 
     const { error } = await supabase
@@ -419,24 +421,28 @@ const handleUpdateMeasurement = async () => {
         length: newMeasurement.length,
         width_breadth: newMeasurement.width_breadth,
         height_depth: newMeasurement.height_depth,
-        calculated_quantity: calculateQuantity(),
-        line_amount: calculateLineAmount(),
+        calculated_quantity: calculatedQuantity,
+        line_amount: rateData?.rate * calculatedQuantity,
         is_manual_quantity: newMeasurement.is_manual_quantity || false,
         manual_quantity: newMeasurement.manual_quantity || 0,
         is_deduction: newMeasurement.is_deduction || false,
-        rate_sr_no: rateSrNo // 🔹 Insert rateSrNo
-        // unit: currentItem.ssr_unit
+        rate_sr_no: rateSrNo
       })
       .eq('subwork_item_id', selectedMeasurement.subwork_item_id)
       .eq('measurement_sr_no', selectedMeasurement.measurement_sr_no);
 
     if (error) throw error;
 
-    // 🔹 Update ssr_quantity in item_rates using rateSrNo
+    const fetchedRate = rateData?.rate;
+    const rateTotalAmount = calculatedQuantity * fetchedRate;
+
     const { error: updateRateError } = await supabase
       .schema('estimate')
       .from('item_rates')
-      .update({ ssr_quantity: calculatedQuantity })
+      .update({
+        ssr_quantity: calculatedQuantity,
+        rate_total_amount: rateTotalAmount
+      })
       .eq('sr_no', rateSrNo);
 
     if (updateRateError) throw updateRateError;
@@ -451,10 +457,8 @@ const handleUpdateMeasurement = async () => {
     });
     setSelectedRate(0);
 
-    // Refresh data first, then update SSR quantity
     fetchData();
 
-    // Update SSR quantity after editing measurement
     setTimeout(async () => {
       await updateItemSSRQuantity();
     }, 100);
@@ -1092,12 +1096,12 @@ const handleUpdateMeasurement = async () => {
                       {newMeasurement.is_deduction ? '-' : ''}{calculateQuantity().toFixed(3)} {newMeasurement.unit || currentItem.ssr_unit}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-sm mt-2">
+                  {/* <div className="flex justify-between items-center text-sm mt-2">
                     <span className="text-gray-600">Line Amount:</span>
                     <span className={`font-medium ${newMeasurement.is_deduction ? 'text-red-600' : 'text-gray-900'}`}>
                       {newMeasurement.is_deduction ? '-' : ''}{formatCurrency(Math.abs(calculateLineAmount()))}
                     </span>
-                  </div>
+                  </div> */}
                   <div className="flex items-center justify-between text-xs mt-1 text-gray-500">
                     <span>Rate Used:</span>
                     <span>₹{getSelectedRate().toFixed(2)}</span>
@@ -1492,12 +1496,12 @@ const handleUpdateMeasurement = async () => {
                       {calculateQuantity().toFixed(3)} {newMeasurement.unit || item.ssr_unit}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
+                  {/* <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Line Amount:</span>
                     <span className="font-medium text-gray-900">
                       ₹{(calculateQuantity() * getSelectedRate()).toFixed(2)}
                     </span>
-                  </div>
+                  </div> */}
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>Rate Used:</span>
                     <span>
