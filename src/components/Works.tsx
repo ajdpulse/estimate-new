@@ -39,22 +39,47 @@ const Works: React.FC = () => {
   }, []);
 
   const fetchWorks = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
+  try {
+    setLoading(true);
+    const { data, error } = await supabase
+      .schema('estimate')
+      .from('works')
+      .select('*')
+      .order('sr_no', { ascending: false });
+
+    if (error) throw error;
+
+    const worksData = data || [];
+
+    for (const work of worksData) {
+      // Get sum of subwork_amount from subworks for this works_id
+      const { data: subworksData, error: subworksError } = await supabase
+        .schema('estimate')
+        .from('subworks')
+        .select('subwork_amount')
+        .eq('works_id', work.works_id);
+      if (subworksError) throw subworksError;
+
+      const totalSubworkAmount = (subworksData || []).reduce(
+        (acc, row) => acc + (row.subwork_amount || 0), 0);
+
+      // Update total_estimated_cost in works
+      const { error: updateError } = await supabase
         .schema('estimate')
         .from('works')
-        .select('*')
-        .order('sr_no', { ascending: false });
-
-      if (error) throw error;
-      setWorks(data || []);
-    } catch (error) {
-      console.error('Error fetching works:', error);
-    } finally {
-      setLoading(false);
+        .update({ total_estimated_cost: totalSubworkAmount })
+        .eq('works_id', work.works_id);
+      if (updateError) throw updateError;
     }
-  };
+
+    setWorks(worksData);
+  } catch (error) {
+    console.error('Error fetching works:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleAddWork = async () => {
     if (!newWork.work_name || !user) return;
