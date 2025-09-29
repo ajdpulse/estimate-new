@@ -85,7 +85,7 @@ const Subworks: React.FC = () => {
     }
   }, [subworks]);
 
-  const fetchWorks = async () => {debugger;
+  const fetchWorks = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -108,7 +108,7 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const fetchSubworks = async (workId: string) => {debugger;
+  const fetchSubworks = async (workId: string) => {
     try {
       const { data, error } = await supabase
         .schema('estimate')
