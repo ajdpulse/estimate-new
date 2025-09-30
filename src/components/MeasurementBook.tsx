@@ -1,597 +1,992 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
-import { Work, SubWork, SubworkItem, ItemMeasurement } from '../types';
+import { Work, SubWork, SubworkItem } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
-import ItemMeasurements from './ItemMeasurements';
-import FullEstimateEditor from './FullEstimateEditor';
-import { 
-  BookOpen, 
-  Search, 
-  Filter,
-  Calculator,
-  FileText,
-  IndianRupee,
-  Building,
-  Edit2,
-  Plus,
-  Ruler,
-  CheckCircle,
-  AlertCircle,
-  Clock
-} from 'lucide-react';
+import { BookOpen, Search, Filter, Plus, Save, Download, Calculator, Ruler, CreditCard as Edit2, Trash2, Eye, RefreshCw, AlertTriangle, CheckCircle, FileSpreadsheet, Import, Upload } from 'lucide-react';
 
-interface MeasurementBookData {
-  work: Work;
-  subworks: SubWork[];
-  subworkItems: { [subworkId: string]: SubworkItem[] };
-  measurements: { [itemId: string]: ItemMeasurement[] };
-  totalMeasurementAmount: number;
+interface MeasurementBookEntry {
+  sr_no: number;
+  work_id: string;
+  subwork_id: string;
+  item_id: string;
+  measurement_sr_no: number;
+  description_of_items: string;
+  no_of_units: number;
+  length: number;
+  width_breadth: number;
+  height_depth: number;
+  estimated_quantity: number;
+  actual_quantity: number;
+  variance: number;
+  variance_reason: string;
+  unit: string;
+  measured_by: string;
+  measured_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
-const MeasurementBook: React.FC = () => {
-  const { user } = useAuth();
-  const [works, setWorks] = useState<Work[]>([]);
-  const [selectedWorkId, setSelectedWorkId] = useState<string>('');
-  const [measurementData, setMeasurementData] = useState<MeasurementBookData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [showItemMeasurements, setShowItemMeasurements] = useState(false);
-  const [selectedItemForMeasurement, setSelectedItemForMeasurement] = useState<{
-    itemId: string;
-    itemName: string;
-    subworkId: string;
-    subworkName: string;
-    itemSrNo: number;
-  } | null>(null);
-  const [showFullEstimateEdit, setShowFullEstimateEdit] = useState(false);
-  const [editMode, setEditMode] = useState<'measurements' | 'full_estimate'>('measurements');
-  const [expandedSubworks, setExpandedSubworks] = useState<Set<string>>(new Set());
+interface EstimateData {
+  work: Work;
+  subworks: SubWork[];
+  subworkItems: { [subworkId: string]: SubworkItem[] };
+}
 
-  useEffect(() => {
-    fetchWorks();
-  }, []);
+const MeasurementBook = () => {
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  
+  // State management
+  const [works, setWorks] = useState<Work[]>([]);
+  const [selectedWorkId, setSelectedWorkId] = useState<string>('');
+  const [estimateData, setEstimateData] = useState<EstimateData | null>(null);
+  const [measurements, setMeasurements] = useState<MeasurementBookEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSubworkId, setSelectedSubworkId] = useState<string>('all');
+  const [editingRow, setEditingRow] = useState<number | null>(null);
+  const [newMeasurement, setNewMeasurement] = useState<Partial<MeasurementBookEntry>>({});
+  const [showAddForm, setShowAddForm] = useState(false);
 
-  useEffect(() => {
-    if (selectedWorkId) {
-      fetchMeasurementData(selectedWorkId);
-    }
-  }, [selectedWorkId]);
+  // Fetch works on component mount
+  useEffect(() => {
+    fetchWorks();
+  }, []);
 
-  const fetchWorks = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .schema('estimate')
-        .from('works')
-        .select('*')
-        .order('sr_no', { ascending: false });
+  // Fetch estimate data when work is selected
+  useEffect(() => {
+    if (selectedWorkId) {
+      fetchEstimateData(selectedWorkId);
+      fetchMeasurements(selectedWorkId);
+    }
+  }, [selectedWorkId]);
 
-      if (error) throw error;
-      setWorks(data || []);
-      
-      if (data && data.length > 0 && !selectedWorkId) {
-        setSelectedWorkId(data[0].works_id);
-      }
-    } catch (error) {
-      console.error('Error fetching works:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchWorks = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .schema('estimate')
+        .from('works')
+        .select('*')
+        .in('status', ['approved', 'in_progress', 'completed', 'draft'])
+        .order('sr_no', { ascending: false });
 
-  const fetchMeasurementData = async (worksId: string) => {
-    try {
-      setLoading(true);
+      if (error) throw error;
+      setWorks(data || []);
+      
+      // Auto-select first work if available
+      if (data && data.length > 0 && !selectedWorkId) {
+        setSelectedWorkId(data[0].works_id);
+      }
+    } catch (error) {
+      console.error('Error fetching works:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      const { data: work, error: workError } = await supabase
-        .schema('estimate')
-        .from('works')
-        .select('*')
-        .eq('works_id', worksId)
-        .single();
+  const fetchEstimateData = async (workId: string) => {
+    try {
+      // Fetch work details
+      const { data: work, error: workError } = await supabase
+        .schema('estimate')
+        .from('works')
+        .select('*')
+        .eq('works_id', workId)
+        .single();
 
-      if (workError || !work) throw workError;
+      if (workError) throw workError;
 
-      const { data: subworks, error: subworksError } = await supabase
-        .schema('estimate')
-        .from('subworks')
-        .select('*')
-        .eq('works_id', worksId)
-        .order('sr_no');
+      // Fetch subworks
+      const { data: subworks, error: subworksError } = await supabase
+        .schema('estimate')
+        .from('subworks')
+        .select('*')
+        .eq('works_id', workId)
+        .order('sr_no');
 
-      if (subworksError) throw subworksError;
+      if (subworksError) throw subworksError;
 
-      const subworkItems: { [subworkId: string]: SubworkItem[] } = {};
-      const measurements: { [itemId: string]: ItemMeasurement[] } = {};
-      let totalMeasurementAmount = 0;
+      // Fetch subwork items
+      const subworkItems: { [subworkId: string]: SubworkItem[] } = {};
+      
+      for (const subwork of subworks || []) {
+        const { data: items } = await supabase
+          .schema('estimate')
+          .from('subwork_items')
+          .select('*')
+          .eq('subwork_id', subwork.subworks_id)
+          .order('sr_no');
 
-      for (const subwork of subworks || []) {
-        const { data: items } = await supabase
-          .schema('estimate')
-          .from('subwork_items')
-          .select('*')
-          .eq('subwork_id', subwork.subworks_id)
-          .order('item_number');
+        subworkItems[subwork.subworks_id] = items || [];
+      }
 
-        subworkItems[subwork.subworks_id] = items || [];
+      setEstimateData({
+        work,
+        subworks: subworks || [],
+        subworkItems
+      });
 
-        for (const item of items || []) {
-          // Fetch original measurements from item_measurements
-          const { data: originalMeasurements } = await supabase
-            .schema('estimate')
-            .from('item_measurements')
-            .select('*')
-            .eq('subwork_item_id', item.sr_no)
-            .order('measurement_sr_no');
+    } catch (error) {
+      console.error('Error fetching estimate data:', error);
+    }
+  };
 
-          // Fetch modified measurements from measurement_book
-          const { data: modifiedMeasurements } = await supabase
-            .schema('estimate')
-            .from('measurement_book')
-            .select('*')
-            .eq('item_id', item.sr_no)
-            .eq('subwork_id', subwork.subworks_id)
-            .order('measurement_sr_no');
+  const fetchMeasurements = async (workId: string) => {
+    try {
+      const { data, error } = await supabase
+        .schema('estimate')
+        .from('measurement_book')
+        .select('*')
+        .eq('work_id', workId)
+        .order('sr_no', { ascending: true });
 
-          // Merge measurements: prioritize measurement_book data over item_measurements
-          const mergedMeasurements = [...(originalMeasurements || [])];
-          
-          // Replace or add measurements from measurement_book
-          (modifiedMeasurements || []).forEach(modifiedMeasurement => {
-            const existingIndex = mergedMeasurements.findIndex(
-              original => original.measurement_sr_no === modifiedMeasurement.measurement_sr_no
-            );
-            
-            if (existingIndex >= 0) {
-              // Replace existing measurement with modified version
-              mergedMeasurements[existingIndex] = {
-                ...mergedMeasurements[existingIndex],
-                ...modifiedMeasurement,
-                source: 'measurement_book' // Add source indicator
-              };
-            } else {
-              // Add new measurement from measurement_book
-              mergedMeasurements.push({
-                ...modifiedMeasurement,
-                source: 'measurement_book'
-              });
-            }
-          });
+      if (error) throw error;
+      setMeasurements(data || []);
+    } catch (error) {
+      console.error('Error fetching measurements:', error);
+    }
+  };
 
-          // Add source indicator to original measurements
-          mergedMeasurements.forEach(measurement => {
-            if (!measurement.source) {
-              measurement.source = 'item_measurements';
-            }
-          });
+  const importFromEstimate = async () => {
+    if (!estimateData || !user) return;
 
-          measurements[item.id] = mergedMeasurements;
-          
-          const itemMeasurementTotal = (mergedMeasurements || []).reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
-          totalMeasurementAmount += itemMeasurementTotal;
-        }
-      }
+    try {
+      setSaving(true);
+      const importedMeasurements: Partial<MeasurementBookEntry>[] = [];
 
-      setMeasurementData({
-        work,
-        subworks: subworks || [],
-        subworkItems,
-        measurements,
-        totalMeasurementAmount
-      });
+      // Import from existing item_measurements
+      for (const subwork of estimateData.subworks) {
+        const items = estimateData.subworkItems[subwork.subworks_id] || [];
+        
+        for (const item of items) {
+          // Fetch existing measurements for this item
+          const { data: existingMeasurements } = await supabase
+            .schema('estimate')
+            .from('item_measurements')
+            .select('*')
+            .eq('subwork_item_id', item.sr_no);
 
-    } catch (error) {
-      console.error('Error fetching measurement data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+          if (existingMeasurements && existingMeasurements.length > 0) {
+            // Import existing measurements
+            for (const measurement of existingMeasurements) {
+              importedMeasurements.push({
+                work_id: estimateData.work.works_id,
+                subwork_id: subwork.subworks_id,
+                item_id: item.id,
+                measurement_sr_no: measurement.sr_no,
+                description_of_items: measurement.description_of_items || item.description_of_item,
+                no_of_units: measurement.no_of_units || 1,
+                length: measurement.length || 0,
+                width_breadth: measurement.width_breadth || 0,
+                height_depth: measurement.height_depth || 0,
+                estimated_quantity: measurement.calculated_quantity || 0,
+                actual_quantity: measurement.actual_quantity || measurement.calculated_quantity || 0,
+                unit: measurement.unit || item.ssr_unit,
+                measured_by: user.email || 'System Import'
+              });
+            }
+          } else {
+            // Create default measurement entry for items without measurements
+            importedMeasurements.push({
+              work_id: estimateData.work.works_id,
+              subwork_id: subwork.subworks_id,
+              item_id: item.id,
+              measurement_sr_no: 1,
+              description_of_items: item.description_of_item,
+              no_of_units: item.ssr_quantity || 1,
+              length: 0,
+              width_breadth: 0,
+              height_depth: 0,
+              estimated_quantity: item.ssr_quantity || 0,
+              actual_quantity: 0,
+              unit: item.ssr_unit,
+              measured_by: user.email || 'System Import'
+            });
+          }
+        }
+      }
 
-  const handleEditMeasurements = (item: SubworkItem, subwork: SubWork) => {
-    setSelectedItemForMeasurement({
-      itemId: item.sr_no.toString(),
-      itemName: item.description_of_item,
-      subworkId: subwork.subworks_id,
-      subworkName: subwork.subworks_name,
-      itemSrNo: item.sr_no
-    });
-    setShowItemMeasurements(true);
-  };
+      // Insert imported measurements
+      if (importedMeasurements.length > 0) {
+        const { error } = await supabase
+          .schema('estimate')
+          .from('measurement_book')
+          .insert(importedMeasurements);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('hi-IN', {
-      style: 'currency',
-      currency: 'INR',
-    }).format(amount);
-  };
+        if (error) throw error;
+        
+        alert(`Successfully imported ${importedMeasurements.length} measurement entries!`);
+        fetchMeasurements(selectedWorkId);
+      }
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      draft: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Draft', icon: FileText },
-      pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending', icon: Clock },
-      approved: { bg: 'bg-green-100', text: 'text-green-700', label: 'Approved', icon: CheckCircle },
-      rejected: { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejected', icon: AlertCircle },
-      in_progress: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'In Progress', icon: Calculator },
-      completed: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Completed', icon: CheckCircle },
-    };
+    } catch (error) {
+      console.error('Error importing from estimate:', error);
+      alert('Error importing measurements from estimate');
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
-    const IconComponent = config.icon;
+  const handleSaveMeasurement = async (measurement: Partial<MeasurementBookEntry>, isNew: boolean = false) => {
+    if (!user) return;
 
-    return (
-      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
-        <IconComponent className="w-3 h-3 mr-1" />
-        {config.label}
-      </span>
-    );
-  };
+    try {
+      setSaving(true);
 
-  const toggleSubwork = (subworkId: string) => {
-    setExpandedSubworks(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(subworkId)) {
-        newSet.delete(subworkId);
-      } else {
-        newSet.add(subworkId);
-      }
-      return newSet;
-    });
-  };
+      if (isNew) {
+        const { error } = await supabase
+          .schema('estimate')
+          .from('measurement_book')
+          .insert([{
+            ...measurement,
+            measured_by: user.email || 'Unknown User'
+          }]);
 
-  const getMeasurementStatus = (item: SubworkItem) => {
-    const itemMeasurements = measurementData?.measurements[item.sr_no] || [];
-    const measurementCount = itemMeasurements.length;
-    const totalMeasurementAmount = itemMeasurements.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
-    
-    if (measurementCount === 0) {
-      return { status: 'no_measurements', count: 0, amount: 0, color: 'text-gray-500', bgColor: 'bg-gray-50' };
-    } else if (totalMeasurementAmount > 0) {
-      return { status: 'measured', count: measurementCount, amount: totalMeasurementAmount, color: 'text-green-600', bgColor: 'bg-green-50' };
-    } else {
-      return { status: 'partial', count: measurementCount, amount: totalMeasurementAmount, color: 'text-yellow-600', bgColor: 'bg-yellow-50' };
-    }
-  };
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .schema('estimate')
+          .from('measurement_book')
+          .update(measurement)
+          .eq('sr_no', measurement.sr_no);
 
-  const filteredWorks = works.filter(work => {
-    const matchesSearch = work.work_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (work.works_id && work.works_id.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = statusFilter === 'all' || work.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+        if (error) throw error;
+      }
 
-  if (loading && !measurementData) {
-    return <LoadingSpinner text="Loading measurement book..." />;
-  }
+      fetchMeasurements(selectedWorkId);
+      setEditingRow(null);
+      setShowAddForm(false);
+      setNewMeasurement({});
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Enhanced Header */}
-      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 shadow-xl">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl shadow-lg">
-              <BookOpen className="h-8 w-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white drop-shadow-lg">
-                Measurement Book (MB)
-              </h1>
-              <p className="text-emerald-100 text-base mt-1 drop-shadow">
-                Record and manage detailed measurements for construction works
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+    } catch (error) {
+      console.error('Error saving measurement:', error);
+      alert('Error saving measurement');
+    } finally {
+      setSaving(false);
+    }
+  };
 
-      {/* Controls Section */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Work Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Building className="w-4 h-4 inline mr-1" />
-              Select Work
-            </label>
-            <select
-              value={selectedWorkId}
-              onChange={(e) => setSelectedWorkId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-            >
-              <option value="">Select Work...</option>
-              {works.map((work) => (
-                <option key={work.works_id} value={work.works_id}>
-                  {work.works_id} - {work.work_name}
-                </option>
-              ))}
-            </select>
-          </div>
+  const handleDeleteMeasurement = async (srNo: number) => {
+    if (!confirm('Are you sure you want to delete this measurement?')) return;
 
-          {/* Search */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Search className="w-4 h-4 inline mr-1" />
-              Search Works
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search works..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              />
-            </div>
-          </div>
+    try {
+      const { error } = await supabase
+        .schema('estimate')
+        .from('measurement_book')
+        .delete()
+        .eq('sr_no', srNo);
 
-          {/* Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Filter className="w-4 h-4 inline mr-1" />
-              Status Filter
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-            >
-              <option value="all">All Status</option>
-              <option value="draft">Draft</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      if (error) throw error;
+      fetchMeasurements(selectedWorkId);
+    } catch (error) {
+      console.error('Error deleting measurement:', error);
+      alert('Error deleting measurement');
+    }
+  };
 
-      {/* Selected Work Info */}
-      {measurementData && (
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">
-                  {measurementData.work.works_id} - {measurementData.work.work_name}
-                </h3>
-                <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                  <span className="flex items-center">
-                    <Building className="w-4 h-4 mr-1" />
-                    {measurementData.work.division || 'N/A'}
-                  </span>
-                  <span className="flex items-center">
-                    <IndianRupee className="w-4 h-4 mr-1" />
-                    Estimate: {formatCurrency(measurementData.work.total_estimated_cost)}
-                  </span>
-                  <span className="flex items-center">
-                    <Ruler className="w-4 h-4 mr-1" />
-                    Measured: {formatCurrency(measurementData.totalMeasurementAmount)}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div>
-              {getStatusBadge(measurementData.work.status)}
-            </div>
-          </div>
-        </div>
-      )}
+  const calculateQuantity = (units: number, length: number, width: number, height: number) => {
+    if (width === 0 && height === 0) {
+      return units; // Count only
+    } else if (height === 0) {
+      return units * length; // Linear
+    } else if (width === 0) {
+      return units * length; // Linear
+    } else {
+      return units * length * width * height; // Volume/Area
+    }
+  };
 
-      {/* Mode Selection */}
-      {measurementData && (
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex space-x-4">
-            <button
-              onClick={() => setEditMode('measurements')}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                editMode === 'measurements'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <div className="flex items-center justify-center">
-                <Ruler className="w-5 h-5 mr-2" />
-                Edit Measurements Only
-              </div>
-            </button>
-            <button
-              onClick={() => setEditMode('full_estimate')}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                editMode === 'full_estimate'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <div className="flex items-center justify-center">
-                <FileText className="w-5 h-5 mr-2" />
-                Estimate Editor
-              </div>
-            </button>
-          </div>
-        </div>
-      )}
+  const getVarianceStatus = (variance: number) => {
+    if (Math.abs(variance) < 0.01) {
+      return { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' };
+    } else {
+      return { icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-100' };
+    }
+  };
 
-      {/* Content Area */}
-      <div className="px-6 py-6">
-        {measurementData && editMode === 'measurements' ? (
-          <div className="space-y-6">
-            {measurementData.subworks.map((subwork) => {
-              const items = measurementData.subworkItems[subwork.subworks_id] || [];
-              const isExpanded = expandedSubworks.has(subwork.subworks_id);
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('hi-IN', {
+      style: 'currency',
+      currency: 'INR',
+    }).format(amount);
+  };
 
-              return (
-                <div key={subwork.subworks_id} className="bg-white rounded-lg shadow-sm border border-gray-200">
-                  <div 
-                    className="px-6 py-4 border-b border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
-                    onClick={() => toggleSubwork(subwork.subworks_id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
-                          {subwork.subworks_id} - {subwork.subworks_name}
-                        </h3>
-                        <p className="text-sm text-gray-600 mt-1">{items.length} items</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-500">
-                          {isExpanded ? 'Click to collapse' : 'Click to expand'}
-                        </span>
-                        <svg 
-                          className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
+  // Filter measurements
+  const filteredMeasurements = measurements.filter(measurement => {
+    const matchesSearch = measurement.description_of_items?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         measurement.item_id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSubwork = selectedSubworkId === 'all' || measurement.subwork_id === selectedSubworkId;
+    return matchesSearch && matchesSubwork;
+  });
 
-                  {isExpanded && items.length > 0 ? (
-                    <div className="divide-y divide-gray-200">
-                      {items.map((item) => {
-                        const measurementStatus = getMeasurementStatus(item);
-                        
-                        return (
-                          <div key={item.id} className="px-6 py-4 hover:bg-gray-50">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-3 mb-2">
-                                  <span className="text-sm font-medium text-gray-500">#{item.item_number}</span>
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${measurementStatus.bgColor} ${measurementStatus.color}`}>
-                                    {measurementStatus.count} measurements
-                                  </span>
-                                </div>
-                                
-                                <h4 className="font-medium text-gray-900 mb-2">
-                                  {item.description_of_item}
-                                </h4>
-                                
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                                  <div>
-                                    <span className="font-medium">Quantity:</span> {item.ssr_quantity} {item.ssr_unit}
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Rate:</span> {formatCurrency(item.ssr_rate || 0)}
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Estimate:</span> {formatCurrency(item.total_item_amount || 0)}
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Measured:</span> {formatCurrency(measurementStatus.amount)}
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div className="ml-6">
-                                <button
-                                  onClick={() => handleEditMeasurements(item, subwork)}
-                                  className={`inline-flex items-center px-4 py-2 rounded-lg transition-colors ${
-                                    measurementStatus.count > 0 
-                                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                  }`}
-                                >
-                                  <Edit2 className="w-4 h-4 mr-2" />
-                                  {measurementStatus.count > 0 ? `Edit Measurements (${measurementStatus.count})` : 'Add Measurements'}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : isExpanded && items.length === 0 ? (
-                    <div className="px-6 py-8 text-center text-gray-500">
-                      <Calculator className="mx-auto h-8 w-8 mb-2" />
-                      <p>No items found in this subwork</p>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        ) : selectedWorkId && editMode === 'full_estimate' ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">Full Estimate Editor</h3>
-              </div>
-              <button
-                onClick={() => setShowFullEstimateEdit(true)}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Edit2 className="w-4 h-4 mr-2" />
-                Open Excel-like Editor
-              </button>
-            </div>
-            
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <p className="text-blue-800 text-sm">
-                <strong>Full Estimate Editor:</strong> Edit the complete estimate in an Excel-like interface. 
-                All changes will be saved as a draft version.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <BookOpen className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Select a work to begin</h3>
-            <p className="text-gray-500">Choose a work from the dropdown above to start recording measurements.</p>
-          </div>
-        )}
-      </div>
+  if (loading) {
+    return <LoadingSpinner text="Loading measurement book..." />;
+  }
 
-      {/* Full Estimate Editor Modal */}
-      {showFullEstimateEdit && selectedWorkId && (
-        <FullEstimateEditor
-          workId={selectedWorkId}
-          isOpen={showFullEstimateEdit}
-          onClose={() => setShowFullEstimateEdit(false)}
-          onSave={() => {
-            if (selectedWorkId) {
-              fetchMeasurementData(selectedWorkId);
-            }
-          }}
-        />
-      )}
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-700 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
+        <div className="px-8 py-6">
+          <div className="flex items-center">
+            <div className="p-3 bg-white/20 rounded-2xl mr-4 shadow-lg">
+              <BookOpen className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white drop-shadow-lg">
+                Measurement Book (MB)
+              </h1>
+              <p className="text-violet-100 text-sm mt-1">Record and manage actual measurements for construction works</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      {/* Item Measurements Modal */}
-      {showItemMeasurements && selectedItemForMeasurement && (
-        <ItemMeasurements
-          item={{
-            id: selectedItemForMeasurement.itemSrNo.toString(),
-            sr_no: selectedItemForMeasurement.itemSrNo,
-            description_of_item: selectedItemForMeasurement.itemName,
-            subwork_id: selectedItemForMeasurement.subworkId
-          }}
-          itemName={selectedItemForMeasurement.itemName}
-          subworkId={selectedItemForMeasurement.subworkId}
-          subworkName={selectedItemForMeasurement.subworkName}
-          workId={selectedWorkId} // Pass workId to indicate Measurement Book context
-          isOpen={showItemMeasurements}
-          onClose={() => {
-            setShowItemMeasurements(false);
-            setSelectedItemForMeasurement(null);
-            if (selectedWorkId) {
-              fetchMeasurementData(selectedWorkId);
-            }
-          }}
-        />
-      )}
-    </div>
-  );
+      {/* Controls */}
+      <div className="bg-gradient-to-r from-slate-50 to-gray-100 rounded-2xl shadow-lg border border-slate-200 p-6">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
+          {/* Work Selection */}
+          <div className="flex-1 max-w-md">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Work
+            </label>
+            <select
+              value={selectedWorkId}
+              onChange={(e) => setSelectedWorkId(e.target.value)}
+              className="block w-full pl-3 pr-8 py-3 text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 rounded-xl bg-white shadow-lg"
+            >
+              <option value="">Select Work...</option>
+              {works.map((work) => (
+                <option key={work.works_id} value={work.works_id}>
+                  {work.works_id} - {work.work_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Search */}
+          <div className="flex-1 max-w-md relative">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Search Measurements
+            </label>
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style={{top: '28px'}}>
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search by description or item ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full pl-10 pr-3 py-3 text-sm border border-gray-300 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 shadow-lg"
+            />
+          </div>
+
+          {/* Subwork Filter */}
+          <div className="max-w-xs">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Filter by Subwork
+            </label>
+            <select
+              value={selectedSubworkId}
+              onChange={(e) => setSelectedSubworkId(e.target.value)}
+              className="block w-full pl-3 pr-8 py-3 text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 rounded-xl bg-white shadow-lg"
+            >
+              <option value="all">All Subworks</option>
+              {estimateData?.subworks.map((subwork) => (
+                <option key={subwork.subworks_id} value={subwork.subworks_id}>
+                  {subwork.subworks_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={importFromEstimate}
+              disabled={!selectedWorkId || saving}
+              className="inline-flex items-center px-4 py-3 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-300 transition-all duration-300 disabled:opacity-50"
+            >
+              <Import className="w-4 h-4 mr-2" />
+              Import from Estimate
+            </button>
+            <button
+              onClick={() => setShowAddForm(true)}
+              disabled={!selectedWorkId}
+              className="inline-flex items-center px-4 py-3 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-violet-300 transition-all duration-300 disabled:opacity-50"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Measurement
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Selected Work Info */}
+      {estimateData && (
+        <div className="bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-100 rounded-2xl border border-indigo-200 p-4 shadow-lg">
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-indigo-900">
+                {estimateData.work.works_id} - {estimateData.work.work_name}
+              </h3>
+              <p className="text-sm text-indigo-700 mt-1">
+                Division: {estimateData.work.division || 'N/A'} | Status: {estimateData.work.status}
+              </p>
+              <div className="flex items-center mt-2 text-sm text-indigo-600">
+                <Calculator className="w-4 h-4 mr-1" />
+                <span>Total Measurements: {filteredMeasurements.length}</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-indigo-700">Total Subworks: {estimateData.subworks.length}</p>
+              <p className="text-sm text-indigo-700">
+                Total Items: {Object.values(estimateData.subworkItems).flat().length}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Measurement Book Table */}
+      {selectedWorkId && (
+        <div className="bg-gradient-to-br from-white to-slate-50 shadow-xl rounded-2xl border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 bg-gradient-to-r from-violet-500 to-purple-600">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-2 bg-white/20 rounded-lg mr-3">
+                  <FileSpreadsheet className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">Measurement Book Entries</h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-white text-sm">
+                  Showing {filteredMeasurements.length} entries
+                </span>
+                <button
+                  onClick={() => fetchMeasurements(selectedWorkId)}
+                  className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4 text-white" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {filteredMeasurements.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gradient-to-r from-gray-50 to-slate-100">
+                  <tr>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                      Sr No
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                      Description
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                      Units
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                      Length
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                      Width
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                      Height
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                      Est. Qty
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                      Actual Qty
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                      Variance
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                      Unit
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                      Measured By
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredMeasurements.map((measurement) => {
+                    const isEditing = editingRow === measurement.sr_no;
+                    const varianceStatus = getVarianceStatus(measurement.variance);
+                    const VarianceIcon = varianceStatus.icon;
+
+                    return (
+                      <tr key={measurement.sr_no} className="hover:bg-gradient-to-r hover:from-violet-50 hover:to-purple-50 transition-all duration-200">
+                        <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
+                          {measurement.measurement_sr_no}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-gray-900 border-r border-gray-200 max-w-xs">
+                          {isEditing ? (
+                            <textarea
+                              value={measurement.description_of_items}
+                              onChange={(e) => {
+                                const updated = measurements.map(m => 
+                                  m.sr_no === measurement.sr_no 
+                                    ? { ...m, description_of_items: e.target.value }
+                                    : m
+                                );
+                                setMeasurements(updated);
+                              }}
+                              className="w-full p-1 text-xs border border-gray-300 rounded resize-none"
+                              rows={2}
+                            />
+                          ) : (
+                            <div className="text-xs line-clamp-2">{measurement.description_of_items}</div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 border-r border-gray-200">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              value={measurement.no_of_units}
+                              onChange={(e) => {
+                                const updated = measurements.map(m => 
+                                  m.sr_no === measurement.sr_no 
+                                    ? { ...m, no_of_units: parseFloat(e.target.value) || 0 }
+                                    : m
+                                );
+                                setMeasurements(updated);
+                              }}
+                              className="w-16 p-1 text-xs border border-gray-300 rounded text-center"
+                              step="1"
+                            />
+                          ) : (
+                            measurement.no_of_units
+                          )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 border-r border-gray-200">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              value={measurement.length}
+                              onChange={(e) => {
+                                const updated = measurements.map(m => 
+                                  m.sr_no === measurement.sr_no 
+                                    ? { ...m, length: parseFloat(e.target.value) || 0 }
+                                    : m
+                                );
+                                setMeasurements(updated);
+                              }}
+                              className="w-20 p-1 text-xs border border-gray-300 rounded text-center"
+                              step="0.001"
+                            />
+                          ) : (
+                            measurement.length.toFixed(3)
+                          )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 border-r border-gray-200">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              value={measurement.width_breadth}
+                              onChange={(e) => {
+                                const updated = measurements.map(m => 
+                                  m.sr_no === measurement.sr_no 
+                                    ? { ...m, width_breadth: parseFloat(e.target.value) || 0 }
+                                    : m
+                                );
+                                setMeasurements(updated);
+                              }}
+                              className="w-20 p-1 text-xs border border-gray-300 rounded text-center"
+                              step="0.001"
+                            />
+                          ) : (
+                            measurement.width_breadth.toFixed(3)
+                          )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 border-r border-gray-200">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              value={measurement.height_depth}
+                              onChange={(e) => {
+                                const updated = measurements.map(m => 
+                                  m.sr_no === measurement.sr_no 
+                                    ? { ...m, height_depth: parseFloat(e.target.value) || 0 }
+                                    : m
+                                );
+                                setMeasurements(updated);
+                              }}
+                              className="w-20 p-1 text-xs border border-gray-300 rounded text-center"
+                              step="0.001"
+                            />
+                          ) : (
+                            measurement.height_depth.toFixed(3)
+                          )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-blue-600 border-r border-gray-200">
+                          {measurement.estimated_quantity.toFixed(3)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-green-600 border-r border-gray-200">
+                          {measurement.actual_quantity.toFixed(3)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-sm border-r border-gray-200">
+                          <div className="flex items-center">
+                            <VarianceIcon className={`w-4 h-4 mr-1 ${varianceStatus.color}`} />
+                            <span className={`font-medium ${measurement.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {measurement.variance >= 0 ? '+' : ''}{measurement.variance.toFixed(3)}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 border-r border-gray-200">
+                          {measurement.unit}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 border-r border-gray-200">
+                          {measurement.measured_by}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex items-center space-x-1">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  onClick={() => handleSaveMeasurement(measurement)}
+                                  disabled={saving}
+                                  className="text-green-600 hover:text-green-800 p-1 rounded"
+                                  title="Save"
+                                >
+                                  <Save className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingRow(null);
+                                    fetchMeasurements(selectedWorkId);
+                                  }}
+                                  className="text-gray-600 hover:text-gray-800 p-1 rounded"
+                                  title="Cancel"
+                                >
+                                  ✕
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => setEditingRow(measurement.sr_no)}
+                                  className="text-blue-600 hover:text-blue-800 p-1 rounded"
+                                  title="Edit"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteMeasurement(measurement.sr_no)}
+                                  className="text-red-600 hover:text-red-800 p-1 rounded"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="mx-auto w-20 h-20 bg-gradient-to-br from-violet-100 to-purple-200 rounded-2xl flex items-center justify-center mb-4">
+                <BookOpen className="h-10 w-10 text-violet-600" />
+              </div>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No measurements found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {selectedWorkId 
+                  ? 'Import measurements from estimate or add new measurements manually.'
+                  : 'Select a work to view and manage measurements.'
+                }
+              </p>
+              {selectedWorkId && (
+                <div className="mt-6 flex justify-center space-x-3">
+                  <button
+                    onClick={importFromEstimate}
+                    disabled={saving}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-lg text-sm font-semibold rounded-2xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-300 transition-all duration-300"
+                  >
+                    <Import className="w-4 h-4 mr-2" />
+                    Import from Estimate
+                  </button>
+                  <button
+                    onClick={() => setShowAddForm(true)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-lg text-sm font-semibold rounded-2xl text-white bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-violet-300 transition-all duration-300"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Measurement
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add Measurement Form Modal */}
+      {showAddForm && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Add New Measurement</h3>
+                <button
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setNewMeasurement({});
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Close</span>
+                  ✕
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Subwork *
+                  </label>
+                  <select
+                    value={newMeasurement.subwork_id || ''}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, subwork_id: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                  >
+                    <option value="">Select Subwork</option>
+                    {estimateData?.subworks.map((subwork) => (
+                      <option key={subwork.subworks_id} value={subwork.subworks_id}>
+                        {subwork.subworks_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Item *
+                  </label>
+                  <select
+                    value={newMeasurement.item_id || ''}
+                    onChange={(e) => {
+                      const selectedItem = Object.values(estimateData?.subworkItems || {})
+                        .flat()
+                        .find(item => item.id === e.target.value);
+                      
+                      setNewMeasurement({
+                        ...newMeasurement, 
+                        item_id: e.target.value,
+                        description_of_items: selectedItem?.description_of_item || '',
+                        unit: selectedItem?.ssr_unit || '',
+                        estimated_quantity: selectedItem?.ssr_quantity || 0
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                    disabled={!newMeasurement.subwork_id}
+                  >
+                    <option value="">Select Item</option>
+                    {newMeasurement.subwork_id && estimateData?.subworkItems[newMeasurement.subwork_id]?.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.description_of_item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description of Items *
+                  </label>
+                  <textarea
+                    value={newMeasurement.description_of_items || ''}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, description_of_items: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                    rows={2}
+                    placeholder="Enter description of items"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Number of Units
+                  </label>
+                  <input
+                    type="number"
+                    value={newMeasurement.no_of_units || 1}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, no_of_units: parseInt(e.target.value) || 1})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                    min="1"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Length
+                  </label>
+                  <input
+                    type="number"
+                    value={newMeasurement.length || 0}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, length: parseFloat(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                    step="0.001"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Width/Breadth
+                  </label>
+                  <input
+                    type="number"
+                    value={newMeasurement.width_breadth || 0}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, width_breadth: parseFloat(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                    step="0.001"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Height/Depth
+                  </label>
+                  <input
+                    type="number"
+                    value={newMeasurement.height_depth || 0}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, height_depth: parseFloat(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                    step="0.001"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Estimated Quantity
+                  </label>
+                  <input
+                    type="number"
+                    value={newMeasurement.estimated_quantity || 0}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, estimated_quantity: parseFloat(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                    step="0.001"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unit
+                  </label>
+                  <input
+                    type="text"
+                    value={newMeasurement.unit || ''}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, unit: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                    placeholder="Enter unit"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Variance Reason (if any)
+                  </label>
+                  <textarea
+                    value={newMeasurement.variance_reason || ''}
+                    onChange={(e) => setNewMeasurement({...newMeasurement, variance_reason: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-violet-500 focus:border-violet-500"
+                    rows={2}
+                    placeholder="Enter reason for variance (optional)"
+                  />
+                </div>
+
+                {/* Calculated Values Display */}
+                <div className="md:col-span-2 bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Calculated Values:</h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Actual Quantity:</span>
+                      <span className="ml-2 font-medium text-green-600">
+                        {calculateQuantity(
+                          newMeasurement.no_of_units || 1,
+                          newMeasurement.length || 0,
+                          newMeasurement.width_breadth || 0,
+                          newMeasurement.height_depth || 0
+                        ).toFixed(3)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Variance:</span>
+                      <span className={`ml-2 font-medium ${
+                        (calculateQuantity(
+                          newMeasurement.no_of_units || 1,
+                          newMeasurement.length || 0,
+                          newMeasurement.width_breadth || 0,
+                          newMeasurement.height_depth || 0
+                        ) - (newMeasurement.estimated_quantity || 0)) >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {(calculateQuantity(
+                          newMeasurement.no_of_units || 1,
+                          newMeasurement.length || 0,
+                          newMeasurement.width_breadth || 0,
+                          newMeasurement.height_depth || 0
+                        ) - (newMeasurement.estimated_quantity || 0)).toFixed(3)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Unit:</span>
+                      <span className="ml-2 font-medium">{newMeasurement.unit || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setNewMeasurement({});
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSaveMeasurement({
+                    ...newMeasurement,
+                    work_id: selectedWorkId,
+                    measurement_sr_no: measurements.length + 1
+                  }, true)}
+                  disabled={!newMeasurement.subwork_id || !newMeasurement.item_id || !newMeasurement.description_of_items || saving}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2 inline-block" />
+                      Add Measurement
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default MeasurementBook;
