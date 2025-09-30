@@ -53,7 +53,6 @@ const Subworks: React.FC = () => {
   // Add state for subwork totals
   const [subworkTotals, setSubworkTotals] = useState<Record<string, number>>({});
   const totalSubworkEstimate = Object.values(subworkTotals || {}).reduce((acc, val) => acc + val, 0);
-  console.log("totalSubworkEstimate", totalSubworkEstimate);
 
   useEffect(() => {
     fetchWorks();
@@ -62,7 +61,6 @@ const Subworks: React.FC = () => {
   useEffect(() => {
     // Check if we received a selected works ID from navigation state
     if (location.state?.selectedWorksId) {
-      console.log('Setting selectedWorkId from navigation:', location.state.selectedWorksId);
       setSelectedWorkId(location.state.selectedWorksId);
       // Clear the navigation state to prevent re-execution
       window.history.replaceState({}, document.title);
