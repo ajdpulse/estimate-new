@@ -12,7 +12,7 @@ import Dashboard from './components/Dashboard';
 import Works from './components/Works';
 import Subworks from './components/Subworks';
 import Compare from './components/Compare';
-import GenerateEstimate from './components/GenerateEstimate';
+import GenerateEstimate from './components/generate-estimate/GenerateEstimate';
 import MeasurementBook from './components/MeasurementBook';
 
 // Protected Route Wrapper
