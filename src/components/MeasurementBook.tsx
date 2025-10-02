@@ -4,24 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Work, SubWork } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
-import {
-  BookOpen,
-  Search,
-  Filter,
-  Calculator,
-  FileText,
-  IndianRupee,
-  Building,
-  Plus,
-  Ruler,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  X,
-  ChevronDown,
-  ChevronRight,
-  Edit2
-} from 'lucide-react';
+import { BookOpen, Search, Filter, Calculator, FileText, IndianRupee, Building, Plus, Ruler, CheckCircle, AlertCircle, Clock, X, ChevronDown, ChevronRight, CreditCard as Edit2 } from 'lucide-react';
 
 interface ItemRate {
     sr_no: number;
