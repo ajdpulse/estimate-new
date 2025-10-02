@@ -19,7 +19,8 @@ import {
   Clock,
   X,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Edit2
 } from 'lucide-react';
 
 interface ItemRate {
@@ -99,6 +100,8 @@ const MeasurementBook = () => {
         unit: ''
     });
     const [showModal, setShowModal] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingMeasurementEntry, setEditingMeasurementEntry] = useState<MeasurementBookEntry | null>(null);
     const [expandedSubworks, setExpandedSubworks] = useState<Set<string>>(new Set());
     const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
 
@@ -259,6 +262,8 @@ const MeasurementBook = () => {
 
     const handleAddMeasurementClick = (measurement: ItemRate, subworkId: string) => {
         setEditingRow(measurement.sr_no);
+        setIsEditMode(false);
+        setEditingMeasurementEntry(null);
         setFormData({
             description_of_items: measurement.description || '',
             no_of_units: 1,
@@ -272,57 +277,105 @@ const MeasurementBook = () => {
         setShowModal(true);
     };
 
+    const handleEditMeasurementClick = (entry: MeasurementBookEntry) => {
+        setEditingMeasurementEntry(entry);
+        setIsEditMode(true);
+        setEditingRow(null);
+        setFormData({
+            description_of_items: entry.description_of_items || '',
+            no_of_units: entry.no_of_units || 1,
+            length: entry.length || 0,
+            width_breadth: entry.width_breadth || 0,
+            height_depth: entry.height_depth || 0,
+            actual_quantity: entry.actual_quantity || 0,
+            variance_reason: entry.variance_reason || '',
+            unit: entry.unit || ''
+        });
+        setShowModal(true);
+    };
+
     const handleFormChange = (field: keyof MeasurementForm, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleFormSubmit = async () => {
-        if (!selectedWorkId || !editingRow) {
-            alert("Missing required data");
-            return;
-        }
+        if (isEditMode && editingMeasurementEntry) {
+            try {
+                const { error } = await supabase
+                    .schema('estimate')
+                    .from('measurement_book')
+                    .update({
+                        description_of_items: formData.description_of_items,
+                        no_of_units: formData.no_of_units,
+                        length: formData.length,
+                        width_breadth: formData.width_breadth,
+                        height_depth: formData.height_depth,
+                        estimated_quantity: formData.length * formData.width_breadth * formData.height_depth * formData.no_of_units,
+                        actual_quantity: formData.actual_quantity,
+                        estimated_amount: formData.length * formData.width_breadth * formData.height_depth * formData.no_of_units,
+                        variance_reason: formData.variance_reason,
+                        unit: formData.unit,
+                        measured_by: user?.email || ''
+                    })
+                    .eq('sr_no', editingMeasurementEntry.sr_no);
 
-        const itemRate = itemRates.find(ir => ir.sr_no === editingRow);
-        if (!itemRate || !itemRate.subwork_items?.subwork_id) {
-            alert("Could not find subwork for this item");
-            return;
-        }
+                if (error) throw error;
+                setShowModal(false);
+                setIsEditMode(false);
+                setEditingMeasurementEntry(null);
+                fetchMeasurementBookData(selectedWorkId);
+            } catch (error) {
+                console.error("Error updating measurement_book:", error);
+                alert("Failed to update measurement");
+            }
+        } else {
+            if (!selectedWorkId || !editingRow) {
+                alert("Missing required data");
+                return;
+            }
 
-        try {
-            const { error } = await supabase
-                .schema('estimate')
-                .from('measurement_book')
-                .insert([{
-                    work_id: selectedWorkId,
-                    subwork_id: itemRate.subwork_items.subwork_id,
-                    item_id: editingRow.toString(),
-                    measurement_sr_no: 1,
-                    description_of_items: formData.description_of_items,
-                    no_of_units: formData.no_of_units,
-                    length: formData.length,
-                    width_breadth: formData.width_breadth,
-                    height_depth: formData.height_depth,
-                    estimated_quantity: formData.length * formData.width_breadth * formData.height_depth * formData.no_of_units,
-                    actual_quantity: formData.actual_quantity,
-                    estimated_amount: formData.length * formData.width_breadth * formData.height_depth * formData.no_of_units,
-                    variance_reason: formData.variance_reason,
-                    unit: formData.unit,
-                    measured_by: user?.email || ''
-                }]);
+            const itemRate = itemRates.find(ir => ir.sr_no === editingRow);
+            if (!itemRate || !itemRate.subwork_items?.subwork_id) {
+                alert("Could not find subwork for this item");
+                return;
+            }
 
-            if (error) throw error;
-            setShowModal(false);
-            setEditingRow(null);
-            fetchMeasurementBookData(selectedWorkId);
+            try {
+                const { error } = await supabase
+                    .schema('estimate')
+                    .from('measurement_book')
+                    .insert([{
+                        work_id: selectedWorkId,
+                        subwork_id: itemRate.subwork_items.subwork_id,
+                        item_id: editingRow.toString(),
+                        measurement_sr_no: 1,
+                        description_of_items: formData.description_of_items,
+                        no_of_units: formData.no_of_units,
+                        length: formData.length,
+                        width_breadth: formData.width_breadth,
+                        height_depth: formData.height_depth,
+                        estimated_quantity: formData.length * formData.width_breadth * formData.height_depth * formData.no_of_units,
+                        actual_quantity: formData.actual_quantity,
+                        estimated_amount: formData.length * formData.width_breadth * formData.height_depth * formData.no_of_units,
+                        variance_reason: formData.variance_reason,
+                        unit: formData.unit,
+                        measured_by: user?.email || ''
+                    }]);
 
-            setExpandedItems(prev => {
-                const newSet = new Set(prev);
-                newSet.add(editingRow);
-                return newSet;
-            });
-        } catch (error) {
-            console.error("Error inserting measurement_book:", error);
-            alert("Failed to add measurement");
+                if (error) throw error;
+                setShowModal(false);
+                setEditingRow(null);
+                fetchMeasurementBookData(selectedWorkId);
+
+                setExpandedItems(prev => {
+                    const newSet = new Set(prev);
+                    newSet.add(editingRow);
+                    return newSet;
+                });
+            } catch (error) {
+                console.error("Error inserting measurement_book:", error);
+                alert("Failed to add measurement");
+            }
         }
     };
 
@@ -626,6 +679,7 @@ const MeasurementBook = () => {
                                                                                                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Amount</th>
                                                                                                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Variance Reason</th>
                                                                                                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Measured By</th>
+                                                                                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Actions</th>
                                                                                             </tr>
                                                                                         </thead>
                                                                                         <tbody className="bg-white divide-y divide-gray-200">
@@ -642,6 +696,15 @@ const MeasurementBook = () => {
                                                                                                     <td className="px-3 py-2 text-xs text-gray-900">{formatCurrency(mb.estimated_amount || 0)}</td>
                                                                                                     <td className="px-3 py-2 text-xs text-gray-900">{mb.variance_reason || '-'}</td>
                                                                                                     <td className="px-3 py-2 text-xs text-gray-900">{mb.measured_by || '-'}</td>
+                                                                                                    <td className="px-3 py-2">
+                                                                                                        <button
+                                                                                                            onClick={() => handleEditMeasurementClick(mb)}
+                                                                                                            className="inline-flex items-center px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs"
+                                                                                                        >
+                                                                                                            <Edit2 className="w-3 h-3 mr-1" />
+                                                                                                            Edit
+                                                                                                        </button>
+                                                                                                    </td>
                                                                                                 </tr>
                                                                                             ))}
                                                                                         </tbody>
@@ -685,7 +748,7 @@ const MeasurementBook = () => {
                         >
                             <X className="w-6 h-6" />
                         </button>
-                        <h2 className="text-xl font-semibold mb-4">Add Measurement</h2>
+                        <h2 className="text-xl font-semibold mb-4">{isEditMode ? 'Edit Measurement' : 'Add Measurement'}</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -771,9 +834,9 @@ const MeasurementBook = () => {
                         <div className="mt-6 flex justify-end space-x-3">
                             <button
                                 onClick={handleFormSubmit}
-                                className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold shadow-md hover:scale-[1.03] transition-transform duration-200"
+                                className={`px-6 py-3 ${isEditMode ? 'bg-gradient-to-r from-blue-600 to-cyan-600' : 'bg-gradient-to-r from-emerald-600 to-teal-600'} text-white rounded-xl font-semibold shadow-md hover:scale-[1.03] transition-transform duration-200`}
                             >
-                                Add
+                                {isEditMode ? 'Update' : 'Add'}
                             </button>
                             <button
                                 onClick={() => setShowModal(false)}
