@@ -17,6 +17,7 @@ import {
   Calendar,
   Building,
 } from 'lucide-react';
+import EstimatePDFGenerator from './EstimatePDFGenerator';
 
 const Works: React.FC = () => {
   const { t } = useLanguage();
@@ -30,6 +31,8 @@ const Works: React.FC = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedWork, setSelectedWork] = useState<Work | null>(null);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+const [selectedWorkForPdf, setSelectedWorkForPdf] = useState<Work | null>(null);
   const [newWork, setNewWork] = useState<Partial<Work>>({
     type: 'Technical Sanction'
   });
@@ -125,12 +128,15 @@ const Works: React.FC = () => {
       sanctioning_authority: work.sanctioning_authority || '',
       ssr: work.ssr || '',
       status: work.status,
-      total_estimated_cost: work.total_estimated_cost
+      total_estimated_cost: work.total_estimated_cost,
+      village: work.village,
+      taluka: work.grampanchayat,
+      grampanchayat: work.taluka,
     });
     setShowEditModal(true);
   };
 
-  const handleUpdateWork = async () => {
+  const handleUpdateWork = async () => {debugger
     if (!newWork.work_name || !selectedWork) return;
 
     try {
@@ -152,6 +158,34 @@ const Works: React.FC = () => {
       console.error('Error updating work:', error);
     }
   };
+
+   const PageHeader: React.FC<{ pageNumber?: number }> = ({ pageNumber }) => (
+      <div className="text-center mb-6 pb-4 border-b-2 border-gray-300">
+        <h1 className="text-lg font-bold text-red-600 mb-2">{documentSettings.header.zilla}</h1>
+        <h2 className="text-base font-semibold text-blue-600 mb-1">{documentSettings.header.division}</h2>
+        <h3 className="text-sm font-medium text-blue-600 mb-3">{documentSettings.header.subDivision}</h3>
+        {pageNumber && documentSettings.pageSettings.showPageNumbers && documentSettings.pageSettings.pageNumberPosition === 'top' && (
+          <div className="text-xs text-gray-500">Page {pageNumber}</div>
+        )}
+      </div>
+    );
+  
+    const PageFooter: React.FC<{ pageNumber?: number }> = ({ pageNumber }) => (
+      <div className="mt-8 pt-4 border-t-2 border-gray-300">
+        <div className="flex justify-between items-end">
+          <div className="text-left">
+            <p className="text-sm font-medium">Prepared By:</p>
+            <p className="text-xs mt-2">{documentSettings.footer.preparedBy}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-medium">{documentSettings.footer.designation}</p>
+          </div>
+        </div>
+        {pageNumber && documentSettings.pageSettings.showPageNumbers && documentSettings.pageSettings.pageNumberPosition === 'bottom' && (
+          <div className="text-center text-xs text-gray-500 mt-2">Page {pageNumber}</div>
+        )}
+      </div>
+    );
 
   const handleDeleteWork = async (work: Work) => {
     if (!confirm('Are you sure you want to delete this work? This action cannot be undone.')) {
@@ -218,6 +252,11 @@ const Works: React.FC = () => {
       currency: 'INR',
     }).format(amount);
   };
+
+const handlePdfView = (work: Work) => {
+  setSelectedWorkForPdf(work);
+  setShowPdfModal(true);
+};
 
   const filteredWorks = works.filter(work => {
     const matchesSearch = work.work_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -379,6 +418,13 @@ const Works: React.FC = () => {
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center space-x-2">
+                         <button
+      onClick={() => handlePdfView(work)}
+      className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-100 transition"
+      title="View PDF"
+    >
+      <FileText className="w-4 h-4" />
+    </button>
                         <button 
                           onClick={() => handleViewWork(work)}
                           className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -620,6 +666,44 @@ const Works: React.FC = () => {
                     onChange={(e) => setNewWork({...newWork, total_estimated_cost: parseFloat(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter total estimated cost"
+                  />
+                </div>
+
+                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.village')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.village || ''}
+                    onChange={(e) => setNewWork({...newWork, village: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entervillage')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.grampanchayat')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.grampanchayat || ''}
+                    onChange={(e) => setNewWork({...newWork, grampanchayat: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entergrampanchayat')}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.taluka')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.taluka || ''}
+                    onChange={(e) => setNewWork({...newWork, taluka: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entertaluka')}
                   />
                 </div>
               </div>
@@ -930,14 +1014,52 @@ const Works: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Total Estimated Cost (₹)
                   </label>
-                  <input
+                 <input
                     type="number"
                     min="0"
                     step="0.01"
-                    value={newWork.total_estimated_cost}
+                    value={newWork.total_estimated_cost || ''}
                     onChange={(e) => setNewWork({...newWork, total_estimated_cost: parseFloat(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter total estimated cost"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.village')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.village || ''}
+                    onChange={(e) => setNewWork({...newWork, village: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entervillage')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.grampanchayat')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.grampanchayat || ''}
+                    onChange={(e) => setNewWork({...newWork, grampanchayat: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entergrampanchayat')}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.taluka')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.taluka || ''}
+                    onChange={(e) => setNewWork({...newWork, taluka: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entertaluka')}
                   />
                 </div>
               </div>
@@ -961,6 +1083,25 @@ const Works: React.FC = () => {
           </div>
         </div>
       )}
+
+      {showPdfModal && selectedWorkForPdf && (
+  <div className="fixed inset-0 z-50 bg-gray-600 bg-opacity-50 flex justify-center items-center p-4">
+    <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] overflow-auto relative p-4">
+      <button
+        onClick={() => setShowPdfModal(false)}
+        className="absolute top-2 right-2 text-gray-600 hover:text-gray-900"
+      >
+        Close
+      </button>
+      <EstimatePDFGenerator
+        workId={selectedWorkForPdf.worksid} // or the correct unique ID field
+        isOpen={showPdfModal}
+        onClose={() => setShowPdfModal(false)}
+      />
+    </div>
+  </div>
+)}
+
 
     </div>
   );
