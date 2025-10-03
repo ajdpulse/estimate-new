@@ -51,6 +51,9 @@ export interface Work {
   sanctioning_authority?: string;
   status: 'draft' | 'pending' | 'approved' | 'rejected' | 'in_progress' | 'completed';
   total_estimated_cost: number;
+  village: string,
+  taluka: string,
+  grampanchayat: string,
   created_at: string;
   updated_at: string;
   created_by: string;

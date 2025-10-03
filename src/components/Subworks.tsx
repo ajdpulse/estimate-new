@@ -242,7 +242,7 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {debugger
     const file = event.target.files?.[0];
     if (!file || !selectedSubworkForDesign || !user) return;
 
@@ -252,17 +252,17 @@ const Subworks: React.FC = () => {
       // Upload to Supabase Storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${selectedSubworkForDesign.subworks_id}_${Date.now()}.${fileExt}`;
-      const filePath = `subwork-designs/${fileName}`;
+      const filePath = `estimate-designs/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('estimate-forms')
+        .from('estimate-designs')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('estimate-forms')
+        .from('estimate-designs')
         .getPublicUrl(filePath);
 
       // Save to database

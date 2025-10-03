@@ -125,12 +125,15 @@ const Works: React.FC = () => {
       sanctioning_authority: work.sanctioning_authority || '',
       ssr: work.ssr || '',
       status: work.status,
-      total_estimated_cost: work.total_estimated_cost
+      total_estimated_cost: work.total_estimated_cost,
+      village: work.village,
+      taluka: work.grampanchayat,
+      grampanchayat: work.taluka,
     });
     setShowEditModal(true);
   };
 
-  const handleUpdateWork = async () => {
+  const handleUpdateWork = async () => {debugger
     if (!newWork.work_name || !selectedWork) return;
 
     try {
@@ -622,6 +625,44 @@ const Works: React.FC = () => {
                     placeholder="Enter total estimated cost"
                   />
                 </div>
+
+                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.village')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.village || ''}
+                    onChange={(e) => setNewWork({...newWork, village: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entervillage')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.grampanchayat')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.grampanchayat || ''}
+                    onChange={(e) => setNewWork({...newWork, grampanchayat: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entergrampanchayat')}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.taluka')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.taluka || ''}
+                    onChange={(e) => setNewWork({...newWork, taluka: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entertaluka')}
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
@@ -930,14 +971,52 @@ const Works: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Total Estimated Cost (₹)
                   </label>
-                  <input
+                 <input
                     type="number"
                     min="0"
                     step="0.01"
-                    value={newWork.total_estimated_cost}
+                    value={newWork.total_estimated_cost || ''}
                     onChange={(e) => setNewWork({...newWork, total_estimated_cost: parseFloat(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter total estimated cost"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.village')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.village || ''}
+                    onChange={(e) => setNewWork({...newWork, village: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entervillage')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.grampanchayat')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.grampanchayat || ''}
+                    onChange={(e) => setNewWork({...newWork, grampanchayat: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entergrampanchayat')}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('addWork.taluka')}
+                  </label>
+                  <input
+                    type="text"
+                    value={newWork.taluka || ''}
+                    onChange={(e) => setNewWork({...newWork, taluka: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={t('addWork.entertaluka')}
                   />
                 </div>
               </div>
