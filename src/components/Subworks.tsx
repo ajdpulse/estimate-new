@@ -197,14 +197,14 @@ const Subworks: React.FC = () => {
       const filePath = `subwork-designs/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('estimate-forms')
+        .from('estimate-designs')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('estimate-forms')
+        .from('estimate-designs')
         .getPublicUrl(filePath);
 
       // Save to database
