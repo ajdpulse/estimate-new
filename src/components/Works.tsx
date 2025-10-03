@@ -1094,7 +1094,7 @@ const handlePdfView = (work: Work) => {
         Close
       </button>
       <EstimatePDFGenerator
-        workId={selectedWorkForPdf.worksid} // or the correct unique ID field
+        workId={selectedWorkForPdf.works_id}
         isOpen={showPdfModal}
         onClose={() => setShowPdfModal(false)}
       />
