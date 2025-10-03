@@ -5,18 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import LoadingSpinner from './common/LoadingSpinner';
 import { Work } from '../types';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit2, 
-  Trash2, 
-  Eye,
-  FileText,
-  IndianRupee,
-  Calendar,
-  Building,
-} from 'lucide-react';
+import { Plus, Search, Filter, CreditCard as Edit2, Trash2, Eye, FileText, IndianRupee, Calendar, Building } from 'lucide-react';
 import EstimatePDFGenerator from './EstimatePDFGenerator';
 
 const Works: React.FC = () => {
