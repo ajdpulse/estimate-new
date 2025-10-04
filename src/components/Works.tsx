@@ -4,7 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import LoadingSpinner from './common/LoadingSpinner';
-import { Work } from '../types';
+import { Work, RecapCalculations, TaxEntry } from '../types';
 import WorksRecapSheet from './WorksRecapSheet';
 import { Plus, Search, Filter, CreditCard as Edit2, Trash2, Eye, FileText, IndianRupee, Calendar, Building } from 'lucide-react';
 
@@ -21,7 +21,8 @@ const Works: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedWork, setSelectedWork] = useState<Work | null>(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
-const [selectedWorkForPdf, setSelectedWorkForPdf] = useState<Work | null>(null);
+  const [selectedWorkForPdf, setSelectedWorkForPdf] = useState<Work | null>(null);
+  const [savedCalculations, setSavedCalculations] = useState<{ [workId: string]: { calculations: RecapCalculations; taxes: TaxEntry[] } }>({});
   const [newWork, setNewWork] = useState<Partial<Work>>({
     type: 'Technical Sanction'
   });
@@ -1078,16 +1079,18 @@ const handlePdfView = (work: Work) => {
     <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] overflow-auto relative p-4">
       <button
         onClick={() => setShowPdfModal(false)}
-        className="absolute top-2 right-2 text-gray-600 hover:text-gray-900"
+        className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 z-10"
       >
         Close
       </button>
       <WorksRecapSheet
-        workId={selectedWorkForPdf.works_id} // or the correct unique ID field
-        isOpen={showPdfModal}
-        onClose={() => setShowPdfModal(false)}
-        autoGeneratePdfOnly={true}
-        autoOpenPreview={true}
+        workId={selectedWorkForPdf.works_id}
+        onSave={(calculations, taxes) => {
+          setSavedCalculations(prev => ({
+            ...prev,
+            [selectedWorkForPdf.works_id]: { calculations, taxes }
+          }));
+        }}
       />
     </div>
   </div>

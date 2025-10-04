@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Work, SubWork, SubworkItem, TaxEntry, RecapCalculations } from '../types';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Save, Check } from 'lucide-react';
 
 interface WorksRecapSheetProps {
   workId: string;
   onCalculationsChange?: (calculations: RecapCalculations, taxes: TaxEntry[]) => void;
+  onSave?: (calculations: RecapCalculations, taxes: TaxEntry[]) => void;
 }
 
-const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({ workId, onCalculationsChange }) => {
+const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({ workId, onCalculationsChange, onSave }) => {
   const [work, setWork] = useState<Work | null>(null);
   const [subworks, setSubworks] = useState<SubWork[]>([]);
   const [subworkItems, setSubworkItems] = useState<{ [subworkId: string]: SubworkItem[] }>({});
@@ -17,6 +18,7 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({ workId, onCalculation
     { id: '1', name: 'GST', percentage: 18, applyTo: 'part_b' }
   ]);
   const [calculations, setCalculations] = useState<RecapCalculations | null>(null);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (workId) {
@@ -149,16 +151,27 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({ workId, onCalculation
       applyTo: 'both'
     };
     setTaxes([...taxes, newTax]);
+    setSaved(false);
   };
 
   const updateTax = (id: string, field: keyof TaxEntry, value: any) => {
     setTaxes(taxes.map(tax =>
       tax.id === id ? { ...tax, [field]: value } : tax
     ));
+    setSaved(false);
   };
 
   const removeTax = (id: string) => {
     setTaxes(taxes.filter(tax => tax.id !== id));
+    setSaved(false);
+  };
+
+  const handleSave = () => {
+    if (calculations && onSave) {
+      onSave(calculations, taxes);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
   };
 
   const getPartASubworks = () => {
@@ -206,13 +219,36 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({ workId, onCalculation
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Tax Configuration</h3>
-          <button
-            onClick={addTax}
-            className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add Tax
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleSave}
+              disabled={!calculations}
+              className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
+                saved
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {saved ? (
+                <>
+                  <Check className="w-4 h-4 mr-1" />
+                  Saved
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-1" />
+                  Save
+                </>
+              )}
+            </button>
+            <button
+              onClick={addTax}
+              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add Tax
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">

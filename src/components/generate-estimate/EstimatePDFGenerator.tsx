@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Work, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial } from '../../types';
+import { Work, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial, RecapCalculations, TaxEntry } from '../../types';
 import LoadingSpinner from '../common/LoadingSpinner';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -51,12 +51,16 @@ interface EstimatePDFGeneratorProps {
   workId: string;
   isOpen: boolean;
   onClose: () => void;
+  savedCalculations?: RecapCalculations;
+  savedTaxes?: TaxEntry[];
 }
 
 export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
   workId,
   isOpen,
-  onClose
+  onClose,
+  savedCalculations,
+  savedTaxes
 }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);

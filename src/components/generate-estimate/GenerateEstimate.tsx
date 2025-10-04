@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Work, EstimateTemplate, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial } from '../types';
+import { Work, EstimateTemplate, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial, RecapCalculations, TaxEntry } from '../../types';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { EstimatePDFGenerator } from './EstimatePDFGenerator';
 import { 
@@ -38,6 +38,7 @@ const GenerateEstimate: React.FC = () => {
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [savedCalculations, setSavedCalculations] = useState<{ [workId: string]: { calculations: RecapCalculations; taxes: TaxEntry[] } }>({});
 
   useEffect(() => {
     fetchWorks();
@@ -707,6 +708,8 @@ const GenerateEstimate: React.FC = () => {
             setShowPDFGenerator(false);
             setSelectedWorkForPDF('');
           }}
+          savedCalculations={savedCalculations[selectedWorkForPDF]?.calculations}
+          savedTaxes={savedCalculations[selectedWorkForPDF]?.taxes}
         />
       )}
 
