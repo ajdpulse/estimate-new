@@ -17,7 +17,7 @@ import {
   Calendar,
   Building,
 } from 'lucide-react';
-import WorksRecapSheet  from './WorksRecapSheet ';
+import WorksRecapSheet  from '/src/components/WorksRecapSheet.tsx ';
 
 const Works: React.FC = () => {
   const { t } = useLanguage();
