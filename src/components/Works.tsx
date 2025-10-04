@@ -6,18 +6,7 @@ import { supabase } from '../lib/supabase';
 import LoadingSpinner from './common/LoadingSpinner';
 import { Work } from '../types';
 import WorksRecapSheet from './WorksRecapSheet';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit2, 
-  Trash2, 
-  Eye,
-  FileText,
-  IndianRupee,
-  Calendar,
-  Building,
-} from 'lucide-react';
+import { Plus, Search, Filter, CreditCard as Edit2, Trash2, Eye, FileText, IndianRupee, Calendar, Building } from 'lucide-react';
 
 const Works: React.FC = () => {
   const { t } = useLanguage();
