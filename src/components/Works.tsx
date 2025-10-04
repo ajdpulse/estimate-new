@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import LoadingSpinner from './common/LoadingSpinner';
 import { Work } from '../types';
-import WorksRecapSheet  from './components/WorksRecapSheet.tsx ';
+import WorksRecapSheet from './WorksRecapSheet';
 import { 
   Plus, 
   Search, 
