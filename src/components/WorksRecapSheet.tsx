@@ -51,17 +51,49 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
     if (work && subworks.length > 0) calculateRecap();
   }, [work, subworks, subworkItems, taxes, unitInputs]);
 
-  const fetchWorkData = async () => {
-    try {
-      setLoading(true);
-      const { data: workData, error: workError } = await supabase
-        .schema('estimate')
-        .from('works')
-        .select('*')
-        .eq('works_id', workId)
-        .single();
+ const fetchWorkData = async () => {
+  try {
+    setLoading(true);
+    const { data: workData, error: workError } = await supabase
+      .schema('estimate')
+      .from('works')
+      .select('*')
+      .eq('works_id', workId)
+      .single();
 
-      if (workError) throw workError;
+    if (workError) throw workError;
+
+    // Check if recap_json exists and parse it
+    if (workData?.recap_json) {
+      const recapJsonData = JSON.parse(workData.recap_json);
+
+      setWork(recapJsonData.work || workData);
+
+      if (recapJsonData.subworks) {
+        setSubworks(recapJsonData.subworks);
+      } else {
+        setSubworks([]);
+      }
+
+      if (recapJsonData.subworkItems) {
+        setSubworkItems(recapJsonData.subworkItems);
+      } else {
+        setSubworkItems({});
+      }
+
+      if (recapJsonData.taxes) {
+        setTaxes(recapJsonData.taxes);
+      } else {
+        setTaxes([{ id: '1', name: 'GST', percentage: 18, applyTo: 'part_b' }]);
+      }
+
+      if (recapJsonData.unitInputs) {
+        setLocalUnitInputs(recapJsonData.unitInputs);
+      } else {
+        setLocalUnitInputs({});
+      }
+    } else {
+      // If no recap_json, fallback to normal fetching
       setWork(workData);
 
       const { data: subworksData, error: subworksError } = await supabase
@@ -85,12 +117,13 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
         itemsMap[subwork.subworks_id] = items || [];
       }
       setSubworkItems(itemsMap);
-    } catch (error) {
-      console.error('Error fetching work data:', error);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching work data:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const calculateRecap = () => {
     let partASubtotal = 0;
@@ -165,43 +198,67 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
     setSaved(false);
   };
 
-const handleSave = async () => {debugger
-  if (calculations && onSave) {
-    onSave(calculations, taxes);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
+  const handleSave = async () => {
+    debugger
+    debugger;
+    if (calculations && onSave) {
+      onSave(calculations, taxes);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
 
-  try {
-    const recapData = {
-      workId,
-      work,
-      subworks,
-      subworkItems,
-      taxes,
-      calculations,
-      unitInputs,
-      savedAt: new Date().toISOString(),
-    };
+    try {
+      // 🟢 Step 1: Fetch 'type' from works table
+      const { data: workTypeData, error: typeError } = await supabase
+        .schema('estimate')
+        .from('works')
+        .select('*')
+        .eq('works_id', workId)
+        .single();
 
-    const { data, error } = await supabase
-      .schema('estimate')
-      .from('works')
-      .upsert(
-        [
-          {
-            works_id: workId,
-            recap_json: JSON.stringify(recapData),
-            updated_at: new Date().toISOString(),
-          },
-        ],
-        { onConflict: 'works_id' }
-      );
-    if (error) throw error;
-  } catch (error) {
-    console.error('❌ Error saving recap data to Supabase:', error);
-  }
-};
+      if (typeError) throw typeError;
+
+      const fetchedType = workTypeData?.type ?? null;
+      const fetchedWorkName = workTypeData?.work_name ?? null;
+
+      // 🟢 Step 2: Prepare recap data with fetched type
+      const recapData = {
+        workId,
+        work,
+        type: fetchedType, // ✅ use fetched type here
+        work_name: fetchedWorkName,
+        subworks,
+        subworkItems,
+        taxes,
+        calculations,
+        unitInputs,
+        savedAt: new Date().toISOString(),
+      };
+
+      // 🟢 Step 3: Update works table with recap JSON
+      const { data, error } = await supabase
+        .schema('estimate')
+        .from('works')
+        .upsert(
+          [
+            {
+              works_id: workId,
+              type: fetchedType, // ✅ add this line
+              work_name: fetchedWorkName, // ✅ add this line
+              recap_json: JSON.stringify(recapData),
+              updated_at: new Date().toISOString(),
+            },
+          ],
+          { onConflict: 'works_id' }
+        );
+
+
+      if (error) throw error;
+      console.log('✅ Recap data updated with fetched type:', data);
+    } catch (error) {
+      console.error('❌ Error saving recap data to Supabase:', error);
+    }
+  };
 
   const getPartASubworks = () => {
     return subworks.filter(subwork => {
@@ -261,9 +318,8 @@ const handleSave = async () => {debugger
               <button
                 onClick={handleSave}
                 disabled={!calculations}
-                className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
-                  saved ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${saved ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {saved ? (
                   <>
