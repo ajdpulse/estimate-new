@@ -53,7 +53,6 @@ const Subworks: React.FC = () => {
   // Add state for subwork totals
   const [subworkTotals, setSubworkTotals] = useState<Record<string, number>>({});
   const totalSubworkEstimate = Object.values(subworkTotals || {}).reduce((acc, val) => acc + val, 0);
-  console.log("totalSubworkEstimate", totalSubworkEstimate);
 
   useEffect(() => {
     fetchWorks();
@@ -62,7 +61,6 @@ const Subworks: React.FC = () => {
   useEffect(() => {
     // Check if we received a selected works ID from navigation state
     if (location.state?.selectedWorksId) {
-      console.log('Setting selectedWorkId from navigation:', location.state.selectedWorksId);
       setSelectedWorkId(location.state.selectedWorksId);
       // Clear the navigation state to prevent re-execution
       window.history.replaceState({}, document.title);
@@ -111,6 +109,7 @@ const Subworks: React.FC = () => {
     }
   };
 
+  
   const fetchSubworks = async (workId: string) => {
     try {
       const { data, error } = await supabase
@@ -243,7 +242,7 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {debugger
     const file = event.target.files?.[0];
     if (!file || !selectedSubworkForDesign || !user) return;
 
@@ -253,17 +252,17 @@ const Subworks: React.FC = () => {
       // Upload to Supabase Storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${selectedSubworkForDesign.subworks_id}_${Date.now()}.${fileExt}`;
-      const filePath = `subwork-designs/${fileName}`;
+      const filePath = `estimate-designs/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('estimate-forms')
+        .from('estimate-designs')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('estimate-forms')
+        .from('estimate-designs')
         .getPublicUrl(filePath);
 
       // Save to database
