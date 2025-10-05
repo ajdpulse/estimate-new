@@ -176,6 +176,7 @@ const handleSave = async () => {debugger;
     const recapData = {
       workId,
       work,
+      type,
       subworks,
       subworkItems,
       taxes,
