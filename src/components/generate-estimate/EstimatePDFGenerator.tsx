@@ -1,10 +1,22 @@
-import React, { useState, useRef } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
-import { Work, SubWork, SubworkItem, ItemMeasurement, ItemLead, ItemMaterial } from '../../types';
-import LoadingSpinner from '../common/LoadingSpinner';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+
+import React, { useState, useRef } from "react";
+import {useAuth} from "../../contexts/AuthContext";
+import {supabase} from "../../lib/supabase";
+import {
+  Work,
+  SubWork,
+  SubworkItem,
+  ItemMeasurement,
+  ItemLead,
+  ItemMaterial,
+  RecapCalculations,
+  TaxEntry,
+} from "../../types";
+
+import LoadingSpinner from "../common/LoadingSpinner";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
 import {
   X,
   Download,
@@ -16,16 +28,18 @@ import {
   Trash2,
   Calendar,
   FileText,
-  Loader2
+  Loader2,
 } from "lucide-react";
+
+import WorksRecapSheet from "../WorksRecapSheet";
 
 interface EstimateData {
   work: Work;
   subworks: SubWork[];
-  subworkItems: { [subworkId: string]: SubworkItem[] };
-  measurements: { [itemId: string]: ItemMeasurement[] };
-  leads: { [itemId: string]: ItemLead[] };
-  materials: { [itemId: string]: ItemMaterial[] };
+  subworkItems: Record<string, SubworkItem[]>;
+  measurements: Record<string, ItemMeasurement[]>;
+  leads: Record<string, ItemLead[]>;
+  materials: Record<string, ItemMaterial[]>;
 }
 
 interface DocumentSettings {
@@ -41,7 +55,7 @@ interface DocumentSettings {
   };
   pageSettings: {
     showPageNumbers: boolean;
-    pageNumberPosition: 'top' | 'bottom';
+    pageNumberPosition: "top" | "bottom";
     marginTop: number;
     marginBottom: number;
   };
@@ -51,39 +65,45 @@ interface EstimatePDFGeneratorProps {
   workId: string;
   isOpen: boolean;
   onClose: () => void;
+  savedCalculations?: RecapCalculations | null;
+  savedTaxes?: TaxEntry[] | null;
 }
 
 export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
   workId,
   isOpen,
-  onClose
+  onClose,
+  savedCalculations,
+  savedTaxes,
 }) => {
-  const { user } = useAuth();
+  const user = useAuth();
+
   const [loading, setLoading] = useState(false);
   const [estimateData, setEstimateData] = useState<EstimateData | null>(null);
+
   const [showPreview, setShowPreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const printRef = useRef<HTMLDivElement>(null);
 
-  // Default document settings
+  const printRef = useRef<HTMLDivElement | null>(null);
+
   const [documentSettings, setDocumentSettings] = useState<DocumentSettings>({
     header: {
       zilla: "ZILLA PARISHAD, CHANDRAPUR",
       division: "RURAL WATER SUPPLY DIVISION, Z.P., CHANDRAPUR",
-      subDivision: "RURAL WATER SUPPLY SUB-DIVISION (Z.P.), CHANDRAPUR",
-      title: "ESTIMATE"
+      subDivision: "RURAL WATER SUPPLY SUB-DIVISION Z.P., CHANDRAPUR",
+      title: "ESTIMATE",
     },
     footer: {
       preparedBy: "Pragati Bahu Uddeshiya Sanstha, Warora, Tah.- Chandrapur",
-      designation: "Sub Divisional Engineer Z.P Rural Water supply Sub-Division, Chandrapur"
+      designation: "Sub Divisional Engineer Z.P Rural Water supply Sub-Division, Chandrapur",
     },
     pageSettings: {
       showPageNumbers: true,
-      pageNumberPosition: 'bottom',
+      pageNumberPosition: "bottom",
       marginTop: 20,
-      marginBottom: 20
-    }
+      marginBottom: 20,
+    },
   });
 
   React.useEffect(() => {
@@ -93,6 +113,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
   }, [isOpen, workId]);
 
   const fetchEstimateData = async () => {
+    debugger
     try {
       setLoading(true);
 
@@ -180,7 +201,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
   const calculateTotalEstimate = () => {
     if (!estimateData) return 0;
-    
+
     let total = 0;
     estimateData.subworks.forEach(subwork => {
       const items = estimateData.subworkItems[subwork.subworks_id] || [];
@@ -188,7 +209,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
         total += item.total_item_amount || 0;
       });
     });
-    
+
     return total;
   };
 
@@ -197,7 +218,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
     try {
       setLoading(true);
-      
+
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = 210;
       const pageHeight = 297;
@@ -207,7 +228,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
       // Get all page elements
       const pages = printRef.current.querySelectorAll('.pdf-page');
-      
+
       for (let i = 0; i < pages.length; i++) {
         if (i > 0) {
           pdf.addPage();
@@ -234,10 +255,10 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
           const pageNum = i + 1;
           const totalPages = pages.length;
           const pageText = `Page ${pageNum} of ${totalPages}`;
-          
+
           pdf.setFontSize(10);
           pdf.setTextColor(100);
-          
+
           if (documentSettings.pageSettings.pageNumberPosition === 'bottom') {
             pdf.text(pageText, pageWidth / 2, pageHeight - 5, { align: 'center' });
           } else {
@@ -288,45 +309,42 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-4 mx-auto p-5 border w-11/12 max-w-7xl shadow-lg rounded-md bg-white min-h-[90vh]">
+      <div className="relative top-4 mx-auto p-5 border w-[1112px] max-w-7xl shadow-lg rounded-md bg-white min-h-[90vh]">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-medium text-gray-900">Generate Estimate Report</h3>
           <div className="flex items-center space-x-2">
-            {estimateData && (
-              <>
-                <button
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </button>
-                <button
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  {showPreview ? 'Hide Preview' : 'Show Preview'}
-                </button>
-                <button
-                  onClick={generatePDF}
-                  disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="w-4 h-4 mr-2" />
-                  )}
-                  Generate PDF
-                </button>
-              </>
-            )}
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </button>
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              {showPreview ? "Hide Preview" : "Show Preview"}
+            </button>
+            <button
+              onClick={generatePDF}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              Generate PDF
+            </button>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600"
+              title="Close"
             >
-              ✕
+              <X className="w-6 h-6" />
             </button>
           </div>
         </div>
@@ -438,15 +456,15 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
         {estimateData && showPreview && (
           <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[70vh] overflow-y-auto">
             <div ref={printRef} className="bg-white">
-              
+
               {/* Page 1: Cover Page */}
               <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
                 <PageHeader pageNumber={1} />
-                
+
                 <div className="flex-1 flex flex-col justify-center">
                   <div className="text-center border-2 border-black p-8">
                     <h1 className="text-2xl font-bold underline mb-8">{documentSettings.header.title}</h1>
-                    
+
                     <div className="mb-6">
                       <p className="text-lg font-semibold mb-2">{estimateData.work.work_name}</p>
                       <p className="text-base">
@@ -456,12 +474,12 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                         {!estimateData.work.taluka && !estimateData.work.district && 'Tah: Chandrapur, Dist:- Chandrapur'}
                       </p>
                     </div>
-                    
+
                     <div className="mb-8">
                       <p className="text-lg mb-2">( 2024-25)</p>
                       <p className="text-xl font-bold">ESTIMATED COST. Rs. {(estimateData.work.total_estimated_cost || calculateTotalEstimate()).toLocaleString('hi-IN')}</p>
                     </div>
-                    
+
                     <div className="mt-12">
                       <p className="text-lg font-semibold mb-6">OFFICE OF THE</p>
                       <div className="flex justify-center space-x-8">
@@ -480,14 +498,14 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                     </div>
                   </div>
                 </div>
-                
+
                 <PageFooter pageNumber={1} />
               </div>
 
               {/* Page 2: Details Page */}
               <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
                 <PageHeader pageNumber={2} />
-                
+
                 <div className="flex-1">
                   <div className="text-center mb-6">
                     <h3 className="text-xl font-bold underline">{documentSettings.header.title}</h3>
@@ -543,7 +561,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                       <span className="font-bold">Estimated Cost Rs.</span>
                       <span className="font-bold">{calculateTotalEstimate().toLocaleString('hi-IN')}</span>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 gap-4 text-sm">
                       <div className="space-y-2">
                         <div className="flex">
@@ -575,14 +593,14 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                     <p className="mt-2">------------------------- Attached Separately -------------------------</p>
                   </div>
                 </div>
-                
+
                 <PageFooter pageNumber={2} />
               </div>
 
               {/* Page 3: Recapitulation Sheet */}
               <div className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
                 <PageHeader pageNumber={3} />
-                
+
                 <div className="flex-1">
                   <div className="text-center mb-6">
                     <p className="text-sm">Fund Head :- {estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
@@ -594,204 +612,15 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                     <h3 className="text-lg font-bold mt-4">RECAPITULATION SHEET</h3>
                   </div>
 
-                  <table className="w-full border-collapse border border-black text-xs mb-6">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border border-black p-2 text-center">Sr. No</th>
-                        <th className="border border-black p-2">Type of work</th>
-                        <th className="border border-black p-2">Item of Work</th>
-                        <th className="border border-black p-2">No. of unit</th>
-                        <th className="border border-black p-2">Amount per unit (Rs.)</th>
-                        <th className="border border-black p-2">Total Amount (Rs.)</th>
-                        <th className="border border-black p-2">SBM (G) (70%) (Rs.)</th>
-                        <th className="border border-black p-2">Convergence-15th Finance Commission (30%) (Rs.)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {/* PART-A: Purchasing Items including GST & all Taxes */}
-                      <tr className="bg-gray-200 font-bold">
-                        <td colSpan={8} className="border border-black p-2">PART-A :- Purchasing Items including GST & all Taxes</td>
-                      </tr>
-                      {(() => {
-                        let partAItems = [];
-                        let partATotal = 0;
-                        estimateData.subworks.forEach((subwork) => {
-                          const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                          const filteredItems = items.filter(item => item.category === 'purchasing' || item.category === 'materials');
-                          if (filteredItems.length > 0) {
-                            filteredItems.forEach((item) => {
-                              partAItems.push({ subwork, item });
-                              partATotal += item.total_item_amount || 0;
-                            });
-                          }
-                        });
-                        return partAItems.map(({ subwork, item }, index) => {
-                          const unitCount = item.ssr_quantity || 0;
-                          const itemTotal = item.total_item_amount || 0;
-                          return (
-                            <tr key={`part-a-${item.id || index}`}>
-                              <td className="border border-black p-2 text-center">{index + 1}</td>
-                              <td className="border border-black p-2">{subwork.subworks_name}</td>
-                              <td className="border border-black p-2">{item.description_of_item || 'N/A'}</td>
-                              <td className="border border-black p-2 text-center">{unitCount}</td>
-                              <td className="border border-black p-2 text-right">{itemTotal > 0 ? (itemTotal / Math.max(unitCount, 1)).toFixed(2) : '0.00'}</td>
-                              <td className="border border-black p-2 text-right">{itemTotal.toFixed(2)}</td>
-                              <td className="border border-black p-2 text-right">{(itemTotal * 0.7).toFixed(2)}</td>
-                              <td className="border border-black p-2 text-right">{(itemTotal * 0.3).toFixed(2)}</td>
-                            </tr>
-                          );
-                        });
-                      })()}
-                      
-                      {/* Total of PART-A */}
-                      <tr className="font-bold">
-                        <td colSpan={5} className="border border-black p-2 text-right">Total of PART - A</td>
-                        <td className="border border-black p-2 text-right">{(() => {
-                          let partATotal = 0;
-                          estimateData.subworks.forEach((subwork) => {
-                            const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                            const filteredItems = items.filter(item => item.category === 'purchasing' || item.category === 'materials');
-                            filteredItems.forEach((item) => {
-                              partATotal += item.total_item_amount || 0;
-                            });
-                          });
-                          return partATotal.toFixed(2);
-                        })()}</td>
-                        <td className="border border-black p-2 text-right">{(() => {
-                          let partATotal = 0;
-                          estimateData.subworks.forEach((subwork) => {
-                            const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                            const filteredItems = items.filter(item => item.category === 'purchasing' || item.category === 'materials');
-                            filteredItems.forEach((item) => {
-                              partATotal += item.total_item_amount || 0;
-                            });
-                          });
-                          return (partATotal * 0.7).toFixed(2);
-                        })()}</td>
-                        <td className="border border-black p-2 text-right">{(() => {
-                          let partATotal = 0;
-                          estimateData.subworks.forEach((subwork) => {
-                            const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                            const filteredItems = items.filter(item => item.category === 'purchasing' || item.category === 'materials');
-                            filteredItems.forEach((item) => {
-                              partATotal += item.total_item_amount || 0;
-                            });
-                          });
-                          return (partATotal * 0.3).toFixed(2);
-                        })()}</td>
-                      </tr>
+                  <WorksRecapSheet
+                    workId={workId}
+                    savedCalculations={savedCalculations ?? null}
+                    savedTaxes={savedTaxes ?? null}
+                    readonly={true}
+                  />
 
-                      {/* PART-B: Construction works for E-Tendering */}
-                      <tr className="bg-gray-200 font-bold">
-                        <td colSpan={8} className="border border-black p-2">PART- B:- Construction works for E-Tendering</td>
-                      </tr>
-                      {(() => {
-                        // Calculate Part B total first
-                        let partBTotal = 0;
-                        estimateData.subworks.forEach((subwork) => {
-                          const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                          const filteredItems = items.filter(item => item.category === 'construction' || !item.category);
-                          filteredItems.forEach((item) => {
-                            partBTotal += item.total_item_amount || 0;
-                          });
-                        });
-                        
-                        // Now render the items
-                        let partBItems = [];
-                        
-                        // Store partBTotal in a way that's accessible outside this IIFE
-                        window.currentPartBTotal = partBTotal;
-                        
-                        estimateData.subworks.forEach((subwork) => {
-                          const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                          const filteredItems = items.filter(item => item.category === 'construction' || !item.category);
-                          if (filteredItems.length > 0) {
-                            filteredItems.forEach((item) => {
-                              partBItems.push({ subwork, item });
-                            });
-                          }
-                        });
-                        
-                        // Store partBTotal in a way that's accessible outside this IIFE
-                        window.currentPartBTotal = partBTotal;
-                        
-                        return partBItems.map(({ subwork, item }, index) => {
-                          const unitCount = item.ssr_quantity || 0;
-                          const itemTotal = item.total_item_amount || 0;
-                          return (
-                            <tr key={`part-b-${item.id || index}`}>
-                              <td className="border border-black p-2 text-center">{index + 1}</td>
-                              <td className="border border-black p-2">{subwork.subworks_name}</td>
-                              <td className="border border-black p-2">{item.description_of_item || 'N/A'}</td>
-                              <td className="border border-black p-2 text-center">{unitCount}</td>
-                              <td className="border border-black p-2 text-right">{itemTotal > 0 ? (itemTotal / Math.max(unitCount, 1)).toFixed(2) : '0.00'}</td>
-                              <td className="border border-black p-2 text-right">{itemTotal.toFixed(2)}</td>
-                              <td className="border border-black p-2 text-right">{(itemTotal * 0.7).toFixed(2)}</td>
-                              <td className="border border-black p-2 text-right">{(itemTotal * 0.3).toFixed(2)}</td>
-                            </tr>
-                          );
-                        });
-                      })()}
-                      
-                      {/* Total */}
-                      <tr className="font-bold">
-                        <td colSpan={5} className="border border-black p-2 text-right">Total</td>
-                        <td className="border border-black p-2 text-right">{(window.currentPartBTotal || 0).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 0.3).toFixed(2)}</td>
-                      </tr>
-
-                      {/* Add 18% GST */}
-                      <tr className="font-bold">
-                        <td colSpan={5} className="border border-black p-2 text-right">Add 18 % GST</td>
-                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 0.18).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 0.18 * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 0.18 * 0.3).toFixed(2)}</td>
-                      </tr>
-
-                      {/* Total of PART-B */}
-                      <tr className="font-bold">
-                        <td colSpan={5} className="border border-black p-2 text-right">Total of PART - B</td>
-                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 1.18).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 1.18 * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{((window.currentPartBTotal || 0) * 1.18 * 0.3).toFixed(2)}</td>
-                      </tr>
-
-                      {/* Add 0.50% Contingencies */}
-                      <tr className="font-bold">
-                        <td colSpan={5} className="border border-black p-2 text-right">Add 0.50 % Contingencies</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.3).toFixed(2)}</td>
-                      </tr>
-
-                      {/* Inspection charges 0.50% */}
-                      <tr className="font-bold">
-                        <td colSpan={5} className="border border-black p-2 text-right">Inspection charges 0.50%</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.005 * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">0.00</td>
-                      </tr>
-
-                      {/* DPR charges 5% or 1 Lakh whichever is less */}
-                      <tr className="font-bold">
-                        <td colSpan={5} className="border border-black p-2 text-right">DPR charges 5% or 1 Lakh whichever is less</td>
-                        <td className="border border-black p-2 text-right">{Math.min(calculateTotalEstimate() * 0.05, 100000).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{Math.min(calculateTotalEstimate() * 0.05, 100000).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">0.00</td>
-                      </tr>
-
-                      {/* Gross Total Estimated Amount */}
-                      <tr className="font-bold bg-gray-100 text-lg">
-                        <td colSpan={5} className="border border-black p-2 text-right">Gross Total Estimated Amount</td>
-                        <td className="border border-black p-2 text-right">{calculateTotalEstimate().toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.7).toFixed(2)}</td>
-                        <td className="border border-black p-2 text-right">{(calculateTotalEstimate() * 0.3).toFixed(2)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
                 </div>
-                
+
                 <PageFooter pageNumber={3} />
               </div>
 
@@ -799,22 +628,22 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
               {(() => {
                 let pageNumber = 4;
                 const measurementPages = [];
-                
+
                 estimateData.subworks.forEach((subwork) => {
                   const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                  
+
                   // Check if this subwork has any measurements
                   const hasAnyMeasurements = items.some(item => {
                     const itemMeasurements = estimateData.measurements[item.sr_no] || [];
                     return itemMeasurements.length > 0;
                   });
-                  
+
                   // Only create measurement page if subwork has measurements
                   if (hasAnyMeasurements) {
                     measurementPages.push(
                       <div key={`measurement-${subwork.subworks_id}`} className="pdf-page bg-white p-6 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
                         <PageHeader pageNumber={pageNumber} />
-                        
+
                         <div className="flex-1">
                           {/* Traditional Header Format */}
                           <div className="text-center mb-6">
@@ -841,7 +670,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                                     Breadth
                                   </th>
                                   <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '9%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
-                                    Height/<br/>Depth
+                                    Height/<br />Depth
                                   </th>
                                   <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '9%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
                                     Qty.
@@ -851,12 +680,12 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                               <tbody>
                                 {items.map((item, itemIndex) => {
                                   const itemMeasurements = estimateData.measurements[item.sr_no] || [];
-                                  
+
                                   // Only show items that have measurements
                                   if (itemMeasurements.length === 0) return null;
-                                  
+
                                   const itemTotal = itemMeasurements.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
-                                  
+
                                   return (
                                     <React.Fragment key={item.sr_no}>
                                       {/* Item Header Row */}
@@ -870,7 +699,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                                         <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
                                         <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
                                       </tr>
-                                      
+
                                       {/* Item Description Row */}
                                       <tr>
                                         <td className="border border-black p-3 text-justify leading-tight text-sm" style={{ border: '1px solid black', padding: '12px', textAlign: 'justify', lineHeight: '1.3' }}>
@@ -934,14 +763,14 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                             </table>
                           </div>
                         </div>
-                        
+
                         <PageFooter pageNumber={pageNumber} />
                       </div>
                     );
                     pageNumber++;
                   }
                 });
-                
+
                 return measurementPages;
               })()}
 
@@ -967,7 +796,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                       });
                       return pageNum + subworkIndex;
                     })()} />
-                    
+
                     <div className="flex-1">
                       <div className="text-center mb-6">
                         <p className="text-sm">Fund Head :- {estimateData.work.fund_head || '-'}</p>
@@ -1010,7 +839,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                         </tbody>
                       </table>
                     </div>
-                    
+
                     <PageFooter pageNumber={(() => {
                       // Calculate page number after measurement pages
                       let pageNum = 4;
@@ -1034,40 +863,40 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
               {(() => {
                 let pageNumber = 4;
                 const measurementPages = [];
-                
+
                 estimateData.subworks.forEach((subwork) => {
                   const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                  
+
                   // Check if this subwork has any measurements
                   const hasAnyMeasurements = items.some(item => {
                     const itemMeasurements = estimateData.measurements[item.id] || [];
                     return itemMeasurements.length > 0;
                   });
-                  
+
                   // Only create measurement page if subwork has measurements
                   if (hasAnyMeasurements) {
                     measurementPages.push(
                       <div key={`measurement-${subwork.subworks_id}`} className="pdf-page bg-white p-6 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
                         <PageHeader pageNumber={pageNumber} />
-                        
+
                         <div className="flex-1">
                           {/* Traditional Measurement Header */}
                           <div className="text-center mb-6" style={{ fontSize: '14px', fontWeight: 'bold' }}>
                             <h2 className="text-base font-bold text-black mb-4">
                               NAME OF WORK: {estimateData.work.work_name}
                             </h2>
-                            
+
                             {/* Location Information */}
                             <div className="text-sm text-black mb-4">
                               <span>Village :- {estimateData.work.village || 'N/A'}, </span>
                               <span>GP :- {estimateData.work.grampanchayat || 'N/A'}, </span>
                               <span>Tah :- {estimateData.work.taluka || 'Chandrapur'}</span>
                             </div>
-                            
+
                             <h3 className="text-base font-bold text-black mb-4">
                               Sub-Work :- {subwork.subworks_name}
                             </h3>
-                            
+
                             <h2 className="text-lg font-bold text-black underline mb-6">
                               MEASUREMENT
                             </h2>
@@ -1090,7 +919,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                                   Breadth
                                 </th>
                                 <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '13%' }}>
-                                  Height/<br/>Depth
+                                  Height/<br />Depth
                                 </th>
                                 <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '13%' }}>
                                   Qty.
@@ -1100,12 +929,12 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                             <tbody>
                               {items.map((item, itemIndex) => {
                                 const itemMeasurements = estimateData.measurements[item.id] || [];
-                                
+
                                 // Only show items that have measurements
                                 if (itemMeasurements.length === 0) return null;
-                                
+
                                 const rows = [];
-                                
+
                                 // Item header row
                                 rows.push(
                                   <tr key={`item-header-${item.id}`}>
@@ -1119,7 +948,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                                     <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
                                   </tr>
                                 );
-                                
+
                                 // Item description row
                                 rows.push(
                                   <tr key={`item-desc-${item.id}`}>
@@ -1189,7 +1018,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
                                 return rows;
                               })}
-                              
+
                               {/* Add some empty rows for manual entries */}
                               {Array.from({ length: 8 }, (_, index) => (
                                 <tr key={`empty-${index}`}>
@@ -1204,14 +1033,14 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                             </tbody>
                           </table>
                         </div>
-                        
+
                         <PageFooter pageNumber={pageNumber} />
                       </div>
                     );
                     pageNumber++;
                   }
                 });
-                
+
                 return measurementPages;
               })()}
             </div>
