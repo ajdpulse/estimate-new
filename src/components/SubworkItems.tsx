@@ -260,7 +260,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     }
   };
 
- const handleAddItem = async () => {
+  const handleAddItem = async () => {
     if (!newItem.description_of_item || !user) return;
 
     // Validate that at least one rate entry is complete
@@ -345,7 +345,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
     }
   };
 
- const handleEditItem = (item: SubworkItem) => {
+  const handleEditItem = (item: SubworkItem) => {
     setSelectedItem(item);
     setDescriptionQuery(item.description_of_item);
 
@@ -376,7 +376,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   };
 
 
-const handleUpdateItem = async () => {
+  const handleUpdateItem = async () => {
     if (!newItem.description_of_item || !selectedItem) return;
 
     const validRates = itemRates.filter(rate => rate.description && rate.rate > 0);
@@ -786,13 +786,15 @@ const handleUpdateItem = async () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Category
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={newItem.category || ''}
                     onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter category (optional)"
-                  />
+                  >
+                    <option value="">Select category (optional)</option>
+                    <option value="With GST">With GST</option>
+                    <option value="Without GST">Without GST</option>
+                  </select>
                 </div>
 
                 <div>
