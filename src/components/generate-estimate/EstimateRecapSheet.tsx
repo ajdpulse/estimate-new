@@ -1,12 +1,6 @@
 import React from 'react';
 import { CompleteEstimateData } from './EstimateSupabaseOperations';
-
-interface TaxSetting {
-  id: string;
-  name: string;
-  percentage: number;
-  enabled: boolean;
-}
+import { RecapCalculations, TaxEntry } from '../../types';
 
 interface EstimateRecapSheetProps {
   estimateData: CompleteEstimateData;
@@ -22,7 +16,8 @@ interface EstimateRecapSheetProps {
   showPageNumbers: boolean;
   pageNumberPosition: string;
   pageNumber: number;
-  taxSettings: TaxSetting[];
+  recapCalculations?: RecapCalculations;
+  taxes?: TaxEntry[];
 }
 
 export const EstimateRecapSheet: React.FC<EstimateRecapSheetProps> = ({
@@ -32,13 +27,21 @@ export const EstimateRecapSheet: React.FC<EstimateRecapSheetProps> = ({
   showPageNumbers,
   pageNumberPosition,
   pageNumber,
-  taxSettings
+  recapCalculations,
+  taxes = []
 }) => {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('hi-IN', {
-      style: 'currency',
-      currency: 'INR',
-    }).format(amount);
+  const getPartASubworks = () => {
+    return estimateData.subworks.filter(subwork => {
+      const items = estimateData.subworkItems[subwork.subworks_id] || [];
+      return items.some(item => item.category === 'purchasing' || item.category === 'materials');
+    });
+  };
+
+  const getPartBSubworks = () => {
+    return estimateData.subworks.filter(subwork => {
+      const items = estimateData.subworkItems[subwork.subworks_id] || [];
+      return items.some(item => item.category === 'construction' || !item.category);
+    });
   };
 
   const calculateSubworkTotal = (subworkId: string) => {
@@ -46,30 +49,8 @@ export const EstimateRecapSheet: React.FC<EstimateRecapSheetProps> = ({
     return items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0);
   };
 
-  const calculateGrandTotal = () => {
-    return estimateData.subworks.reduce((total, subwork) => {
-      return total + calculateSubworkTotal(subwork.subworks_id);
-    }, 0);
-  };
-
-  const calculateTaxAmount = (baseAmount: number, taxPercentage: number) => {
-    return (baseAmount * taxPercentage) / 100;
-  };
-
-  const calculateFinalTotal = () => {
-    const baseAmount = calculateGrandTotal();
-    const enabledTaxes = taxSettings.filter(tax => tax.enabled);
-    
-    const totalTaxAmount = enabledTaxes.reduce((sum, tax) => {
-      return sum + calculateTaxAmount(baseAmount, tax.percentage);
-    }, 0);
-    
-    return baseAmount + totalTaxAmount;
-  };
-
   return (
     <div className="page-break bg-white p-8 min-h-screen flex flex-col">
-      {/* Header */}
       <div className="text-center mb-6 border-b border-gray-300 pb-4">
         <h1 className="text-xl font-bold text-red-600 mb-1">
           {headerSettings.line1}
@@ -82,144 +63,173 @@ export const EstimateRecapSheet: React.FC<EstimateRecapSheetProps> = ({
         </h3>
       </div>
 
-      {/* Recap Title */}
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
-          ESTIMATE RECAP SHEET
-        </h2>
-        <h3 className="text-lg font-semibold text-gray-700">
-          {estimateData.work.works_id} - {estimateData.work.work_name}
-        </h3>
-      </div>
-
-      {/* Recap Table */}
       <div className="flex-1">
-        <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-          <table className="min-w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
-                  Sr. No.
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
-                  Subwork ID
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
-                  Description of Subwork
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200">
-                  No. of Items
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  Amount (₹)
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {estimateData.subworks.map((subwork, index) => {
-                const itemCount = (estimateData.subworkItems[subwork.subworks_id] || []).length;
-                const subworkTotal = calculateSubworkTotal(subwork.subworks_id);
-                
-                return (
-                  <tr key={subwork.subworks_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-200">
-                      {index + 1}
+        <div className="text-center mb-6">
+          <p className="text-sm">Fund Head: {estimateData.work.fund_head || 'SBM (G.) Phase-II & 15th Finance Commission'}</p>
+          <p className="text-sm font-semibold">NAME OF WORK: {estimateData.work.work_name}</p>
+          <p className="text-sm">Village: {estimateData.work.village}, Tah: {estimateData.work.taluka}</p>
+          <h3 className="text-lg font-bold mt-4">RECAPITULATION SHEET</h3>
+        </div>
+
+        <table className="w-full border-collapse border border-black text-xs mb-6">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-black p-2 text-center">Sr. No</th>
+              <th className="border border-black p-2">Type of work</th>
+              <th className="border border-black p-2">Item of Work</th>
+              <th className="border border-black p-2">No. of unit</th>
+              <th className="border border-black p-2">Amount per unit (Rs.)</th>
+              <th className="border border-black p-2">Total Amount (Rs.)</th>
+              <th className="border border-black p-2">SBM (G) (70%) (Rs.)</th>
+              <th className="border border-black p-2">Convergence-15th Finance Commission (30%) (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="bg-gray-200 font-bold">
+              <td colSpan={8} className="border border-black p-2">PART-A: Purchasing Items including GST & all Taxes</td>
+            </tr>
+            {getPartASubworks().map((subwork, index) => {
+              const items = estimateData.subworkItems[subwork.subworks_id] || [];
+              const subworkTotal = items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0);
+              const unitCount = items.reduce((sum, item) => sum + (item.ssr_quantity || 0), 0);
+
+              return (
+                <tr key={`part-a-${subwork.subworks_id}`}>
+                  <td className="border border-black p-2 text-center">{index + 1}</td>
+                  <td className="border border-black p-2">Solid waste management</td>
+                  <td className="border border-black p-2">{subwork.subworks_name}</td>
+                  <td className="border border-black p-2 text-center">{unitCount}</td>
+                  <td className="border border-black p-2 text-right">{subworkTotal > 0 ? (subworkTotal / Math.max(unitCount, 1)).toFixed(2) : '0.00'}</td>
+                  <td className="border border-black p-2 text-right">{subworkTotal.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(subworkTotal * 0.7).toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(subworkTotal * 0.3).toFixed(2)}</td>
+                </tr>
+              );
+            })}
+
+            {recapCalculations && (
+              <>
+                <tr className="font-bold">
+                  <td colSpan={5} className="border border-black p-2 text-right">Subtotal - Part A</td>
+                  <td className="border border-black p-2 text-right">{recapCalculations.partA.subtotal.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.partA.subtotal * 0.7).toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.partA.subtotal * 0.3).toFixed(2)}</td>
+                </tr>
+
+                {taxes.filter(tax => tax.applyTo === 'part_a' || tax.applyTo === 'both').map(tax => (
+                  <tr key={`part-a-tax-${tax.id}`} className="font-semibold">
+                    <td colSpan={5} className="border border-black p-2 text-right">
+                      Add {tax.percentage}% {tax.name}
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-blue-600 border-r border-gray-200">
-                      {subwork.subworks_id}
+                    <td className="border border-black p-2 text-right">
+                      {(recapCalculations.partA.taxes[tax.id] || 0).toFixed(2)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
-                      {subwork.subworks_name}
+                    <td className="border border-black p-2 text-right">
+                      {((recapCalculations.partA.taxes[tax.id] || 0) * 0.7).toFixed(2)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-center text-gray-900 border-r border-gray-200">
-                      {itemCount}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium text-right text-gray-900">
-                      {formatCurrency(subworkTotal)}
+                    <td className="border border-black p-2 text-right">
+                      {((recapCalculations.partA.taxes[tax.id] || 0) * 0.3).toFixed(2)}
                     </td>
                   </tr>
-                );
-              })}
-              
-              {/* Subtotal Row */}
-              <tr className="bg-yellow-50 border-t-2 border-yellow-200">
-                <td colSpan={4} className="px-4 py-3 text-sm font-bold text-gray-900 text-right border-r border-gray-200">
-                  Subtotal:
-                </td>
-                <td className="px-4 py-3 text-sm font-bold text-right text-gray-900">
-                  {formatCurrency(calculateGrandTotal())}
-                </td>
-              </tr>
+                ))}
 
-              {/* Tax Rows */}
-              {taxSettings.filter(tax => tax.enabled).map((tax) => {
-                const taxAmount = calculateTaxAmount(calculateGrandTotal(), tax.percentage);
-                return (
-                  <tr key={tax.id} className="bg-blue-50">
-                    <td colSpan={4} className="px-4 py-3 text-sm font-medium text-gray-900 text-right border-r border-gray-200">
-                      {tax.name} ({tax.percentage}%):
+                <tr className="font-bold">
+                  <td colSpan={5} className="border border-black p-2 text-right">Total of PART - A</td>
+                  <td className="border border-black p-2 text-right">{recapCalculations.partA.total.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.partA.total * 0.7).toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.partA.total * 0.3).toFixed(2)}</td>
+                </tr>
+              </>
+            )}
+
+            <tr className="bg-gray-200 font-bold">
+              <td colSpan={8} className="border border-black p-2">PART-B: Construction works for E-Tendering</td>
+            </tr>
+            {getPartBSubworks().map((subwork, index) => {
+              const items = estimateData.subworkItems[subwork.subworks_id] || [];
+              const subworkTotal = items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0);
+              const unitCount = items.reduce((sum, item) => sum + (item.ssr_quantity || 0), 0);
+
+              return (
+                <tr key={`part-b-${subwork.subworks_id}`}>
+                  <td className="border border-black p-2 text-center">{index + 1}</td>
+                  <td className="border border-black p-2">Solid waste management</td>
+                  <td className="border border-black p-2">{subwork.subworks_name}</td>
+                  <td className="border border-black p-2 text-center">{unitCount}</td>
+                  <td className="border border-black p-2 text-right">{subworkTotal > 0 ? (subworkTotal / Math.max(unitCount, 1)).toFixed(2) : '0.00'}</td>
+                  <td className="border border-black p-2 text-right">{subworkTotal.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(subworkTotal * 0.7).toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(subworkTotal * 0.3).toFixed(2)}</td>
+                </tr>
+              );
+            })}
+
+            {recapCalculations && (
+              <>
+                <tr className="font-bold">
+                  <td colSpan={5} className="border border-black p-2 text-right">Subtotal - Part B</td>
+                  <td className="border border-black p-2 text-right">{recapCalculations.partB.subtotal.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.partB.subtotal * 0.7).toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.partB.subtotal * 0.3).toFixed(2)}</td>
+                </tr>
+
+                {taxes.filter(tax => tax.applyTo === 'part_b' || tax.applyTo === 'both').map(tax => (
+                  <tr key={`part-b-tax-${tax.id}`} className="font-semibold">
+                    <td colSpan={5} className="border border-black p-2 text-right">
+                      Add {tax.percentage}% {tax.name}
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-right text-gray-900">
-                      {formatCurrency(taxAmount)}
+                    <td className="border border-black p-2 text-right">
+                      {(recapCalculations.partB.taxes[tax.id] || 0).toFixed(2)}
+                    </td>
+                    <td className="border border-black p-2 text-right">
+                      {((recapCalculations.partB.taxes[tax.id] || 0) * 0.7).toFixed(2)}
+                    </td>
+                    <td className="border border-black p-2 text-right">
+                      {((recapCalculations.partB.taxes[tax.id] || 0) * 0.3).toFixed(2)}
                     </td>
                   </tr>
-                );
-              })}
+                ))}
 
-              {/* Grand Total Row */}
-              <tr className="bg-green-100 border-t-2 border-green-300">
-                <td colSpan={4} className="px-4 py-4 text-lg font-bold text-gray-900 text-right border-r border-gray-200">
-                  GRAND TOTAL:
-                </td>
-                <td className="px-4 py-4 text-lg font-bold text-right text-green-700">
-                  {formatCurrency(calculateFinalTotal())}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                <tr className="font-bold">
+                  <td colSpan={5} className="border border-black p-2 text-right">Total of PART - B</td>
+                  <td className="border border-black p-2 text-right">{recapCalculations.partB.total.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.partB.total * 0.7).toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.partB.total * 0.3).toFixed(2)}</td>
+                </tr>
 
-        {/* Summary Statistics */}
-        <div className="mt-8 grid grid-cols-4 gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-            <div className="text-xl font-bold text-blue-600">
-              {estimateData.subworks.length}
-            </div>
-            <div className="text-xs text-blue-800">Total Subworks</div>
-          </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-            <div className="text-xl font-bold text-green-600">
-              {Object.values(estimateData.subworkItems).flat().length}
-            </div>
-            <div className="text-xs text-green-800">Total Items</div>
-          </div>
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
-            <div className="text-xl font-bold text-purple-600">
-              {taxSettings.filter(tax => tax.enabled).length}
-            </div>
-            <div className="text-xs text-purple-800">Applied Taxes</div>
-          </div>
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
-            <div className="text-xl font-bold text-orange-600">
-              {((calculateFinalTotal() - calculateGrandTotal()) / calculateGrandTotal() * 100).toFixed(1)}%
-            </div>
-            <div className="text-xs text-orange-800">Tax Rate</div>
-          </div>
-        </div>
+                <tr className="font-bold">
+                  <td colSpan={5} className="border border-black p-2 text-right">Add 0.50% Contingencies</td>
+                  <td className="border border-black p-2 text-right">{recapCalculations.additionalCharges.contingencies.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.additionalCharges.contingencies * 0.7).toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.additionalCharges.contingencies * 0.3).toFixed(2)}</td>
+                </tr>
 
-        {/* Amount in Words */}
-        <div className="mt-6 bg-gray-50 border border-gray-300 rounded-lg p-4">
-          <div className="text-sm font-semibold text-gray-700 mb-2">
-            Amount in Words:
-          </div>
-          <div className="text-sm text-gray-900 italic">
-            {/* This would need a number-to-words conversion function */}
-            Rupees {Math.floor(calculateFinalTotal()).toLocaleString('hi-IN')} and {Math.round((calculateFinalTotal() % 1) * 100)} Paise Only
-          </div>
-        </div>
+                <tr className="font-bold">
+                  <td colSpan={5} className="border border-black p-2 text-right">Inspection charges 0.50%</td>
+                  <td className="border border-black p-2 text-right">{recapCalculations.additionalCharges.inspectionCharges.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.additionalCharges.inspectionCharges * 0.7).toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">0.00</td>
+                </tr>
+
+                <tr className="font-bold">
+                  <td colSpan={5} className="border border-black p-2 text-right">DPR charges 5% or 1 Lakh whichever is less</td>
+                  <td className="border border-black p-2 text-right">{recapCalculations.additionalCharges.dprCharges.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{recapCalculations.additionalCharges.dprCharges.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">0.00</td>
+                </tr>
+
+                <tr className="font-bold bg-gray-100 text-lg">
+                  <td colSpan={5} className="border border-black p-2 text-right">Gross Total Estimated Amount</td>
+                  <td className="border border-black p-2 text-right">{recapCalculations.grandTotal.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.grandTotal * 0.7).toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right">{(recapCalculations.grandTotal * 0.3).toFixed(2)}</td>
+                </tr>
+              </>
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* Footer */}
       <div className="text-center mt-6 border-t border-gray-300 pt-4">
         <p className="text-sm text-gray-600">{footerSettings.line1}</p>
         <p className="text-sm text-gray-600">{footerSettings.line2}</p>
