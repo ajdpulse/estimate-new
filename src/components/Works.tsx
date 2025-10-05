@@ -21,6 +21,7 @@ const Works: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedWork, setSelectedWork] = useState<Work | null>(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
+  const [unitInputs, setUnitInputs] = useState<{ [subworkId: string]: number }>({});
   const [selectedWorkForPdf, setSelectedWorkForPdf] = useState<Work | null>(null);
   const [savedCalculations, setSavedCalculations] = useState<{ [workId: string]: { calculations: RecapCalculations; taxes: TaxEntry[] } }>({});
   const [newWork, setNewWork] = useState<Partial<Work>>({
@@ -31,47 +32,53 @@ const Works: React.FC = () => {
     fetchWorks();
   }, []);
 
+  const handleUnitChange = (subworkId: string, value: string) => {
+    const num = parseFloat(value) || 0;
+    setUnitInputs(prev => ({ ...prev, [subworkId]: num }));
+    setSaved(false);
+  };
+
   const fetchWorks = async () => {
-  try {
-    setLoading(true);
-    const { data, error } = await supabase
-      .schema('estimate')
-      .from('works')
-      .select('*')
-      .order('sr_no', { ascending: false });
-
-    if (error) throw error;
-
-    const worksData = data || [];
-
-    for (const work of worksData) {
-      // Get sum of subwork_amount from subworks for this works_id
-      const { data: subworksData, error: subworksError } = await supabase
-        .schema('estimate')
-        .from('subworks')
-        .select('subwork_amount')
-        .eq('works_id', work.works_id);
-      if (subworksError) throw subworksError;
-
-      const totalSubworkAmount = (subworksData || []).reduce(
-        (acc, row) => acc + (row.subwork_amount || 0), 0);
-
-      // Update total_estimated_cost in works
-      const { error: updateError } = await supabase
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
         .schema('estimate')
         .from('works')
-        .update({ total_estimated_cost: totalSubworkAmount })
-        .eq('works_id', work.works_id);
-      if (updateError) throw updateError;
-    }
+        .select('*')
+        .order('sr_no', { ascending: false });
 
-    setWorks(worksData);
-  } catch (error) {
-    console.error('Error fetching works:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+      if (error) throw error;
+
+      const worksData = data || [];
+
+      for (const work of worksData) {
+        // Get sum of subwork_amount from subworks for this works_id
+        const { data: subworksData, error: subworksError } = await supabase
+          .schema('estimate')
+          .from('subworks')
+          .select('subwork_amount')
+          .eq('works_id', work.works_id);
+        if (subworksError) throw subworksError;
+
+        const totalSubworkAmount = (subworksData || []).reduce(
+          (acc, row) => acc + (row.subwork_amount || 0), 0);
+
+        // Update total_estimated_cost in works
+        const { error: updateError } = await supabase
+          .schema('estimate')
+          .from('works')
+          .update({ total_estimated_cost: totalSubworkAmount })
+          .eq('works_id', work.works_id);
+        if (updateError) throw updateError;
+      }
+
+      setWorks(worksData);
+    } catch (error) {
+      console.error('Error fetching works:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const handleAddWork = async () => {
@@ -87,7 +94,7 @@ const Works: React.FC = () => {
         }]);
 
       if (error) throw error;
-      
+
       setShowAddModal(false);
       setNewWork({
         type: 'Technical Sanction'
@@ -126,7 +133,8 @@ const Works: React.FC = () => {
     setShowEditModal(true);
   };
 
-  const handleUpdateWork = async () => {debugger
+  const handleUpdateWork = async () => {
+    debugger
     if (!newWork.work_name || !selectedWork) return;
 
     try {
@@ -137,7 +145,7 @@ const Works: React.FC = () => {
         .eq('sr_no', selectedWork.sr_no);
 
       if (error) throw error;
-      
+
       setShowEditModal(false);
       setSelectedWork(null);
       setNewWork({
@@ -149,33 +157,33 @@ const Works: React.FC = () => {
     }
   };
 
-   const PageHeader: React.FC<{ pageNumber?: number }> = ({ pageNumber }) => (
-      <div className="text-center mb-6 pb-4 border-b-2 border-gray-300">
-        <h1 className="text-lg font-bold text-red-600 mb-2">{documentSettings.header.zilla}</h1>
-        <h2 className="text-base font-semibold text-blue-600 mb-1">{documentSettings.header.division}</h2>
-        <h3 className="text-sm font-medium text-blue-600 mb-3">{documentSettings.header.subDivision}</h3>
-        {pageNumber && documentSettings.pageSettings.showPageNumbers && documentSettings.pageSettings.pageNumberPosition === 'top' && (
-          <div className="text-xs text-gray-500">Page {pageNumber}</div>
-        )}
-      </div>
-    );
-  
-    const PageFooter: React.FC<{ pageNumber?: number }> = ({ pageNumber }) => (
-      <div className="mt-8 pt-4 border-t-2 border-gray-300">
-        <div className="flex justify-between items-end">
-          <div className="text-left">
-            <p className="text-sm font-medium">Prepared By:</p>
-            <p className="text-xs mt-2">{documentSettings.footer.preparedBy}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm font-medium">{documentSettings.footer.designation}</p>
-          </div>
+  const PageHeader: React.FC<{ pageNumber?: number }> = ({ pageNumber }) => (
+    <div className="text-center mb-6 pb-4 border-b-2 border-gray-300">
+      <h1 className="text-lg font-bold text-red-600 mb-2">{documentSettings.header.zilla}</h1>
+      <h2 className="text-base font-semibold text-blue-600 mb-1">{documentSettings.header.division}</h2>
+      <h3 className="text-sm font-medium text-blue-600 mb-3">{documentSettings.header.subDivision}</h3>
+      {pageNumber && documentSettings.pageSettings.showPageNumbers && documentSettings.pageSettings.pageNumberPosition === 'top' && (
+        <div className="text-xs text-gray-500">Page {pageNumber}</div>
+      )}
+    </div>
+  );
+
+  const PageFooter: React.FC<{ pageNumber?: number }> = ({ pageNumber }) => (
+    <div className="mt-8 pt-4 border-t-2 border-gray-300">
+      <div className="flex justify-between items-end">
+        <div className="text-left">
+          <p className="text-sm font-medium">Prepared By:</p>
+          <p className="text-xs mt-2">{documentSettings.footer.preparedBy}</p>
         </div>
-        {pageNumber && documentSettings.pageSettings.showPageNumbers && documentSettings.pageSettings.pageNumberPosition === 'bottom' && (
-          <div className="text-center text-xs text-gray-500 mt-2">Page {pageNumber}</div>
-        )}
+        <div className="text-right">
+          <p className="text-sm font-medium">{documentSettings.footer.designation}</p>
+        </div>
       </div>
-    );
+      {pageNumber && documentSettings.pageSettings.showPageNumbers && documentSettings.pageSettings.pageNumberPosition === 'bottom' && (
+        <div className="text-center text-xs text-gray-500 mt-2">Page {pageNumber}</div>
+      )}
+    </div>
+  );
 
   const handleDeleteWork = async (work: Work) => {
     if (!confirm('Are you sure you want to delete this work? This action cannot be undone.')) {
@@ -243,15 +251,15 @@ const Works: React.FC = () => {
     }).format(amount);
   };
 
-const handlePdfView = (work: Work) => {
-  setSelectedWorkForPdf(work);
-  setShowPdfModal(true);
-};
+  const handlePdfView = (work: Work) => {
+    setSelectedWorkForPdf(work);
+    setShowPdfModal(true);
+  };
 
   const filteredWorks = works.filter(work => {
     const matchesSearch = work.work_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (work.works_id && work.works_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         (work.division && work.division.toLowerCase().includes(searchTerm.toLowerCase()));
+      (work.works_id && work.works_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (work.division && work.division.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesType = typeFilter === 'all' || work.type === typeFilter;
     return matchesSearch && matchesType;
   });
@@ -271,7 +279,7 @@ const handlePdfView = (work: Work) => {
           </p>
         </div>
         <div className="mt-4 sm:mt-0">
-          <button 
+          <button
             onClick={() => setShowAddModal(true)}
             className="inline-flex items-center px-6 py-3 border border-transparent rounded-2xl shadow-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300"
           >
@@ -361,7 +369,7 @@ const handlePdfView = (work: Work) => {
                     <td className="px-4 py-2 whitespace-nowrap">
                       <div className="text-sm font-medium text-blue-600">
                         <button
-                         onClick={() => handleWorksIdClick(work.works_id)}
+                          onClick={() => handleWorksIdClick(work.works_id)}
                           className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                           title="Click to view sub works"
                         >
@@ -408,28 +416,28 @@ const handlePdfView = (work: Work) => {
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center space-x-2">
-                         <button
-      onClick={() => handlePdfView(work)}
-      className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-100 transition"
-      title="View PDF"
-    >
-      <FileText className="w-4 h-4" />
-    </button>
-                        <button 
+                        <button
+                          onClick={() => handlePdfView(work)}
+                          className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-100 transition"
+                          title="View PDF"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleViewWork(work)}
                           className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
                           title="View Work"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleEditWork(work)}
                           className="text-green-600 hover:text-green-900 p-2 rounded-lg hover:bg-green-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-300"
                           title="Edit Work"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDeleteWork(work)}
                           className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300"
                           title="Delete Work"
@@ -453,7 +461,7 @@ const handlePdfView = (work: Work) => {
               Get started by creating a new work estimate.
             </p>
             <div className="mt-6">
-              <button 
+              <button
                 onClick={() => setShowAddModal(true)}
                 className="inline-flex items-center px-6 py-3 border border-transparent shadow-lg text-sm font-semibold rounded-2xl text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300"
               >
@@ -480,7 +488,7 @@ const handlePdfView = (work: Work) => {
                   ✕
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -488,7 +496,7 @@ const handlePdfView = (work: Work) => {
                   </label>
                   <select
                     value={newWork.type}
-                    onChange={(e) => setNewWork({...newWork, type: e.target.value as 'Technical Sanction' | 'Administrative Approval'})}
+                    onChange={(e) => setNewWork({ ...newWork, type: e.target.value as 'Technical Sanction' | 'Administrative Approval' })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="Technical Sanction">{t('addWork.technicalSanction')}</option>
@@ -503,7 +511,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.work_name || ''}
-                    onChange={(e) => setNewWork({...newWork, work_name: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, work_name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.enterWorkName')}
                   />
@@ -516,7 +524,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.ssr || ''}
-                    onChange={(e) => setNewWork({...newWork, ssr: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, ssr: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.enterSSR')}
                   />
@@ -529,7 +537,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.division || ''}
-                    onChange={(e) => setNewWork({...newWork, division: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, division: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.enterDivision')}
                   />
@@ -542,7 +550,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.sub_division || ''}
-                    onChange={(e) => setNewWork({...newWork, sub_division: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, sub_division: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.enterSubDivision')}
                   />
@@ -555,7 +563,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.fund_head || ''}
-                    onChange={(e) => setNewWork({...newWork, fund_head: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, fund_head: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.enterFundHead')}
                   />
@@ -568,7 +576,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.major_head || ''}
-                    onChange={(e) => setNewWork({...newWork, major_head: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, major_head: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.enterMajorHead')}
                   />
@@ -581,7 +589,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.minor_head || ''}
-                    onChange={(e) => setNewWork({...newWork, minor_head: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, minor_head: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.enterMinorHead')}
                   />
@@ -594,7 +602,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.service_head || ''}
-                    onChange={(e) => setNewWork({...newWork, service_head: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, service_head: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.enterServiceHead')}
                   />
@@ -607,7 +615,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.departmental_head || ''}
-                    onChange={(e) => setNewWork({...newWork, departmental_head: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, departmental_head: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.enterDepartmentalHead')}
                   />
@@ -620,7 +628,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.sanctioning_authority || ''}
-                    onChange={(e) => setNewWork({...newWork, sanctioning_authority: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, sanctioning_authority: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.enterSanctioningAuthority')}
                   />
@@ -632,7 +640,7 @@ const handlePdfView = (work: Work) => {
                   </label>
                   <select
                     value={newWork.status || 'draft'}
-                    onChange={(e) => setNewWork({...newWork, status: e.target.value as Work['status']})}
+                    onChange={(e) => setNewWork({ ...newWork, status: e.target.value as Work['status'] })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="draft">Draft</option>
@@ -653,20 +661,20 @@ const handlePdfView = (work: Work) => {
                     min="0"
                     step="0.01"
                     value={newWork.total_estimated_cost || ''}
-                    onChange={(e) => setNewWork({...newWork, total_estimated_cost: parseFloat(e.target.value) || 0})}
+                    onChange={(e) => setNewWork({ ...newWork, total_estimated_cost: parseFloat(e.target.value) || 0 })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter total estimated cost"
                   />
                 </div>
 
-                 <div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     {t('addWork.village')}
                   </label>
                   <input
                     type="text"
                     value={newWork.village || ''}
-                    onChange={(e) => setNewWork({...newWork, village: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, village: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.entervillage')}
                   />
@@ -678,7 +686,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.grampanchayat || ''}
-                    onChange={(e) => setNewWork({...newWork, grampanchayat: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, grampanchayat: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.entergrampanchayat')}
                   />
@@ -691,7 +699,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.taluka || ''}
-                    onChange={(e) => setNewWork({...newWork, taluka: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, taluka: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.entertaluka')}
                   />
@@ -733,7 +741,7 @@ const handlePdfView = (work: Work) => {
                   ✕
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
@@ -836,7 +844,7 @@ const handlePdfView = (work: Work) => {
                   ✕
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -844,7 +852,7 @@ const handlePdfView = (work: Work) => {
                   </label>
                   <select
                     value={newWork.type}
-                    onChange={(e) => setNewWork({...newWork, type: e.target.value as 'Technical Sanction' | 'Administrative Approval'})}
+                    onChange={(e) => setNewWork({ ...newWork, type: e.target.value as 'Technical Sanction' | 'Administrative Approval' })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="Technical Sanction">Technical Sanction</option>
@@ -859,7 +867,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.work_name}
-                    onChange={(e) => setNewWork({...newWork, work_name: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, work_name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter work name"
                   />
@@ -872,7 +880,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.ssr}
-                    onChange={(e) => setNewWork({...newWork, ssr: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, ssr: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter SSR"
                   />
@@ -885,7 +893,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.division}
-                    onChange={(e) => setNewWork({...newWork, division: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, division: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter division"
                   />
@@ -898,7 +906,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.sub_division}
-                    onChange={(e) => setNewWork({...newWork, sub_division: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, sub_division: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter sub division"
                   />
@@ -911,7 +919,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.fund_head}
-                    onChange={(e) => setNewWork({...newWork, fund_head: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, fund_head: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter fund head"
                   />
@@ -924,7 +932,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.major_head}
-                    onChange={(e) => setNewWork({...newWork, major_head: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, major_head: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter major head"
                   />
@@ -937,7 +945,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.minor_head}
-                    onChange={(e) => setNewWork({...newWork, minor_head: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, minor_head: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter minor head"
                   />
@@ -950,7 +958,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.service_head}
-                    onChange={(e) => setNewWork({...newWork, service_head: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, service_head: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter service head"
                   />
@@ -963,7 +971,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.departmental_head}
-                    onChange={(e) => setNewWork({...newWork, departmental_head: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, departmental_head: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter departmental head"
                   />
@@ -976,7 +984,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.sanctioning_authority}
-                    onChange={(e) => setNewWork({...newWork, sanctioning_authority: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, sanctioning_authority: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter sanctioning authority"
                   />
@@ -988,7 +996,7 @@ const handlePdfView = (work: Work) => {
                   </label>
                   <select
                     value={newWork.status}
-                    onChange={(e) => setNewWork({...newWork, status: e.target.value as Work['status']})}
+                    onChange={(e) => setNewWork({ ...newWork, status: e.target.value as Work['status'] })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="draft">Draft</option>
@@ -1004,12 +1012,12 @@ const handlePdfView = (work: Work) => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Total Estimated Cost (₹)
                   </label>
-                 <input
+                  <input
                     type="number"
                     min="0"
                     step="0.01"
                     value={newWork.total_estimated_cost || ''}
-                    onChange={(e) => setNewWork({...newWork, total_estimated_cost: parseFloat(e.target.value) || 0})}
+                    onChange={(e) => setNewWork({ ...newWork, total_estimated_cost: parseFloat(e.target.value) || 0 })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter total estimated cost"
                   />
@@ -1022,7 +1030,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.village || ''}
-                    onChange={(e) => setNewWork({...newWork, village: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, village: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.entervillage')}
                   />
@@ -1034,7 +1042,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.grampanchayat || ''}
-                    onChange={(e) => setNewWork({...newWork, grampanchayat: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, grampanchayat: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.entergrampanchayat')}
                   />
@@ -1047,7 +1055,7 @@ const handlePdfView = (work: Work) => {
                   <input
                     type="text"
                     value={newWork.taluka || ''}
-                    onChange={(e) => setNewWork({...newWork, taluka: e.target.value})}
+                    onChange={(e) => setNewWork({ ...newWork, taluka: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder={t('addWork.entertaluka')}
                   />
@@ -1083,19 +1091,16 @@ const handlePdfView = (work: Work) => {
       >
         Close
       </button>
+
       <WorksRecapSheet
-        workId={selectedWorkForPdf.works_id}
-        onSave={(calculations, taxes) => {
-          setSavedCalculations(prev => ({
-            ...prev,
-            [selectedWorkForPdf.works_id]: { calculations, taxes }
-          }));
-        }}
+        workId={selectedWorkForPdf.works_id}  // ✅ FIXED
+        readonly={false}
+        unitInputs={unitInputs}
+        onUnitChange={handleUnitChange}
       />
     </div>
   </div>
 )}
-
 
     </div>
   );
