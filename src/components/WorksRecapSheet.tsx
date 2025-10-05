@@ -165,7 +165,7 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
     setSaved(false);
   };
 
-const handleSave = async () => {debugger
+const handleSave = async () => {
   if (calculations && onSave) {
     onSave(calculations, taxes);
     setSaved(true);
