@@ -54,6 +54,8 @@ export interface Work {
   created_at: string;
   updated_at: string;
   created_by: string;
+  recap_json?: any;
+  village?: string;
 }
 
 export interface SubWork {
@@ -182,4 +184,30 @@ export interface LanguageContextType {
   language: string;
   changeLanguage: (lang: string) => void;
   t: (key: string) => string;
+}
+
+export interface TaxEntry {
+  id: string;
+  name: string;
+  percentage: number;
+  applyTo: 'part_a' | 'part_b' | 'both';
+}
+
+export interface RecapCalculations {
+  partA: {
+    subtotal: number;
+    taxes: { [taxId: string]: number };
+    total: number;
+  };
+  partB: {
+    subtotal: number;
+    taxes: { [taxId: string]: number };
+    total: number;
+  };
+  additionalCharges: {
+    contingencies: number;
+    inspectionCharges: number;
+    dprCharges: number;
+  };
+  grandTotal: number;
 }
