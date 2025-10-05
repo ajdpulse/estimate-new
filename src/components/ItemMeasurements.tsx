@@ -207,92 +207,98 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }
   };
 
- const handleAddMeasurement = async () => {
-    if (!user) return;
+const handleAddMeasurement = async () => {
+  if (!user) return;
+  try {
+    const nextSrNo = await getNextMeasurementSrNo();
+    const calculatedQuantity = (newMeasurement.no_of_units || 0) *
+      (newMeasurement.length || 0) *
+      (newMeasurement.width_breadth || 0) *
+      (newMeasurement.height_depth || 0);
 
-    // if (selectedRate === 0) {
-    //   alert('Please select a rate');
-    //   return;
-    // }
+    // Use the selected rate
+    const rate = selectedRate;
+    const lineAmount = calculatedQuantity * rate;
 
-    try {
-      const nextSrNo = await getNextMeasurementSrNo();
-      const calculatedQuantity = (newMeasurement.no_of_units || 0) *
-        (newMeasurement.length || 0) *
-        (newMeasurement.width_breadth || 0) *
-        (newMeasurement.height_depth || 0);
+    // 🔹 Fetch subwork_item_id from item_rates using selected_rate_id
+    const { data: rateData, error: rateFetchError } = await supabase
+      .schema('estimate')
+      .from('item_rates')
+      .select('sr_no, subwork_item_sr_no, rate')
+      .eq('description', selectedDescription)   // Now using description instead of sr_no
+      .single();
 
-      // Use the selected rate
-      const rate = selectedRate;
-      const lineAmount = calculatedQuantity * rate;
+    if (rateFetchError) throw rateFetchError;
+    const subworkItemId = rateData?.subwork_item_sr_no;
+    const rateSrNo = rateData?.sr_no;
 
-      // 🔹 Fetch subwork_item_id from item_rates using selected_rate_id
-      const { data: rateData, error: rateFetchError } = await supabase
-        .schema('estimate')
-        .from('item_rates')
-        .select('sr_no, subwork_item_sr_no, rate')
-        .eq('description', selectedDescription)   // Now using description instead of sr_no
-        .single();
+    const { error } = await supabase
+      .schema('estimate')
+      .from('item_measurements')
+      .insert([{
+        ...newMeasurement,
+        subwork_item_id: subworkItemId,   // 🔹 Corrected
+        measurement_sr_no: nextSrNo,
+        calculated_quantity: calculatedQuantity,
+        line_amount: rateData?.rate * calculatedQuantity,
+        unit: newMeasurement.unit || null,
+        is_deduction: newMeasurement.is_deduction || false,
+        is_manual_quantity: newMeasurement.is_manual_quantity || false,
+        manual_quantity: newMeasurement.is_manual_quantity ? (newMeasurement.manual_quantity || 0) : null,
+        selected_rate_id: newMeasurement.selected_rate_id || null,
+        rate_sr_no: rateSrNo
+      }]);
 
-      if (rateFetchError) throw rateFetchError;
-      const subworkItemId = rateData?.subwork_item_sr_no;
-      const rateSrNo = rateData?.sr_no;
+    if (error) throw error;
 
-      const { error } = await supabase
-        .schema('estimate')
-        .from('item_measurements')
-        .insert([{
-          ...newMeasurement,
-          subwork_item_id: subworkItemId,   // 🔹 Corrected
-          measurement_sr_no: nextSrNo,
-          calculated_quantity: calculatedQuantity,
-          line_amount: rateData?.rate *calculatedQuantity,
-          unit: newMeasurement.unit || null,
-          is_deduction: newMeasurement.is_deduction || false,
-          is_manual_quantity: newMeasurement.is_manual_quantity || false,
-          manual_quantity: newMeasurement.is_manual_quantity ? (newMeasurement.manual_quantity || 0) : null,
-          selected_rate_id: newMeasurement.selected_rate_id || null,
-          rate_sr_no: rateSrNo
-        }]);
+    // 🔹 Sum all calculated_quantity for this rate_sr_no from item_measurements table
+    const { data: measurementsForRate, error: measurementsError } = await supabase
+      .schema('estimate')
+      .from('item_measurements')
+      .select('calculated_quantity')
+      .eq('rate_sr_no', rateSrNo);
 
-      if (error) throw error;
+    if (measurementsError) throw measurementsError;
 
-      // 🔹 Update ssr_quantity and rate_total_amount in item_rates
-      const fetchedRate = rateData?.rate;
-      const rateTotalAmount = calculatedQuantity * fetchedRate;
+    // Calculate total quantity sum
+    const totalCalculatedQuantity = measurementsForRate?.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0) || 0;
 
-      const { error: updateRateError } = await supabase
-        .schema('estimate')
-        .from('item_rates')
-        .update({
-          ssr_quantity: calculatedQuantity,
-          rate_total_amount: rateTotalAmount
-        })
-        .eq('sr_no', rateSrNo);
+    const fetchedRate = rateData?.rate;
+    const rateTotalAmount = totalCalculatedQuantity * fetchedRate;
 
-      if (updateRateError) throw updateRateError;
+    const { error: updateRateError } = await supabase
+      .schema('estimate')
+      .from('item_rates')
+      .update({
+        ssr_quantity: totalCalculatedQuantity,
+        rate_total_amount: rateTotalAmount
+      })
+      .eq('sr_no', rateSrNo);
 
-      setShowAddModal(false);
-      setNewMeasurement({
-        no_of_units: 0,
-        length: 0,
-        width_breadth: 0,
-        height_depth: 0,
-        selected_rate_id: 0
-      });
-      setSelectedRate(0);
+    if (updateRateError) throw updateRateError;
 
-      // Refresh data first, then update SSR quantity
-      fetchData();
+    setShowAddModal(false);
+    setNewMeasurement({
+      no_of_units: 0,
+      length: 0,
+      width_breadth: 0,
+      height_depth: 0,
+      selected_rate_id: 0
+    });
+    setSelectedRate(0);
 
-      // Update SSR quantity after adding measurement
-      setTimeout(async () => {
-        await updateItemSSRQuantity();
-      }, 100);
-    } catch (error) {
-      console.error('Error adding measurement:', error);
-    }
-  };
+    // Refresh data first, then update SSR quantity
+    fetchData();
+
+    // Update SSR quantity after adding measurement
+    setTimeout(async () => {
+      await updateItemSSRQuantity();
+    }, 100);
+  } catch (error) {
+    console.error('Error adding measurement:', error);
+  }
+};
+
 
   const copyLastMeasurement = () => {
     if (measurements.length > 0) {
@@ -361,26 +367,27 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }
   };
 
-  const handleEditMeasurement = (measurement: ItemMeasurement) => {
-    setSelectedMeasurement(measurement);
-    setNewMeasurement({
-      description_of_items: measurement.description_of_items,
-      no_of_units: measurement.no_of_units,
-      length: measurement.length,
-      width_breadth: measurement.width_breadth,
-      height_depth: measurement.height_depth,
-      unit: measurement.unit || '',
-      is_deduction: measurement.is_deduction || false,
-      is_manual_quantity: measurement.is_manual_quantity || false,
-      manual_quantity: measurement.manual_quantity || 0
-    });
-    // Set the selected rate based on the measurement's line_amount and calculated_quantity
-    if (measurement.calculated_quantity && measurement.calculated_quantity > 0) {
-      const rate = (measurement.line_amount || 0) / measurement.calculated_quantity;
-      setSelectedRate(rate);
-    }
-    setShowEditModal(true);
-  };
+const handleEditMeasurement = (measurement: ItemMeasurement) => {debugger
+  setSelectedMeasurement(measurement);
+  setNewMeasurement({
+    description_of_items: measurement.description_of_items,
+    no_of_units: measurement.no_of_units,
+    length: measurement.length,
+    width_breadth: measurement.width_breadth,
+    height_depth: measurement.height_depth,
+    unit: measurement.unit || '',
+    is_deduction: measurement.is_deduction || false,
+    is_manual_quantity: measurement.is_manual_quantity || false,
+    manual_quantity: measurement.manual_quantity || 0
+  });
+
+  // Set selectedRate to the rate_sr_no or selected_rate_id for dropdown selection
+  const rateId = measurement.selected_rate_id || measurement.rate_sr_no || 0;
+  setSelectedRate(rateId);
+
+  setShowEditModal(true);
+};
+
 
 const handleUpdateMeasurement = async () => {
   if (!selectedMeasurement || !user) return;
@@ -404,7 +411,7 @@ const handleUpdateMeasurement = async () => {
       .from('item_rates')
       .select('sr_no, rate, subwork_item_sr_no')
       .eq('subwork_item_sr_no', selectedMeasurement.subwork_item_id);
-    
+
     if (rateFetchError) throw rateFetchError;
     if (!rateDataArray || rateDataArray.length === 0) throw new Error('No rate data found');
     const rateData = rateDataArray[0];
@@ -433,14 +440,25 @@ const handleUpdateMeasurement = async () => {
 
     if (error) throw error;
 
+    // Sum all calculated_quantity for this rate_sr_no from item_measurements table
+    const { data: measurementsForRate, error: measurementsError } = await supabase
+      .schema('estimate')
+      .from('item_measurements')
+      .select('calculated_quantity')
+      .eq('rate_sr_no', rateSrNo);
+
+    if (measurementsError) throw measurementsError;
+
+    const totalCalculatedQuantity = measurementsForRate?.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0) || 0;
+
     const fetchedRate = rateData?.rate;
-    const rateTotalAmount = calculatedQuantity * fetchedRate;
+    const rateTotalAmount = totalCalculatedQuantity * fetchedRate;
 
     const { error: updateRateError } = await supabase
       .schema('estimate')
       .from('item_rates')
       .update({
-        ssr_quantity: calculatedQuantity,
+        ssr_quantity: totalCalculatedQuantity,
         rate_total_amount: rateTotalAmount
       })
       .eq('sr_no', rateSrNo);
@@ -466,7 +484,6 @@ const handleUpdateMeasurement = async () => {
     console.error('Error updating measurement:', error);
   }
 };
-
 
   const handleDeleteMeasurement = async (measurement: ItemMeasurement) => {
     if (!confirm('Are you sure you want to delete this measurement?')) {
