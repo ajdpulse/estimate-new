@@ -419,7 +419,7 @@ const Works: React.FC = () => {
                         <button
                           onClick={() => handlePdfView(work)}
                           className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-100 transition"
-                          title="View Recap Sheet"
+                          title="View PDF"
                         >
                           <FileText className="w-4 h-4" />
                         </button>

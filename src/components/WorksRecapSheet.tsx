@@ -64,23 +64,6 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
       if (workError) throw workError;
       setWork(workData);
 
-      if (workData.recap_json) {
-        try {
-          const recapData = typeof workData.recap_json === 'string'
-            ? JSON.parse(workData.recap_json)
-            : workData.recap_json;
-
-          if (recapData.taxes) {
-            setTaxes(recapData.taxes);
-          }
-          if (recapData.unitInputs) {
-            setLocalUnitInputs(recapData.unitInputs);
-          }
-        } catch (error) {
-          console.error('Error parsing recap_json:', error);
-        }
-      }
-
       const { data: subworksData, error: subworksError } = await supabase
         .schema('estimate')
         .from('subworks')
@@ -182,7 +165,13 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
     setSaved(false);
   };
 
-const handleSave = async () => {
+const handleSave = async () => {debugger
+  if (calculations && onSave) {
+    onSave(calculations, taxes);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
   try {
     const recapData = {
       workId,
@@ -195,22 +184,22 @@ const handleSave = async () => {
       savedAt: new Date().toISOString(),
     };
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .schema('estimate')
       .from('works')
-      .update({ recap_json: recapData })
-      .eq('works_id', workId);
-
+      .upsert(
+        [
+          {
+            works_id: workId,
+            recap_json: JSON.stringify(recapData),
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        { onConflict: 'works_id' }
+      );
     if (error) throw error;
-
-    if (calculations && onSave) {
-      onSave(calculations, taxes);
-    }
-
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   } catch (error) {
-    console.error('Error saving recap data to Supabase:', error);
+    console.error('❌ Error saving recap data to Supabase:', error);
   }
 };
 
