@@ -226,7 +226,7 @@ const Subworks: React.FC = () => {
 
 
 
-  const fetchDesignPhotos = async (subworkId: string) => {
+  const fetchDesignPhotos = async (subworkId: string) => {debugger;
     try {
       const { data, error } = await supabase
         .schema('estimate')
@@ -242,7 +242,7 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {debugger;
     const file = event.target.files?.[0];
     if (!file || !selectedSubworkForDesign || !user) return;
 
@@ -312,7 +312,7 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const handleViewDesigns = (subwork: SubWork) => {
+  const handleViewDesigns = (subwork: SubWork) => {debugger;
     setSelectedSubworkForDesign(subwork);
     setShowDesignModal(true);
     fetchDesignPhotos(subwork.subworks_id);
