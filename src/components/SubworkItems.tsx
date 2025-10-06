@@ -638,7 +638,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                                 const rateQuantity = rate.ssr_quantity;
                                 return (
                                   <div key={index} className="bg-gray-50 px-2 py-1 rounded text-xs">
-                                    <div className="text-gray-900 font-medium">{rateQuantity} {rate.ssr_unit || item.ssr_unit}</div>
+                                    <div className="text-gray-900 font-medium">{rateQuantity.toFixed(0)} {rate.ssr_unit || item.ssr_unit}</div>
                                   </div>
                                 );
                               })}
