@@ -226,7 +226,7 @@ const Subworks: React.FC = () => {
 
 
 
-  const fetchDesignPhotos = async (subworkId: string) => {debugger;
+  const fetchDesignPhotos = async (subworkId: string) => {
     try {
       const { data, error } = await supabase
         .schema('estimate')
@@ -242,7 +242,7 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {debugger;
+  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !selectedSubworkForDesign || !user) return;
 
@@ -252,7 +252,7 @@ const Subworks: React.FC = () => {
       // Upload to Supabase Storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${selectedSubworkForDesign.subworks_id}_${Date.now()}.${fileExt}`;
-      const filePath = `designs/${fileName}`;
+      const filePath = `estimate-designs/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('estimate-designs')
@@ -312,7 +312,7 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const handleViewDesigns = (subwork: SubWork) => {debugger;
+  const handleViewDesigns = (subwork: SubWork) => {
     setSelectedSubworkForDesign(subwork);
     setShowDesignModal(true);
     fetchDesignPhotos(subwork.subworks_id);
