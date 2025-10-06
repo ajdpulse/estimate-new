@@ -222,7 +222,19 @@ const Subworks: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDesignPhotos(data || []);
+
+      // Fix any URLs that have duplicate path (estimate-designs/estimate-designs/)
+      const fixedData = (data || []).map(photo => {
+        if (photo.photo_url && photo.photo_url.includes('/estimate-designs/estimate-designs/')) {
+          return {
+            ...photo,
+            photo_url: photo.photo_url.replace('/estimate-designs/estimate-designs/', '/estimate-designs/')
+          };
+        }
+        return photo;
+      });
+
+      setDesignPhotos(fixedData);
     } catch (error) {
       console.error('Error fetching design photos:', error);
     }
