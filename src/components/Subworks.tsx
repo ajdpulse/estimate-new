@@ -6,21 +6,7 @@ import { supabase } from '../lib/supabase';
 import { Work, SubWork } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
 import SubworkItems from './SubworkItems';
-import {
-  Plus,
-  Search,
-  Edit2,
-  Trash2,
-  Eye,
-  FileText,
-  IndianRupee,
-  Calculator,
-  ChevronRight,
-  Camera,
-  Upload,
-  Image as ImageIcon,
-  X
-} from 'lucide-react';
+import { Plus, Search, CreditCard as Edit2, Trash2, Eye, FileText, IndianRupee, Calculator, ChevronRight, Camera, Upload, Image as ImageIcon, X } from 'lucide-react';
 
 const Subworks: React.FC = () => {
   const { t } = useLanguage();
