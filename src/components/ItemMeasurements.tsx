@@ -33,7 +33,6 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
   rateDescriptions,
   selectedSrNo,
 }) => {
-  console.log("selectedSrNo", selectedSrNo);
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'measurements' | 'leads' | 'materials'>('measurements');
   const [measurements, setMeasurements] = useState<ItemMeasurement[]>([]);
@@ -360,14 +359,12 @@ const handleAddMeasurement = async () => {
         onItemUpdated(currentItem.sr_no);
       }
 
-      console.log(`Updated SSR quantity to ${totalQuantity} for item ${currentItem.sr_no}`);
-
     } catch (error) {
       console.error('Error updating SSR quantity:', error);
     }
   };
 
-const handleEditMeasurement = (measurement: ItemMeasurement) => {debugger
+const handleEditMeasurement = (measurement: ItemMeasurement) => {
   setSelectedMeasurement(measurement);
   setNewMeasurement({
     description_of_items: measurement.description_of_items,
