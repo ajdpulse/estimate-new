@@ -6,7 +6,21 @@ import { supabase } from '../lib/supabase';
 import { Work, SubWork } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
 import SubworkItems from './SubworkItems';
-import { Plus, Search, CreditCard as Edit2, Trash2, Eye, FileText, IndianRupee, Calculator, ChevronRight, Camera, Upload, Image as ImageIcon, X } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Eye,
+  FileText,
+  IndianRupee,
+  Calculator,
+  ChevronRight,
+  Camera,
+  Upload,
+  Image as ImageIcon,
+  X
+} from 'lucide-react';
 
 const Subworks: React.FC = () => {
   const { t } = useLanguage();
@@ -222,19 +236,7 @@ const Subworks: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-
-      // Fix any URLs that have duplicate path (estimate-designs/estimate-designs/)
-      const fixedData = (data || []).map(photo => {
-        if (photo.photo_url && photo.photo_url.includes('/estimate-designs/estimate-designs/')) {
-          return {
-            ...photo,
-            photo_url: photo.photo_url.replace('/estimate-designs/estimate-designs/', '/estimate-designs/')
-          };
-        }
-        return photo;
-      });
-
-      setDesignPhotos(fixedData);
+      setDesignPhotos(data || []);
     } catch (error) {
       console.error('Error fetching design photos:', error);
     }
@@ -250,7 +252,7 @@ const Subworks: React.FC = () => {
       // Upload to Supabase Storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${selectedSubworkForDesign.subworks_id}_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const filePath = `estimate-designs/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('estimate-designs')
@@ -773,30 +775,16 @@ const Subworks: React.FC = () => {
                   {designPhotos.map((photo) => (
                     <div key={photo.id} className="relative bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                       <div className="aspect-w-16 aspect-h-12 bg-gray-100">
-                        {photo.photo_url.toLowerCase().includes('.pdf') ||
-                         photo.photo_url.toLowerCase().includes('.dwg') ||
-                         photo.photo_url.toLowerCase().includes('.dxf') ? (
-                          <div className="flex flex-col items-center justify-center h-48">
+                        {photo.photo_url.toLowerCase().includes('.pdf') ? (
+                          <div className="flex items-center justify-center h-48">
                             <FileText className="h-12 w-12 text-red-500" />
-                            <span className="ml-2 text-sm text-gray-600 mt-2">
-                              {photo.photo_url.toLowerCase().includes('.pdf') ? 'PDF Document' :
-                               photo.photo_url.toLowerCase().includes('.dwg') ? 'DWG File' :
-                               'DXF File'}
-                            </span>
+                            <span className="ml-2 text-sm text-gray-600">PDF Document</span>
                           </div>
                         ) : (
                           <img
                             src={photo.photo_url}
                             alt={photo.photo_name}
                             className="w-full h-48 object-cover"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                              const parent = target.parentElement;
-                              if (parent) {
-                                parent.innerHTML = '<div class="flex flex-col items-center justify-center h-48"><svg class="h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><span class="text-sm text-gray-500 mt-2">Image Preview Unavailable</span></div>';
-                              }
-                            }}
                           />
                         )}
                       </div>
