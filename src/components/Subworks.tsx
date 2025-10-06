@@ -252,7 +252,7 @@ const Subworks: React.FC = () => {
       // Upload to Supabase Storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${selectedSubworkForDesign.subworks_id}_${Date.now()}.${fileExt}`;
-      const filePath = `estimate-designs/${fileName}`;
+      const filePath = `designs/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('estimate-designs')
