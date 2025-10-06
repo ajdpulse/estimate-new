@@ -4,11 +4,11 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { EstimateWork } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
-import { 
-  BarChart3, 
-  FileText, 
-  Clock, 
-  IndianRupee, 
+import {
+  BarChart3,
+  FileText,
+  Clock,
+  IndianRupee,
   TrendingUp,
   Activity
 } from 'lucide-react';
@@ -18,6 +18,7 @@ interface DashboardStats {
   pendingApprovals: number;
   totalAmount: number;
   recentWorks: Work[];
+  grandTotalAmount: number;
 }
 
 const Dashboard: React.FC = () => {
@@ -44,7 +45,7 @@ const Dashboard: React.FC = () => {
       if (works) {
         // Get works that have actual estimate/measurement activity
         const recentWorksWithActivity = [];
-        
+
         for (const work of works.slice(0, 10)) { // Check latest 10 works
           // Check if work has subworks
           const { data: subworks } = await supabase
@@ -53,7 +54,7 @@ const Dashboard: React.FC = () => {
             .select('subworks_id')
             .eq('works_id', work.works_id)
             .limit(1);
-          
+
           if (subworks && subworks.length > 0) {
             // Check if any subwork has items
             const { data: items } = await supabase
@@ -62,7 +63,7 @@ const Dashboard: React.FC = () => {
               .select('sr_no')
               .eq('subwork_id', subworks[0].subworks_id)
               .limit(1);
-            
+
             if (items && items.length > 0) {
               // Check if any item has measurements
               const { data: measurements } = await supabase
@@ -71,7 +72,7 @@ const Dashboard: React.FC = () => {
                 .select('sr_no')
                 .eq('subwork_item_id', items[0].sr_no)
                 .limit(1);
-              
+
               // Include work if it has estimates (items) or measurements
               if (measurements && measurements.length > 0) {
                 recentWorksWithActivity.push(work);
@@ -81,20 +82,34 @@ const Dashboard: React.FC = () => {
               }
             }
           }
-          
+
           // Limit to 5 recent activities
           if (recentWorksWithActivity.length >= 5) break;
         }
-        
+
         const totalWorks = works.length;
         const pendingApprovals = works.filter(work => work.status === 'pending').length;
         const totalAmount = works.reduce((sum, work) => sum + work.total_estimated_cost, 0);
+
+        // Calculate grandTotal from recap_json for all works
+        const grandTotalAmount = works.reduce((sum, work) => {
+          try {
+            if (work.recap_json) {
+              const recap = JSON.parse(work.recap_json);
+              if (recap && recap.calculations && typeof recap.calculations.grandTotal === 'number') {
+                return sum + recap.calculations.grandTotal;
+              }
+            }
+          } catch (e) { }
+          return sum;
+        }, 0);
 
         setStats({
           totalWorks,
           pendingApprovals,
           totalAmount,
           recentWorks: recentWorksWithActivity,
+          grandTotalAmount,
         });
       }
     } catch (error) {
@@ -198,7 +213,7 @@ const Dashboard: React.FC = () => {
                 {t('dashboard.totalAmount')}
               </p>
               <p className="text-2xl font-bold text-green-900">
-                {formatCurrency(stats?.totalAmount || 0)}
+                {formatCurrency(stats?.grandTotalAmount || 0)}
               </p>
             </div>
           </div>
@@ -253,10 +268,18 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex items-center space-x-3">
                     <span className="text-sm font-medium text-gray-900">
-                      {formatCurrency(work.total_estimated_cost)}
+                      {(() => {
+                        try {
+                          const recapJsonData = JSON.parse(work.recap_json);
+                          return formatCurrency(recapJsonData.calculations.grandTotal);
+                        } catch {
+                          return null;
+                        }
+                      })()}
                     </span>
                     {getStatusBadge(work.status)}
                   </div>
+
                 </div>
               ))}
             </div>
@@ -308,6 +331,7 @@ const Dashboard: React.FC = () => {
       </div>
     </div>
   );
+
 };
 
 export default Dashboard;
