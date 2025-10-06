@@ -134,7 +134,7 @@ const Works: React.FC = () => {
   };
 
   const handleUpdateWork = async () => {
-    debugger
+    
     if (!newWork.work_name || !selectedWork) return;
 
     try {
@@ -206,7 +206,6 @@ const Works: React.FC = () => {
 
   const handleWorksIdClick = (worksId: string) => {
     // Navigate to subworks tab with the selected works ID
-    console.log('Navigating to subworks with worksId:', worksId);
     navigate('/subworks', { state: { selectedWorksId: worksId } });
   };
 
@@ -348,7 +347,10 @@ const Works: React.FC = () => {
                     Status
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
-                    Total Estimated Cost
+                    Cost Without Tax
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
+                    Cost With Tax
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                     Created
@@ -411,6 +413,12 @@ const Works: React.FC = () => {
                         {formatCurrency(work.total_estimated_cost)}
                       </div>
                     </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="flex items-center text-sm font-medium text-gray-900">
+                        <IndianRupee className="w-4 h-4 mr-1" />
+                         {formatCurrency(JSON.parse(work.recap_json).calculations.grandTotal)}
+                      </div>
+                    </td>
                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
                       {new Date(work.created_at).toLocaleDateString('hi-IN')}
                     </td>
@@ -419,7 +427,7 @@ const Works: React.FC = () => {
                         <button
                           onClick={() => handlePdfView(work)}
                           className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-100 transition"
-                          title="View PDF"
+                          title="View Recap Sheet"
                         >
                           <FileText className="w-4 h-4" />
                         </button>
@@ -1097,6 +1105,7 @@ const Works: React.FC = () => {
         readonly={false}
         unitInputs={unitInputs}
         onUnitChange={handleUnitChange}
+        setShowPdfModal = {setShowPdfModal}
       />
     </div>
   </div>

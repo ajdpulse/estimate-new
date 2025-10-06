@@ -10,6 +10,7 @@ interface WorksRecapSheetProps {
   readonly?: boolean;
   unitInputs?: { [subworkId: string]: number };
   onUnitChange?: (subworkId: string, value: number) => void;
+  setShowPdfModal?: (value: boolean) => void;
 }
 
 const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
@@ -19,6 +20,7 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
   readonly = false,
   unitInputs: externalUnitInputs,
   onUnitChange,
+  setShowPdfModal, 
 }) => {
   const [work, setWork] = useState<Work | null>(null);
   const [subworks, setSubworks] = useState<SubWork[]>([]);
@@ -199,8 +201,6 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
   };
 
   const handleSave = async () => {
-    debugger
-    debugger;
     if (calculations && onSave) {
       onSave(calculations, taxes);
       setSaved(true);
@@ -254,7 +254,8 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
 
 
       if (error) throw error;
-      console.log('✅ Recap data updated with fetched type:', data);
+      console.log('✅ Recap data is updated');
+      setShowPdfModal?.(false);
     } catch (error) {
       console.error('❌ Error saving recap data to Supabase:', error);
     }

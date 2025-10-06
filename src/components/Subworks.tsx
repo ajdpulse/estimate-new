@@ -242,7 +242,7 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {debugger
+  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !selectedSubworkForDesign || !user) return;
 

@@ -201,7 +201,6 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
         )
       );
 
-      console.log(`Refreshed item ${itemSrNo} data:`, data);
     } catch (error) {
       console.error('Error refreshing item data:', error);
     }

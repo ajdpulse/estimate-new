@@ -112,7 +112,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     }
   }, [isOpen, workId]);
 
-  const fetchEstimateData = async () => {debugger
+  const fetchEstimateData = async () => {
     try {
       setLoading(true);
 
