@@ -20,7 +20,7 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
   readonly = false,
   unitInputs: externalUnitInputs,
   onUnitChange,
-  setShowPdfModal, 
+  setShowPdfModal,
 }) => {
   const [work, setWork] = useState<Work | null>(null);
   const [subworks, setSubworks] = useState<SubWork[]>([]);
@@ -53,7 +53,7 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
     if (work && subworks.length > 0) calculateRecap();
   }, [work, subworks, subworkItems, taxes, unitInputs]);
 
- const fetchWorkData = async () => {
+const fetchWorkData = async () => {debugger
   try {
     setLoading(true);
     const { data: workData, error: workError } = await supabase
@@ -65,23 +65,35 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
 
     if (workError) throw workError;
 
-    // Check if recap_json exists and parse it
+    // Always parse taxes and unitInputs from recap_json if present,
+    // but ALWAYS fetch subworks/items fresh from DB to ensure latest shown!
     if (workData?.recap_json) {
       const recapJsonData = JSON.parse(workData.recap_json);
 
       setWork(recapJsonData.work || workData);
 
-      if (recapJsonData.subworks) {
-        setSubworks(recapJsonData.subworks);
-      } else {
-        setSubworks([]);
-      }
+      // Always fresh fetch subworks
+      const { data: subworksData, error: subworksError } = await supabase
+        .schema('estimate')
+        .from('subworks')
+        .select('*')
+        .eq('works_id', workId)
+        .order('sr_no');
 
-      if (recapJsonData.subworkItems) {
-        setSubworkItems(recapJsonData.subworkItems);
-      } else {
-        setSubworkItems({});
+      if (subworksError) throw subworksError;
+      setSubworks(subworksData || []);
+
+      const itemsMap: { [subworkId: string]: SubworkItem[] } = {};
+      for (const subwork of subworksData || []) {
+        const { data: items } = await supabase
+          .schema('estimate')
+          .from('subwork_items')
+          .select('*')
+          .eq('subwork_id', subwork.subworks_id)
+          .order('sr_no');
+        itemsMap[subwork.subworks_id] = Array.isArray(items) ? items : [];
       }
+      setSubworkItems(itemsMap);
 
       if (recapJsonData.taxes) {
         setTaxes(recapJsonData.taxes);
@@ -95,7 +107,7 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
         setLocalUnitInputs({});
       }
     } else {
-      // If no recap_json, fallback to normal fetching
+      // If no recap_json, fallback to normal fetching (already correct)
       setWork(workData);
 
       const { data: subworksData, error: subworksError } = await supabase
@@ -116,7 +128,7 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
           .select('*')
           .eq('subwork_id', subwork.subworks_id)
           .order('sr_no');
-        itemsMap[subwork.subworks_id] = items || [];
+        itemsMap[subwork.subworks_id] = Array.isArray(items) ? items : [];
       }
       setSubworkItems(itemsMap);
     }
@@ -126,6 +138,7 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
     setLoading(false);
   }
 };
+
 
   const calculateRecap = () => {
     let partASubtotal = 0;
@@ -271,7 +284,7 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
   const getPartBSubworks = () => {
     return subworks.filter(subwork => {
       const items = subworkItems[subwork.subworks_id] || [];
-      return items.some(item => item.category === 'Without GST' || !item.category);
+      return items.some(item => !item.category || item.category === 'Without GST');
     });
   };
 
@@ -406,11 +419,14 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
                   </td>
                 </tr>
                 {getPartASubworks().map((subwork, index) => {
-                  const items = subworkItems[subwork.subworks_id] || [];
+                  const items = (subworkItems[subwork.subworks_id] || []).filter(
+                    item => item.category === 'With GST' || item.category === 'materials'
+                  );
                   const subworkTotalAmount = items.reduce(
                     (sum, item) => sum + (item.total_item_amount || 0),
                     0
                   );
+
                   const inputUnit = unitInputs[subwork.subworks_id] ?? (Number(subwork.unit) || 1);
                   const totalAmount = inputUnit * subworkTotalAmount;
 
@@ -472,11 +488,14 @@ const WorksRecapSheet: React.FC<WorksRecapSheetProps> = ({
                   </td>
                 </tr>
                 {getPartBSubworks().map((subwork, index) => {
-                  const items = subworkItems[subwork.subworks_id] || [];
+                  const items = (subworkItems[subwork.subworks_id] || []).filter(
+                    item => !item.category || item.category === 'Without GST'
+                  );
                   const subworkTotalAmount = items.reduce(
                     (sum, item) => sum + (item.total_item_amount || 0),
                     0
                   );
+
                   const inputUnit = unitInputs[subwork.subworks_id] ?? (Number(subwork.unit) || 1);
                   const totalAmount = inputUnit * subworkTotalAmount;
 
