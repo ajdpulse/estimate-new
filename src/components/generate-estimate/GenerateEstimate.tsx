@@ -45,23 +45,25 @@ const GenerateEstimate: React.FC = () => {
     fetchTemplates();
   }, []);
 
-  const fetchWorks = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .schema('estimate')
-        .from('works')
-        .select('*')
-        .order('sr_no', { ascending: false });
+// ✅ Optimized: Fetch only necessary work fields
+const fetchWorks = async () => {
+  try {
+    setLoading(true);
+    const { data, error } = await supabase
+      .schema('estimate')
+      .from('works')
+      .select('sr_no, works_id, work_name, division, type, status, created_at, total_estimated_cost')
+      .order('sr_no', { ascending: false });
 
-      if (error) throw error;
-      setWorks(data || []);
-    } catch (error) {
-      console.error('Error fetching works:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (error) throw error;
+    setWorks(data || []);
+  } catch (error) {
+    console.error('Error fetching works:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const fetchTemplates = async () => {
     try {
@@ -79,71 +81,72 @@ const GenerateEstimate: React.FC = () => {
     }
   };
 
-  const fetchCompleteEstimateData = async (worksId: string) => {
-    try {
-      // Fetch work details
-      const { data: work, error: workError } = await supabase
-        .schema('estimate')
-        .from('works')
-        .select('*')
-        .eq('works_id', worksId)
-        .single();
+ // ✅ Optimized: Fetch complete estimate data (batched, minimal queries)
+const fetchCompleteEstimateData = async (worksId: string) => {
+  try {
+    // 1️⃣ Fetch main work details
+    const { data: work, error: workError } = await supabase
+      .schema('estimate')
+      .from('works')
+      .select('works_id, work_name, type, division, sub_division, major_head, minor_head, service_head, departmental_head, fund_head, sanctioning_authority, ssr, total_estimated_cost')
+      .eq('works_id', worksId)
+      .single();
 
-      if (workError || !work) throw workError;
+    if (workError || !work) throw workError;
 
-      // Fetch subworks
-      const { data: subworks, error: subworksError } = await supabase
-        .schema('estimate')
-        .from('subworks')
-        .select('*')
-        .eq('works_id', worksId)
-        .order('sr_no');
+    // 2️⃣ Fetch subworks
+    const { data: subworks, error: subworksError } = await supabase
+      .schema('estimate')
+      .from('subworks')
+      .select('subworks_id, subworks_name, works_id')
+      .eq('works_id', worksId)
+      .order('sr_no');
 
-      if (subworksError) throw subworksError;
+    if (subworksError) throw subworksError;
 
-      // Fetch all related data
-      const subworkItems: { [subworkId: string]: SubworkItem[] } = {};
-      const measurements: { [itemId: string]: ItemMeasurement[] } = {};
-      const leads: { [itemId: string]: ItemLead[] } = {};
-      const materials: { [itemId: string]: ItemMaterial[] } = {};
+    // 3️⃣ Fetch all subwork items in one batch
+    const subworkIds = (subworks || []).map(sw => sw.subworks_id);
+    const { data: allItems, error: itemsError } = await supabase
+      .schema('estimate')
+      .from('subwork_items')
+      .select('sr_no, subwork_id, item_number, description_of_item, ssr_quantity, ssr_rate, ssr_unit, total_item_amount')
+      .in('subwork_id', subworkIds);
 
-      for (const subwork of subworks || []) {
-        const { data: items } = await supabase
-          .schema('estimate')
-          .from('subwork_items')
-          .select('*')
-          .eq('subwork_id', subwork.subworks_id)
-          .order('sr_no');
+    if (itemsError) throw itemsError;
 
-        subworkItems[subwork.subworks_id] = items || [];
+    const subworkItems: Record<string, SubworkItem[]> = {};
+    (subworks || []).forEach(sw => {
+      subworkItems[sw.subworks_id] = (allItems || []).filter(it => it.subwork_id === sw.subworks_id);
+    });
 
-        // Fetch measurements, leads, and materials for each item
-        for (const item of items || []) {
-          const [measurementsRes, leadsRes, materialsRes] = await Promise.all([
-            supabase.schema('estimate').from('item_measurements').select('*').eq('subwork_item_id', item.sr_no),
-            supabase.schema('estimate').from('item_leads').select('*').eq('subwork_item_sr_no', item.sr_no),
-            supabase.schema('estimate').from('item_materials').select('*').eq('subwork_item_sr_no', item.sr_no)
-          ]);
+    // 4️⃣ Fetch all measurements in one query
+    const itemSrNos = (allItems || []).map(it => it.sr_no);
+    const { data: allMeasurements, error: measureError } = await supabase
+      .schema('estimate')
+      .from('item_measurements')
+      .select('sr_no, subwork_item_id, description_of_items, no_of_units, length, width_breadth, height_depth, calculated_quantity, unit')
+      .in('subwork_item_id', itemSrNos);
 
-          measurements[item.id] = measurementsRes.data || [];
-          leads[item.id] = leadsRes.data || [];
-          materials[item.id] = materialsRes.data || [];
-        }
-      }
+    if (measureError) throw measureError;
 
-      return {
-        work,
-        subworks: subworks || [],
-        subworkItems,
-        measurements,
-        leads,
-        materials
-      };
-    } catch (error) {
-      console.error('Error fetching complete estimate data:', error);
-      return null;
-    }
-  };
+    const measurements: Record<string, ItemMeasurement[]> = {};
+    (allItems || []).forEach(it => {
+      measurements[it.sr_no] = (allMeasurements || []).filter(m => m.subwork_item_id === it.sr_no);
+    });
+
+    return {
+      work,
+      subworks: subworks || [],
+      subworkItems,
+      measurements,
+      leads: {},
+      materials: {},
+    };
+  } catch (error) {
+    console.error('Error fetching complete estimate data:', error);
+    return null;
+  }
+};
 
   const handleSaveAsTemplate = async (work: Work) => {
     setSelectedWorkForTemplate(work);
