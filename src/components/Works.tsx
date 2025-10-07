@@ -24,26 +24,9 @@ const Works: React.FC = () => {
   const [unitInputs, setUnitInputs] = useState<{ [subworkId: string]: number }>({});
   const [selectedWorkForPdf, setSelectedWorkForPdf] = useState<Work | null>(null);
   const [savedCalculations, setSavedCalculations] = useState<{ [workId: string]: { calculations: RecapCalculations; taxes: TaxEntry[] } }>({});
-  const [saved, setSaved] = useState(false);
   const [newWork, setNewWork] = useState<Partial<Work>>({
     type: 'Technical Sanction'
   });
-
-  const documentSettings = {
-    header: {
-      zilla: 'Zilla Parishad',
-      division: 'Division Office',
-      subDivision: 'Sub-Division Office'
-    },
-    footer: {
-      preparedBy: 'Technical Staff',
-      designation: 'Executive Engineer'
-    },
-    pageSettings: {
-      showPageNumbers: true,
-      pageNumberPosition: 'bottom' as 'top' | 'bottom'
-    }
-  };
 
   useEffect(() => {
     fetchWorks();
@@ -55,48 +38,32 @@ const Works: React.FC = () => {
     setSaved(false);
   };
 
-  const fetchWorks = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .schema('estimate')
-        .from('works')
-        .select('*')
-        .order('sr_no', { ascending: false });
+  const fetchWorks = async (filterType = 'all') => {
+  try {
+    setLoading(true);
 
-      if (error) throw error;
+    // Base query
+    let query = supabase
+      .schema('estimate')
+      .from('works')
+      .select('*')
+      .order('sr_no', { ascending: false });
 
-      const worksData = data || [];
-
-      for (const work of worksData) {
-        // Get sum of subwork_amount from subworks for this works_id
-        const { data: subworksData, error: subworksError } = await supabase
-          .schema('estimate')
-          .from('subworks')
-          .select('subwork_amount')
-          .eq('works_id', work.works_id);
-        if (subworksError) throw subworksError;
-
-        const totalSubworkAmount = (subworksData || []).reduce(
-          (acc, row) => acc + (row.subwork_amount || 0), 0);
-
-        // Update total_estimated_cost in works
-        const { error: updateError } = await supabase
-          .schema('estimate')
-          .from('works')
-          .update({ total_estimated_cost: totalSubworkAmount })
-          .eq('works_id', work.works_id);
-        if (updateError) throw updateError;
-      }
-
-      setWorks(worksData);
-    } catch (error) {
-      console.error('Error fetching works:', error);
-    } finally {
-      setLoading(false);
+    // Apply filter condition dynamically
+    if (filterType !== 'all') {
+      query = query.eq('type', filterType);
     }
-  };
 
+    const { data, error } = await query;
+    if (error) throw error;
+
+    setWorks(data || []);
+  } catch (error) {
+    console.error('Error fetching works:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleAddWork = async () => {
     if (!newWork.work_name || !user) return;
@@ -267,25 +234,9 @@ const Works: React.FC = () => {
     }).format(amount);
   };
 
-  const handlePdfView = async (work: Work) => {
-    // Fetch the latest work data before opening modal
-    try {
-      const { data: latestWork, error } = await supabase
-        .schema('estimate')
-        .from('works')
-        .select('*')
-        .eq('works_id', work.works_id)
-        .single();
-
-      if (error) throw error;
-
-      setSelectedWorkForPdf(latestWork || work);
-      setShowPdfModal(true);
-    } catch (error) {
-      console.error('Error fetching latest work data:', error);
-      setSelectedWorkForPdf(work);
-      setShowPdfModal(true);
-    }
+  const handlePdfView = (work: Work) => {
+    setSelectedWorkForPdf(work);
+    setShowPdfModal(true);
   };
 
   const filteredWorks = works.filter(work => {
@@ -449,15 +400,7 @@ const Works: React.FC = () => {
                     <td className="px-4 py-2 whitespace-nowrap">
                       <div className="flex items-center text-sm font-medium text-gray-900">
                         <IndianRupee className="w-4 h-4 mr-1" />
-                        {work.recap_json && (() => {
-                          try {
-                            const recapData = JSON.parse(work.recap_json);
-                            return formatCurrency(recapData?.calculations?.grandTotal || 0);
-                          } catch (e) {
-                            return formatCurrency(0);
-                          }
-                        })()}
-                        {!work.recap_json && formatCurrency(0)}
+                         {work.recap_json ? formatCurrency(JSON.parse(work.recap_json).calculations?.grandTotal || 0) : '-'}
                       </div>
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
@@ -1135,24 +1078,18 @@ const Works: React.FC = () => {
   <div className="fixed inset-0 z-50 bg-gray-600 bg-opacity-50 flex justify-center items-center p-4">
     <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] overflow-auto relative p-4">
       <button
-        onClick={() => {
-          setShowPdfModal(false);
-          fetchWorks(); // Refresh works list to show updated cost with tax
-        }}
+        onClick={() => setShowPdfModal(false)}
         className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 z-10"
       >
         Close
       </button>
 
       <WorksRecapSheet
-        workId={selectedWorkForPdf.works_id}
+        workId={selectedWorkForPdf.works_id}  // ✅ FIXED
         readonly={false}
         unitInputs={unitInputs}
         onUnitChange={handleUnitChange}
-        setShowPdfModal={(value: boolean) => {
-          setShowPdfModal(value);
-          if (!value) fetchWorks(); // Refresh when modal is closed
-        }}
+        setShowPdfModal = {setShowPdfModal}
       />
     </div>
   </div>
