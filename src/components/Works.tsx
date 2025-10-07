@@ -38,48 +38,32 @@ const Works: React.FC = () => {
     setSaved(false);
   };
 
-  const fetchWorks = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .schema('estimate')
-        .from('works')
-        .select('*')
-        .order('sr_no', { ascending: false });
+  const fetchWorks = async (filterType = 'all') => {
+  try {
+    setLoading(true);
 
-      if (error) throw error;
+    // Base query
+    let query = supabase
+      .schema('estimate')
+      .from('works')
+      .select('*')
+      .order('sr_no', { ascending: false });
 
-      const worksData = data || [];
-
-      for (const work of worksData) {
-        // Get sum of subwork_amount from subworks for this works_id
-        const { data: subworksData, error: subworksError } = await supabase
-          .schema('estimate')
-          .from('subworks')
-          .select('subwork_amount')
-          .eq('works_id', work.works_id);
-        if (subworksError) throw subworksError;
-
-        const totalSubworkAmount = (subworksData || []).reduce(
-          (acc, row) => acc + (row.subwork_amount || 0), 0);
-
-        // Update total_estimated_cost in works
-        const { error: updateError } = await supabase
-          .schema('estimate')
-          .from('works')
-          .update({ total_estimated_cost: totalSubworkAmount })
-          .eq('works_id', work.works_id);
-        if (updateError) throw updateError;
-      }
-
-      setWorks(worksData);
-    } catch (error) {
-      console.error('Error fetching works:', error);
-    } finally {
-      setLoading(false);
+    // Apply filter condition dynamically
+    if (filterType !== 'all') {
+      query = query.eq('type', filterType);
     }
-  };
 
+    const { data, error } = await query;
+    if (error) throw error;
+
+    setWorks(data || []);
+  } catch (error) {
+    console.error('Error fetching works:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleAddWork = async () => {
     if (!newWork.work_name || !user) return;
@@ -416,7 +400,7 @@ const Works: React.FC = () => {
                     <td className="px-4 py-2 whitespace-nowrap">
                       <div className="flex items-center text-sm font-medium text-gray-900">
                         <IndianRupee className="w-4 h-4 mr-1" />
-                         {formatCurrency(JSON.parse(work.recap_json).calculations.grandTotal)}
+                         {work.recap_json ? formatCurrency(JSON.parse(work.recap_json).calculations?.grandTotal || 0) : '-'}
                       </div>
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">

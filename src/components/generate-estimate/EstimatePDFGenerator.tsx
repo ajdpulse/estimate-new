@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from "react";
-import {useAuth} from "../../contexts/AuthContext";
-import {supabase} from "../../lib/supabase";
+import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../lib/supabase";
 import {
   Work,
   SubWork,
@@ -83,6 +83,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
 
   const [showPreview, setShowPreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [itemRatesMap, setItemRatesMap] = React.useState<Record<string, ItemRate[]>>({});
   const [currentPage, setCurrentPage] = useState(1);
 
   const printRef = useRef<HTMLDivElement | null>(null);
@@ -116,80 +117,117 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     try {
       setLoading(true);
 
-      // Fetch work details
+      // 1️⃣ Fetch work details (only existing columns)
       const { data: work, error: workError } = await supabase
-        .schema('estimate')
-        .from('works')
-        .select('*')
-        .eq('works_id', workId)
+        .schema("estimate")
+        .from("works")
+        .select("works_id, work_name, division, sub_division, fund_head, major_head, minor_head, service_head, departmental_head, sanctioning_authority, total_estimated_cost")
+        .eq("works_id", workId)
         .single();
 
       if (workError) throw workError;
 
-      // Update document settings with work data
       if (work) {
-        setDocumentSettings(prev => ({
+        setDocumentSettings((prev) => ({
           ...prev,
           header: {
             ...prev.header,
             division: work.division || prev.header.division,
-            subDivision: work.sub_division || prev.header.subDivision
-          }
+            subDivision: work.sub_division || prev.header.subDivision,
+          },
         }));
       }
 
-      // Fetch subworks
+      // 2️⃣ Fetch all subworks in one call
       const { data: subworks, error: subworksError } = await supabase
-        .schema('estimate')
-        .from('subworks')
-        .select('*')
-        .eq('works_id', workId)
-        .order('sr_no');
+        .schema("estimate")
+        .from("subworks")
+        .select("subworks_id, subworks_name, works_id")
+        .eq("works_id", workId)
+        .order("sr_no");
 
       if (subworksError) throw subworksError;
 
-      // Fetch subwork items for all subworks
-      const subworkItems: { [subworkId: string]: SubworkItem[] } = {};
-      const measurements: { [itemId: string]: ItemMeasurement[] } = {};
-      const leads: { [itemId: string]: ItemLead[] } = {};
-      const materials: { [itemId: string]: ItemMaterial[] } = {};
-
-      for (const subwork of subworks || []) {
-        const { data: items } = await supabase
-          .schema('estimate')
-          .from('subwork_items')
-          .select('*')
-          .eq('subwork_id', subwork.subworks_id)
-          .order('sr_no');
-
-        subworkItems[subwork.subworks_id] = items || [];
-
-        // Fetch measurements for each item using sr_no as subwork_item_id
-        for (const item of items || []) {
-          const { data: measurementsRes } = await supabase
-            .schema('estimate')
-            .from('item_measurements')
-            .select('*')
-            .eq('subwork_item_id', item.sr_no)
-          measurements[item.sr_no] = measurementsRes || [];
-        }
+      if (!subworks?.length) {
+        setEstimateData({
+          work,
+          subworks: [],
+          subworkItems: {},
+          measurements: {},
+          leads: {},
+          materials: {},
+        });
+        return;
       }
 
+      // 3️⃣ Fetch all subwork_items (only needed columns except rate related)
+      const subworkIds = subworks.map((sw) => sw.subworks_id).filter(Boolean);
+      const { data: allItems, error: itemsError } = await supabase
+        .schema("estimate")
+        .from("subwork_items")
+        .select("sr_no, subwork_id, description_of_item, ssr_quantity, ssr_unit, ssr_rate, total_item_amount, category, item_number")
+        .in("subwork_id", subworkIds)
+        .order("sr_no");
+
+      if (itemsError) throw itemsError;
+
+      // 4️⃣ Fetch all rates for subwork_items from item_rates
+      const itemSrNos = allItems.map((it) => it.sr_no).filter(Boolean);
+      const { data: allRates, error: rateError } = await supabase
+        .schema("estimate")
+        .from("item_rates")
+        .select("subwork_item_sr_no, description, ssr_unit, rate, ssr_quantity, rate_total_amount")
+        .in("subwork_item_sr_no", itemSrNos);
+
+      if (rateError) throw rateError;
+
+      // 5️⃣ Build subworkItems: each item gets a 'rates' array (may be empty)
+      const subworkItems: Record<string, SubworkItem[]> = {};
+      subworks.forEach((sw) => {
+        subworkItems[sw.subworks_id] = (allItems || [])
+          .filter(it => it.subwork_id === sw.subworks_id)
+          .map(item => ({
+            ...item,
+            rates: (allRates || []).filter(rt => rt.subwork_item_sr_no === item.sr_no)
+          }));
+      });
+
+      // 6️⃣ Fetch all measurements for these items
+      const { data: allMeasurements, error: measureError } = await supabase
+        .schema("estimate")
+        .from("item_measurements")
+        .select("sr_no, subwork_item_id, description_of_items, no_of_units, length, width_breadth, height_depth, calculated_quantity, unit")
+        .in("subwork_item_id", itemSrNos);
+
+      if (measureError) throw measureError;
+
+      // 7️⃣ Map measurements using sr_no
+      const measurements: Record<string, ItemMeasurement[]> = {};
+      allItems.forEach(item => {
+        const related = (allMeasurements || []).filter(
+          m => m.subwork_item_id === item.sr_no
+        );
+        measurements[item.sr_no] = related;
+      });
+
+      // ✅ Update state with all data
       setEstimateData({
         work,
-        subworks: subworks || [],
+        subworks,
         subworkItems,
         measurements,
         leads: {},
-        materials: {}
+        materials: {},
       });
 
     } catch (error) {
-      console.error('Error fetching estimate data:', error);
+      console.error("Error fetching estimate data:", error);
     } finally {
       setLoading(false);
     }
   };
+
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('hi-IN', {
@@ -801,42 +839,168 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                         <p className="text-sm">Fund Head :- {estimateData.work.fund_head || '-'}</p>
                         <p className="text-sm">Village :- {estimateData.work.village || 'N/A'}, GP :- {estimateData.work.grampanchayat || 'N/A'}, Tah :- {estimateData.work.taluka || 'N/A'}</p>
                         <h3 className="text-lg font-bold mt-4">Sub-work: {subwork.subworks_name}</h3>
+                        <h4 className="text-lg font-bold underline">ABSTRACT</h4>
                       </div>
+
+                      {/* ✅ Debug: Check what data items contains */}
+                      {(() => {
+                        console.log("📊 Subwork Items data:", items);
+                      })()}
 
                       <table className="w-full border-collapse border border-black text-xs mb-6">
                         <thead>
                           <tr className="bg-gray-100">
                             <th className="border border-black p-2">Sr. No</th>
                             <th className="border border-black p-2">Description of Sub Work</th>
-                            <th className="border border-black p-2">No.</th>
+                            <th className="border border-black p-2">Category</th>
+                            <th className="border border-black p-2">Quantity</th>
                             <th className="border border-black p-2">Unit</th>
-                            <th className="border border-black p-2">Amount (Rs.)</th>
+                            <th className="border border-black p-2">Rate (Rs.)</th>
                             <th className="border border-black p-2">Total Amount</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {items.map((item, index) => (
-                            <tr key={item.id}>
-                              <td className="border border-black p-2 text-center">{index + 1}</td>
-                              <td className="border border-black p-2">{item.description_of_item}</td>
-                              <td className="border border-black p-2 text-center">{item.ssr_quantity}</td>
-                              <td className="border border-black p-2 text-center">{item.ssr_unit}</td>
-                              <td className="border border-black p-2 text-right">
-                                {(item.ssr_rate || 0).toLocaleString('hi-IN')}
-                              </td>
-                              <td className="border border-black p-2 text-right">
-                                {(item.total_item_amount || 0).toLocaleString('hi-IN')}
+                          {items && items.length > 0 ? (
+                            items.map((item, index) => {
+                              const rates = item.rates || [];
+                              const showMultiRates = rates.length > 0;
+
+                              return (
+                                <tr key={item.sr_no || index}>
+                                  <td className="border border-black p-2 text-center align-top">
+                                    {item.item_number || index + 1}
+                                  </td>
+                                  <td className="border border-black p-2 align-top">
+                                    <div>{item.description_of_item}</div>
+                                    {showMultiRates && (
+                                      <div className="mt-1 space-y-1">
+                                        {rates.map((rate, i) => (
+                                          <div key={i} className="text-xs bg-gray-50 p-2 rounded border-l-2 border-blue-200 mt-1">
+                                            <div className="font-medium text-gray-700">{rate.description}</div>
+                                            <div className="flex items-center justify-between mt-1">
+                                              <span className="text-gray-600">
+                                                ₹{rate.rate !== undefined && rate.rate !== null
+                                                  ? Number(rate.rate).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
+                                                  : 0}
+                                              </span>
+                                              {rate.ssr_unit && (
+                                                <span className="text-gray-500">per {rate.ssr_unit}</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="border border-black p-2 align-top text-center">
+                                    {item.category || '-'}
+                                  </td>
+                                  <td className="border border-black p-2 align-top text-center">
+                                    {showMultiRates ? (
+                                      <div className="space-y-1">
+                                        {rates.map((rate, i) => (
+                                          <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
+                                            {rate.ssr_quantity !== null && rate.ssr_quantity !== undefined
+                                              ? Number(rate.ssr_quantity).toLocaleString("hi-IN", { maximumFractionDigits: 3 })
+                                              : 0}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      item.ssr_quantity !== null && item.ssr_quantity !== undefined
+                                        ? Number(item.ssr_quantity).toLocaleString("hi-IN", { maximumFractionDigits: 3 })
+                                        : 0
+                                    )}
+                                  </td>
+                                  <td className="border border-black p-2 align-top text-center">
+                                    {showMultiRates ? (
+                                      <div className="space-y-1">
+                                        {rates.map((rate, i) => (
+                                          <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
+                                            {rate.ssr_unit || item.ssr_unit || "-"}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      item.ssr_unit || "-"
+                                    )}
+                                  </td>
+                                  <td className="border border-black p-2 align-top text-right">
+                                    {showMultiRates ? (
+                                      <div className="space-y-1">
+                                        {rates.map((rate, i) => (
+                                          <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
+                                            {rate.rate !== null && rate.rate !== undefined
+                                              ? Number(rate.rate).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
+                                              : 0}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      item.ssr_rate !== null && item.ssr_rate !== undefined
+                                        ? Number(item.ssr_rate).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
+                                        : 0
+                                    )}
+                                  </td>
+                                  <td className="border border-black p-2 align-top text-right">
+                                    {showMultiRates ? (
+                                      <div className="space-y-1">
+                                        {rates.map((rate, i) => (
+                                          <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
+                                            {(rate.ssr_quantity && rate.rate
+                                              ? (Number(rate.ssr_quantity) * Number(rate.rate))
+                                              : 0
+                                            ).toLocaleString("hi-IN", { maximumFractionDigits: 2 })}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      item.total_item_amount !== null && item.total_item_amount !== undefined
+                                        ? Number(item.total_item_amount).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
+                                        : 0
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={7} className="border border-black p-2 text-center text-gray-500 italic">
+                                No subwork items available
                               </td>
                             </tr>
-                          ))}
-                          <tr className="font-bold bg-gray-100">
-                            <td colSpan={5} className="border border-black p-2 text-center">Total Rs</td>
-                            <td className="border border-black p-2 text-right">
-                              {items.reduce((sum, item) => sum + (item.total_item_amount || 0), 0).toLocaleString('hi-IN')}
-                            </td>
-                          </tr>
+                          )}
+                          {items && items.length > 0 && (
+                            <tr className="font-bold bg-gray-100">
+                              <td colSpan={6} className="border border-black p-2 text-center">
+                                Total Rs
+                              </td>
+                              <td className="border border-black p-2 text-right">
+                                {items
+                                  .reduce((sum, item) => {
+                                    const rates = item.rates || [];
+                                    const itemTotal = rates.length > 0
+                                      ? rates.reduce(
+                                        (rSum, rate) =>
+                                          rSum +
+                                          ((rate.ssr_quantity && rate.rate)
+                                            ? Number(rate.ssr_quantity) * Number(rate.rate)
+                                            : 0
+                                          ),
+                                        0
+                                      )
+                                      : (item.total_item_amount !== null && item.total_item_amount !== undefined
+                                        ? Number(item.total_item_amount)
+                                        : 0);
+                                    return sum + itemTotal;
+                                  }, 0)
+                                  .toLocaleString("hi-IN", { maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
+
                     </div>
 
                     <PageFooter pageNumber={(() => {
