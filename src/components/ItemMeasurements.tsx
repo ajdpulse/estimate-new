@@ -508,7 +508,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }
   };
 
-  const handleAddLead = async () => {
+  const handleAddLead = async () => {debugger;
     if (!newLead.material || !user) return;
 
     try {
@@ -538,7 +538,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
     }
   };
 
-  const handleAddMaterial = async () => {
+  const handleAddMaterial = async () => {debugger
     if (!newMaterial.material_name || !user) return;
 
     try {
@@ -1019,7 +1019,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                       min="0"
                       step="0.01"
                       value={newMeasurement.length || ''}
-                      onChange={(e) => setNewMeasurement({ ...newMeasurement, length: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setNewMeasurement({ ...newMeasurement, length: e.target.value || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -1030,7 +1030,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                       min="0"
                       step="0.01"
                       value={newMeasurement.width_breadth || ''}
-                      onChange={(e) => setNewMeasurement({ ...newMeasurement, width_breadth: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setNewMeasurement({ ...newMeasurement, width_breadth: e.target.value || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -1041,7 +1041,7 @@ const ItemMeasurements: React.FC<ItemMeasurementsProps> = ({
                       min="0"
                       step="0.01"
                       value={newMeasurement.height_depth || ''}
-                      onChange={(e) => setNewMeasurement({ ...newMeasurement, height_depth: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setNewMeasurement({ ...newMeasurement, height_depth: e.target.value || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
