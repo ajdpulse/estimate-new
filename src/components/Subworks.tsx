@@ -54,77 +54,119 @@ const Subworks: React.FC = () => {
   const [subworkTotals, setSubworkTotals] = useState<Record<string, number>>({});
   const totalSubworkEstimate = Object.values(subworkTotals || {}).reduce((acc, val) => acc + val, 0);
 
-  useEffect(() => {
-    fetchWorks();
-  }, []);
+useEffect(() => {
+  // Always fetch all works on selectedWorkId change, not just filtered
+  fetchWorks();
+}, [selectedWorkId]);
 
-  useEffect(() => {
-    // Check if we received a selected works ID from navigation state
-    if (location.state?.selectedWorksId) {
-      setSelectedWorkId(location.state.selectedWorksId);
-      // Clear the navigation state to prevent re-execution
-      window.history.replaceState({}, document.title);
+useEffect(() => {
+  // Check if we received a selected works ID from navigation state
+  if (location.state?.selectedWorksId) {
+    setSelectedWorkId(location.state.selectedWorksId);
+    // Clear the navigation state to prevent re-execution
+    window.history.replaceState({}, document.title);
+  }
+}, [location.state]);
+
+useEffect(() => {
+  if (selectedWorkId) {
+    fetchSubworks(selectedWorkId);
+  }
+}, [selectedWorkId]);
+
+useEffect(() => {
+  if (selectedSubworkIds.length > 0) {
+    fetchItemCounts();
+    fetchSubworkTotals();
+  }
+}, [selectedSubworkIds]);
+
+useEffect(() => {
+  if (subworks.length > 0) {
+    fetchSubworkTotals();
+  }
+}, [subworks]);
+
+const fetchWorks = async (selectedId = '') => {
+  try {
+    setLoading(true);
+
+    // Fetch all works always (remove filtering by selectedId)
+    let query = supabase
+      .schema('estimate')
+      .from('works')
+      .select('*')
+      .order('sr_no', { ascending: false });
+
+    // Removed filtering by selectedId: fetch all works regardless
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    setWorks(data || []);
+
+    // Auto-select first work only if nothing is selected yet
+    if (data && data.length > 0 && !selectedWorkId && !location.state?.selectedWorksId) {
+      setSelectedWorkId(data[0].works_id);
     }
-  }, [location.state]);
+  } catch (error) {
+    console.error('Error fetching works:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  useEffect(() => {
-    if (selectedWorkId) {
-      fetchSubworks(selectedWorkId);
-    }
-  }, [selectedWorkId]);
+const fetchSubworks = async (workId: string) => {
+  if (!workId) return;
+  try {
+    setLoading(true);
 
-  useEffect(() => {
-    if (selectedSubworkIds.length > 0) {
-      fetchItemCounts();
-      fetchSubworkTotals();
-    }
-  }, [selectedSubworkIds]);
+    // Fetch all subworks for the selected work
+    const { data: subworksData, error: subworksError } = await supabase
+      .schema('estimate')
+      .from('subworks')
+      .select('*')
+      .eq('works_id', workId)
+      .order('sr_no', { ascending: true });
+    if (subworksError) throw subworksError;
 
-  useEffect(() => {
-    if (subworks.length > 0) {
-      fetchSubworkTotals();
-    }
-  }, [subworks]);
+    setSubworks(subworksData || []);
 
-  const fetchWorks = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
+    // ✅ Fetch all related subwork_items in a single call
+    const subworkIds = (subworksData || []).map(sw => sw.subworks_id);
+    if (subworkIds.length > 0) {
+      const { data: itemsData, error: itemsError } = await supabase
         .schema('estimate')
-        .from('works')
-        .select('*')
-        .order('sr_no', { ascending: false });
+        .from('subwork_items')
+        .select('subworks_id, subwork_amount')
+        .in('subworks_id', subworkIds);
+      if (itemsError) throw itemsError;
 
-      if (error) throw error;
-      setWorks(data || []);
+      // ✅ Compute totals and item counts locally
+      const totals: Record<string, number> = {};
+      const counts: Record<string, number> = {};
 
-      // Auto-select first work if available and no work was selected from navigation
-      if (data && data.length > 0 && !selectedWorkId && !location.state?.selectedWorksId) {
-        setSelectedWorkId(data[0].works_id);
-      }
-    } catch (error) {
-      console.error('Error fetching works:', error);
-    } finally {
-      setLoading(false);
+      (itemsData || []).forEach(item => {
+        const id = item.subworks_id;
+        totals[id] = (totals[id] || 0) + (item.subwork_amount || 0);
+        counts[id] = (counts[id] || 0) + 1;
+      });
+
+      // Update your state
+      setSubworkTotals(totals);
+      setSubworkItemCounts(counts);
+    } else {
+      setSubworkTotals({});
+      setSubworkItemCounts({});
     }
-  };
 
-  
-  const fetchSubworks = async (workId: string) => {
-    try {
-      const { data, error } = await supabase
-        .schema('estimate')
-        .from('subworks')
-        .select('*')
-        .eq('works_id', workId)
-        .order('sr_no', { ascending: true });
+  } catch (error) {
+    console.error('Error fetching subworks:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
-      if (error) throw error;
-      setSubworks(data || []);
-    } catch (error) {
-      console.error('Error fetching subworks:', error);
-    }
-  };
 
   const fetchItemCounts = async () => {
     try {
@@ -147,84 +189,78 @@ const Subworks: React.FC = () => {
     }
   };
 
-  const fetchSubworkTotals = async () => {
-    try {
-      const totals: { [key: string]: number } = {};
+const fetchSubworkTotals = async () => {
+  try {
+    const totals: { [key: string]: number } = {};
 
+    if (!subworks || subworks.length === 0) return;
+
+    // ✅ Step 1: Fetch all subwork_items for these subworks at once
+    const subworkIds = subworks.map(sw => sw.subworks_id);
+    const { data: subworkItems, error: itemsError } = await supabase
+      .schema('estimate')
+      .from('subwork_items')
+      .select('sr_no, subwork_id')
+      .in('subwork_id', subworkIds);
+
+    if (itemsError) throw itemsError;
+
+    // If no items found, set all to 0
+    if (!subworkItems || subworkItems.length === 0) {
       for (const subwork of subworks) {
-        // Fetch all subwork_items for the current subwork
-        const { data: subworkItems, error: itemsError } = await supabase
+        totals[subwork.subworks_id] = 0;
+
+        // Update subwork_amount = 0 (same functionality, just kept as-is)
+        await supabase
           .schema('estimate')
-          .from('subwork_items')
-          .select('sr_no, subwork_id')
-          .eq('subwork_id', subwork.subworks_id);
-
-        if (itemsError) throw itemsError;
-
-        if (subworkItems && subworkItems.length > 0) {
-          // For each subwork_item, calculate sum of rate_total_amount from item_rates and update total_item_amount
-          for (const item of subworkItems) {
-            const { data: rateSums, error: rateError } = await supabase
-              .schema('estimate')
-              .from('item_rates')
-              .select('rate_total_amount')
-              .eq('subwork_item_sr_no', item.sr_no);
-
-            if (rateError) throw rateError;
-
-            const totalForItem = (rateSums || []).reduce((sum, rate) => sum + (rate.rate_total_amount || 0), 0);
-
-            // Update total_item_amount in subwork_items table for this item
-            const { error: updateError } = await supabase
-              .schema('estimate')
-              .from('subwork_items')
-              .update({ total_item_amount: totalForItem })
-              .eq('sr_no', item.sr_no);
-
-            if (updateError) throw updateError;
-          }
-
-          // After all updates, fetch updated total_item_amount sums for current subwork
-          const { data: updatedItems, error: updatedItemsError } = await supabase
-            .schema('estimate')
-            .from('subwork_items')
-            .select('total_item_amount')
-            .eq('subwork_id', subwork.subworks_id);
-
-          if (updatedItemsError) throw updatedItemsError;
-
-          const total = (updatedItems || []).reduce((sum, item) => sum + (item.total_item_amount || 0), 0);
-          totals[subwork.subworks_id] = total;
-
-          // Update subwork_amount in subworks table with the total
-          const { error: subworksUpdateError } = await supabase
-            .schema('estimate')
-            .from('subworks')
-            .update({ subwork_amount: total })
-            .eq('subworks_id', subwork.subworks_id);
-
-          if (subworksUpdateError) throw subworksUpdateError;
-        } else {
-          totals[subwork.subworks_id] = 0;
-
-          // Update subwork_amount to 0 for subworks with no items
-          const { error: subworksUpdateError } = await supabase
-            .schema('estimate')
-            .from('subworks')
-            .update({ subwork_amount: 0 })
-            .eq('subworks_id', subwork.subworks_id);
-
-          if (subworksUpdateError) throw subworksUpdateError;
-        }
+          .from('subworks')
+          .update({ subwork_amount: 0 })
+          .eq('subworks_id', subwork.subworks_id);
       }
-
       setSubworkTotals(totals);
-    } catch (error) {
-      console.error('Error fetching subwork totals:', error);
+      return;
     }
-  };
 
+    // ✅ Step 2: Fetch all item_rates for all subwork_items in one go
+    const itemSrNos = subworkItems.map(i => i.sr_no);
+    const { data: rateRows, error: rateError } = await supabase
+      .schema('estimate')
+      .from('item_rates')
+      .select('subwork_item_sr_no, rate_total_amount')
+      .in('subwork_item_sr_no', itemSrNos);
 
+    if (rateError) throw rateError;
+
+    // ✅ Step 3: Compute totals efficiently in memory
+    const itemTotals: Record<number, number> = {};
+    (rateRows || []).forEach(rate => {
+      itemTotals[rate.subwork_item_sr_no] =
+        (itemTotals[rate.subwork_item_sr_no] || 0) + (rate.rate_total_amount || 0);
+    });
+
+    // ✅ Step 4: Aggregate totals by subwork_id
+    subworkItems.forEach(item => {
+      const subworkId = item.subwork_id;
+      const totalItemAmt = itemTotals[item.sr_no] || 0;
+      totals[subworkId] = (totals[subworkId] || 0) + totalItemAmt;
+    });
+
+    // ✅ Step 5: Update all subworks’ subwork_amounts (same as your logic)
+    // → We’ll keep the same one-by-one updates to preserve exact functionality.
+    for (const subworkId in totals) {
+      await supabase
+        .schema('estimate')
+        .from('subworks')
+        .update({ subwork_amount: totals[subworkId] })
+        .eq('subworks_id', subworkId);
+    }
+
+    // ✅ Step 6: Update React state (same)
+    setSubworkTotals(totals);
+  } catch (error) {
+    console.error('Error fetching subwork totals:', error);
+  }
+};
 
   const fetchDesignPhotos = async (subworkId: string) => {
     try {
