@@ -42,7 +42,10 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
   // Map the rates for the selected item to only include their descriptions
   const [ratesArray, setRatesArray] = useState<ItemRate[]>([]);
   const [rateDescriptions, setRateDescriptions] = useState<string[]>([]);
-  const [selectedSrNo , setSelectedSrNo] = useState();
+  const [selectedSrNo, setSelectedSrNo] = useState();
+  const navigate = useNavigate();
+  const [showRateAnalysisModal, setShowRateAnalysisModal] = useState(false);
+  const [rateAnalysisItem, setRateAnalysisItem] = useState<SubworkItem | null>(null);
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [newItem, setNewItem] = useState<Partial<SubworkItem>>({
@@ -745,9 +748,24 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
         </div>
       </div>
 
+      {showRateAnalysisModal && rateAnalysisItem && (
+        <RateAnalysis
+          isOpen={showRateAnalysisModal}
+          onClose={() => {
+            setShowRateAnalysisModal(false);
+            setRateAnalysisItem(null);
+          }}
+          item={rateAnalysisItem}
+        />
+      )}
+
       {/* Add Item Modal */}
+      
       {showAddItemModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-60">
+        <div
+          className={`fixed inset-0 overflow-y-auto h-full w-full ${showRateAnalysisModal ? 'bg-gray-600 bg-opacity-50 blur-sm' : 'bg-gray-600 bg-opacity-50'
+            } z-40`}
+        >
           <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
@@ -955,6 +973,17 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
                               />
                             </td>
                             <td className="px-3 py-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // Use the selectedItem when editing, otherwise use the newItem (cast to SubworkItem)
+                                  setRateAnalysisItem(selectedItem ?? (newItem as SubworkItem));
+                                  setShowRateAnalysisModal(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-800 p-1 mr-2"
+                              >
+                                Rate Analysis
+                              </button>
                               {itemRates.length > 1 && (
                                 <button
                                   type="button"
@@ -1004,7 +1033,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
       {/* Edit Item Modal */}
       {showEditItemModal && selectedItem && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-60">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40">
           <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
@@ -1256,5 +1285,7 @@ const SubworkItems: React.FC<SubworkItemsProps> = ({
 
 // Import the ItemMeasurements component
 import ItemMeasurements from './ItemMeasurements';
+import { useNavigate } from 'react-router-dom';
+import RateAnalysis from './RateAnalysis';
 
 export default SubworkItems;

@@ -17,6 +17,7 @@ import MeasurementBook from './components/MeasurementBook';
 
 // Protected Route Wrapper
 import ProtectedRoute from './components/common/ProtectedRoute';
+import RateAnalysis from './components/RateAnalysis';
 
 function App() {
   return (
@@ -64,6 +65,19 @@ function App() {
                       <Header />
                       <main className="flex-1 max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 w-full">
                         <Subworks />
+                      </main>
+                    </div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/rateAnalysis"
+                element={
+                  <ProtectedRoute>
+                    <div className="flex flex-col min-h-screen">
+                      <Header />
+                      <main className="flex-1 max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 w-full">
+                        <RateAnalysis />
                       </main>
                     </div>
                   </ProtectedRoute>

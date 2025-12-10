@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect  } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import {
@@ -69,6 +69,11 @@ interface EstimatePDFGeneratorProps {
   savedTaxes?: TaxEntry[] | null;
 }
 
+interface Photo {
+  id: string;
+  designphoto: string; 
+}
+
 export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
   workId,
   isOpen,
@@ -87,6 +92,9 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
 
   const printRef = useRef<HTMLDivElement | null>(null);
+
+   const [photosMap, setPhotosMap] = useState<Record<string, Photo[]>>({}); 
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
 
   const [documentSettings, setDocumentSettings] = useState<DocumentSettings>({
     header: {
@@ -227,7 +235,45 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
     }
   };
 
+const fetchDesignPhotos = async (subworkId: string): Promise<Photo[]> => {
+    try {
+      const { data, error } = await supabase
+        .schema('estimate')
+        .from('subwork_design_photos')
+        .select('*')
+        .eq('subwork_id', subworkId)
+        .order('created_at', { ascending: true });
+      if (error) {
+        console.error('Error fetching design photos:', error);
+        return [];
+      }
+      return data || [];
+    } catch (error) {
+      console.error('Exception fetching design photos:', error);
+      return [];
+    }
+  };
 
+  // Fetch photos for all subworks once estimateData is loaded
+  useEffect(() => {
+    if (estimateData?.subworks.length) {
+      setLoadingPhotos(true);
+      Promise.all(
+        estimateData.subworks.map(async (subwork) => {
+          const photos = await fetchDesignPhotos(subwork.subworks_id);
+          return { subworkId: subwork.subworks_id, photos };
+        })
+      )
+      .then((results) => {
+        const photoMap: Record<string, Photo[]> = {};
+        results.forEach(({ subworkId, photos }) => {
+          photoMap[subworkId] = photos;
+        });
+        setPhotosMap(photoMap);
+      })
+      .finally(() => setLoadingPhotos(false));
+    }
+  }, [estimateData]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('hi-IN', {
@@ -661,550 +707,521 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
                 <PageFooter pageNumber={3} />
               </div>
 
-              {/* Measurement Pages for Each Subwork */}
+            {/* Sub-work Detail Pages: Abstract -> Measurement(s) -> Photos (per subwork) */}
               {(() => {
+                // pageNumber used for measurement/photo pages; start after cover/details/recap pages
                 let pageNumber = 4;
-                const measurementPages = [];
 
-                estimateData.subworks.forEach((subwork) => {
+                return estimateData.subworks.map((subwork, subworkIndex) => {
                   const items = estimateData.subworkItems[subwork.subworks_id] || [];
+                  if (items.length === 0) return null;
 
-                  // Check if this subwork has any measurements
-                  const hasAnyMeasurements = items.some(item => {
-                    const itemMeasurements = estimateData.measurements[item.sr_no] || [];
-                    return itemMeasurements.length > 0;
-                  });
+                  // Abstract page (kept identical to original abstract rendering)
+                  const abstractPage = (
+                    <div key={`abstract-${subwork.subworks_id}`} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                      <PageHeader pageNumber={(() => {
+                        // Preserve original page number calculation for abstract
+                        let pageNum = 4;
+                        estimateData.subworks.forEach((sw, idx) => {
+                          if (idx <= subworkIndex) {
+                            const swItems = estimateData.subworkItems[sw.subworks_id] || [];
+                            const hasAnyMeasurements = swItems.some(item => {
+                              const itemMeasurements = estimateData.measurements[item.sr_no] || [];
+                              return itemMeasurements.length > 0;
+                            });
+                            if (hasAnyMeasurements && idx < subworkIndex) pageNum++;
+                          }
+                        });
+                        return pageNum + subworkIndex;
+                      })()} />
 
-                  // Only create measurement page if subwork has measurements
-                  if (hasAnyMeasurements) {
-                    measurementPages.push(
-                      <div key={`measurement-${subwork.subworks_id}`} className="pdf-page bg-white p-6 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
-                        <PageHeader pageNumber={pageNumber} />
+                      {/* Abstract Pages for Each Subwork (unchanged content) */}
+                      <div className="flex-1">
+                        <div className="text-center mb-6">
+                          <p className="text-sm">Fund Head :- {estimateData.work.fund_head || '-'}</p>
+                          <p className="text-sm">Village :- {estimateData.work.village || 'N/A'}, GP :- {estimateData.work.grampanchayat || 'N/A'}, Tah :- {estimateData.work.taluka || 'N/A'}</p>
+                          <h3 className="text-lg font-bold mt-4">Sub-work: {subwork.subworks_name}</h3>
+                          <h4 className="text-lg font-bold underline">ABSTRACT</h4>
+                        </div>
 
-                        <div className="flex-1">
-                          {/* Traditional Header Format */}
-                          <div className="text-center mb-6">
-                            <p className="text-sm mb-2">Village :- {estimateData.work.village || 'N/A'}, GP :- {estimateData.work.grampanchayat || 'N/A'}, Tah :- {estimateData.work.taluka || 'N/A'}</p>
-                            <h3 className="text-lg font-bold mb-4">Sub-Work :- {subwork.subworks_name}</h3>
-                            <h4 className="text-lg font-bold underline">MEASUREMENT</h4>
+                        {(() => { console.log("📊 Subwork Items data:", items); })()}
+
+                        <table className="w-full border-collapse border border-black text-xs mb-6">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="border border-black p-2">Sr. No</th>
+                              <th className="border border-black p-2">Description of Sub Work</th>
+                              <th className="border border-black p-2">Category</th>
+                              <th className="border border-black p-2">Quantity</th>
+                              <th className="border border-black p-2">Unit</th>
+                              <th className="border border-black p-2">Rate (Rs.)</th>
+                              <th className="border border-black p-2">Total Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {items && items.length > 0 ? (
+                              items.map((item, index) => {
+                                const rates = item.rates || [];
+                                const showMultiRates = rates.length > 0;
+
+                                return (
+                                  <tr key={item.sr_no || index}>
+                                    <td className="border border-black p-2 text-center align-top">
+                                      {item.item_number || index + 1}
+                                    </td>
+                                    <td className="border border-black p-2 align-top">
+                                      <div>{item.description_of_item}</div>
+                                      {showMultiRates && (
+                                        <div className="mt-1 space-y-1">
+                                          {rates.map((rate, i) => (
+                                            <div key={i} className="text-xs bg-gray-50 p-2 rounded border-l-2 border-blue-200 mt-1">
+                                              <div className="font-medium text-gray-700">{rate.description}</div>
+                                              <div className="flex items-center justify-between mt-1">
+                                                <span className="text-gray-600">
+                                                  ₹{rate.rate !== undefined && rate.rate !== null
+                                                    ? Number(rate.rate).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
+                                                    : 0}
+                                                </span>
+                                                {rate.ssr_unit && (
+                                                  <span className="text-gray-500">per {rate.ssr_unit}</span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="border border-black p-2 align-top text-center">
+                                      {item.category || '-'}
+                                    </td>
+                                    <td className="border border-black p-2 align-top text-center">
+                                      {showMultiRates ? (
+                                        <div className="space-y-1">
+                                          {rates.map((rate, i) => (
+                                            <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
+                                              {rate.ssr_quantity !== null && rate.ssr_quantity !== undefined
+                                                ? Number(rate.ssr_quantity).toLocaleString("hi-IN", { maximumFractionDigits: 3 })
+                                                : 0}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        item.ssr_quantity !== null && item.ssr_quantity !== undefined
+                                          ? Number(item.ssr_quantity).toLocaleString("hi-IN", { maximumFractionDigits: 3 })
+                                          : 0
+                                      )}
+                                    </td>
+                                    <td className="border border-black p-2 align-top text-center">
+                                      {showMultiRates ? (
+                                        <div className="space-y-1">
+                                          {rates.map((rate, i) => (
+                                            <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
+                                              {rate.ssr_unit || item.ssr_unit || "-"}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        item.ssr_unit || "-"
+                                      )}
+                                    </td>
+                                    <td className="border border-black p-2 align-top text-right">
+                                      {showMultiRates ? (
+                                        <div className="space-y-1">
+                                          {rates.map((rate, i) => (
+                                            <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
+                                              {rate.rate !== null && rate.rate !== undefined
+                                                ? Number(rate.rate).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
+                                                : 0}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        item.ssr_rate !== null && item.ssr_rate !== undefined
+                                          ? Number(item.ssr_rate).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
+                                          : 0
+                                      )}
+                                    </td>
+                                    <td className="border border-black p-2 align-top text-right">
+                                      {showMultiRates ? (
+                                        <div className="space-y-1">
+                                          {rates.map((rate, i) => (
+                                            <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
+                                              {(rate.ssr_quantity && rate.rate
+                                                ? (Number(rate.ssr_quantity) * Number(rate.rate))
+                                                : 0
+                                              ).toLocaleString("hi-IN", { maximumFractionDigits: 2 })}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        item.total_item_amount !== null && item.total_item_amount !== undefined
+                                          ? Number(item.total_item_amount).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
+                                          : 0
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            ) : (
+                              <tr>
+                                <td colSpan={7} className="border border-black p-2 text-center text-gray-500 italic">
+                                  No subwork items available
+                                </td>
+                              </tr>
+                            )}
+                            {items && items.length > 0 && (
+                              <tr className="font-bold bg-gray-100">
+                                <td colSpan={6} className="border border-black p-2 text-center">
+                                  Total Rs
+                                </td>
+                                <td className="border border-black p-2 text-right">
+                                  {items
+                                    .reduce((sum, item) => {
+                                      const rates = item.rates || [];
+                                      const itemTotal = rates.length > 0
+                                        ? rates.reduce(
+                                          (rSum, rate) =>
+                                            rSum +
+                                            ((rate.ssr_quantity && rate.rate)
+                                              ? Number(rate.ssr_quantity) * Number(rate.rate)
+                                              : 0
+                                            ),
+                                          0
+                                        )
+                                        : (item.total_item_amount !== null && item.total_item_amount !== undefined
+                                          ? Number(item.total_item_amount)
+                                          : 0);
+                                      return sum + itemTotal;
+                                    }, 0)
+                                    .toLocaleString("hi-IN", { maximumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <PageFooter pageNumber={(() => {
+                        let pageNum = 4;
+                        estimateData.subworks.forEach((sw, idx) => {
+                          if (idx <= subworkIndex) {
+                            const swItems = estimateData.subworkItems[sw.subworks_id] || [];
+                            const hasAnyMeasurements = swItems.some(item => {
+                              const itemMeasurements = estimateData.measurements[item.sr_no] || [];
+                              return itemMeasurements.length > 0;
+                            });
+                            if (hasAnyMeasurements && idx < subworkIndex) pageNum++;
+                          }
+                        });
+                        return pageNum + subworkIndex;
+                      })()} />
+                    </div>
+                  );
+
+                  // Measurement pages for this subwork (first measurement format)
+                  const measurementPagesForThis: React.ReactNode[] = [];
+                  {
+                    const hasAnyMeasurements = items.some(item => {
+                      const itemMeasurements = estimateData.measurements[item.sr_no] || [];
+                      return itemMeasurements.length > 0;
+                    });
+
+                    if (hasAnyMeasurements) {
+                      measurementPagesForThis.push(
+                        <div key={`measurement-a-${subwork.subworks_id}`} className="pdf-page bg-white p-6 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                          <PageHeader pageNumber={pageNumber} />
+                          <div className="flex-1">
+                            <div className="text-center mb-6">
+                              <p className="text-sm mb-2">Village :- {estimateData.work.village || 'N/A'}, GP :- {estimateData.work.grampanchayat || 'N/A'}, Tah :- {estimateData.work.taluka || 'N/A'}</p>
+                              <h3 className="text-lg font-bold mb-4">Sub-Work :- {subwork.subworks_name}</h3>
+                              <h4 className="text-lg font-bold underline">MEASUREMENT</h4>
+                            </div>
+
+                            <div className="mb-8">
+                              <table className="w-full border-collapse border-2 border-black" style={{ borderCollapse: 'collapse' }}>
+                                <thead>
+                                  <tr className="bg-white">
+                                    <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '50%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                      Items
+                                    </th>
+                                    <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '10%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                      Nos.
+                                    </th>
+                                    <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '10%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                      Length
+                                    </th>
+                                    <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '10%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                      Breadth
+                                    </th>
+                                    <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '9%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                      Height/<br />Depth
+                                    </th>
+                                    <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '9%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                      Qty.
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {items.map((item, itemIndex) => {
+                                    const itemMeasurements = estimateData.measurements[item.sr_no] || [];
+                                    if (itemMeasurements.length === 0) return null;
+                                    const itemTotal = itemMeasurements.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
+
+                                    return (
+                                      <React.Fragment key={item.sr_no}>
+                                        <tr>
+                                          <td className="border border-black p-3 font-bold text-sm" style={{ border: '1px solid black', padding: '12px', fontWeight: 'bold' }}>
+                                            Item No.{itemIndex + 1} :-
+                                          </td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                        </tr>
+
+                                        <tr>
+                                          <td className="border border-black p-3 text-justify leading-tight text-sm" style={{ border: '1px solid black', padding: '12px', textAlign: 'justify', lineHeight: '1.3' }}>
+                                            {item.description_of_item}
+                                          </td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                        </tr>
+
+                                        {itemMeasurements.map((measurement, measurementIndex) => (
+                                          <tr key={measurement.sr_no || measurementIndex}>
+                                            <td className="border border-black p-3 text-right pr-4 text-sm" style={{ border: '1px solid black', padding: '12px', textAlign: 'right', paddingRight: '16px' }}>
+                                              {measurement.description_of_items || ''}
+                                            </td>
+                                            <td className="border border-black p-3 text-center text-sm font-medium" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: '500' }}>
+                                              {measurement.no_of_units || 1}
+                                            </td>
+                                            <td className="border border-black p-3 text-center text-sm font-medium" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: '500' }}>
+                                              {(measurement.length || 0).toFixed(2)}
+                                            </td>
+                                            <td className="border border-black p-3 text-center text-sm font-medium" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: '500' }}>
+                                              {(measurement.width_breadth || 0).toFixed(2)}
+                                            </td>
+                                            <td className="border border-black p-3 text-center text-sm font-medium" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: '500' }}>
+                                              {(measurement.height_depth || 0).toFixed(2)}
+                                            </td>
+                                            <td className="border border-black p-3 text-center text-sm font-bold text-blue-600" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold', color: '#2563eb' }}>
+                                              {(measurement.calculated_quantity || 0).toFixed(2)}
+                                            </td>
+                                          </tr>
+                                        ))}
+
+                                        <tr className="bg-gray-100">
+                                          <td className="border border-black p-3 text-right font-bold text-sm pr-4" style={{ border: '1px solid black', padding: '12px', textAlign: 'right', fontWeight: 'bold', paddingRight: '16px' }}>
+                                            Total
+                                          </td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
+                                          <td className="border border-black p-3 text-center font-bold text-lg text-green-600" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: '#16a34a' }}>
+                                            {itemTotal.toFixed(2)}
+                                          </td>
+                                        </tr>
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
 
-                          {/* Traditional Measurement Table */}
-                          <div className="mb-8">
-                            <table className="w-full border-collapse border-2 border-black" style={{ borderCollapse: 'collapse' }}>
+                          <PageFooter pageNumber={pageNumber} />
+                        </div>
+                      );
+
+                      // increment pageNumber after rendering measurement page
+                      pageNumber++;
+                    }
+                  }
+
+                  // Measurement Pages - Traditional Format (second measurement block)
+                  const traditionalMeasurementForThis: React.ReactNode[] = [];
+                  {
+                    const hasAnyMeasurements = items.some(item => {
+                      const itemMeasurements = estimateData.measurements[item.id] || [];
+                      return itemMeasurements.length > 0;
+                    });
+
+                    if (hasAnyMeasurements) {
+                      traditionalMeasurementForThis.push(
+                        <div key={`measurement-b-${subwork.subworks_id}`} className="pdf-page bg-white p-6 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                          <PageHeader pageNumber={pageNumber} />
+                          <div className="flex-1">
+                            <div className="text-center mb-6" style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                              <h2 className="text-base font-bold text-black mb-4">NAME OF WORK: {estimateData.work.work_name}</h2>
+                              <div className="text-sm text-black mb-4">
+                                <span>Village :- {estimateData.work.village || 'N/A'}, </span>
+                                <span>GP :- {estimateData.work.grampanchayat || 'N/A'}, </span>
+                                <span>Tah :- {estimateData.work.taluka || 'Chandrapur'}</span>
+                              </div>
+                              <h3 className="text-base font-bold text-black mb-4">Sub-Work :- {subwork.subworks_name}</h3>
+                              <h2 className="text-lg font-bold text-black underline mb-6">MEASUREMENT</h2>
+                            </div>
+
+                            <table className="w-full border-collapse border-2 border-black text-sm" style={{ borderCollapse: 'collapse' }}>
                               <thead>
-                                <tr className="bg-white">
-                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '50%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                <tr>
+                                  <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '40%' }}>
                                     Items
                                   </th>
-                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '10%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '10%' }}>
                                     Nos.
                                   </th>
-                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '10%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '12%' }}>
                                     Length
                                   </th>
-                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '10%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '12%' }}>
                                     Breadth
                                   </th>
-                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '9%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '13%' }}>
                                     Height/<br />Depth
                                   </th>
-                                  <th className="border-2 border-black p-3 text-center font-bold text-sm" style={{ width: '9%', border: '2px solid black', padding: '9px', textAlign: 'center', fontWeight: 'bold' }}>
+                                  <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '13%' }}>
                                     Qty.
                                   </th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {items.map((item, itemIndex) => {
-                                  const itemMeasurements = estimateData.measurements[item.sr_no] || [];
-
-                                  // Only show items that have measurements
+                                  const itemMeasurements = estimateData.measurements[item.id] || [];
                                   if (itemMeasurements.length === 0) return null;
 
-                                  const itemTotal = itemMeasurements.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
+                                  const rows: React.ReactNode[] = [];
 
-                                  return (
-                                    <React.Fragment key={item.sr_no}>
-                                      {/* Item Header Row */}
-                                      <tr>
-                                        <td className="border border-black p-3 font-bold text-sm" style={{ border: '1px solid black', padding: '12px', fontWeight: 'bold' }}>
-                                          Item No.{itemIndex + 1} :-
-                                        </td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                      </tr>
-
-                                      {/* Item Description Row */}
-                                      <tr>
-                                        <td className="border border-black p-3 text-justify leading-tight text-sm" style={{ border: '1px solid black', padding: '12px', textAlign: 'justify', lineHeight: '1.3' }}>
-                                          {item.description_of_item}
-                                        </td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                      </tr>
-
-                                      {/* Measurement Data Rows */}
-                                      {itemMeasurements.map((measurement, measurementIndex) => (
-                                        <tr key={measurement.sr_no || measurementIndex}>
-                                          <td className="border border-black p-3 text-right pr-4 text-sm" style={{ border: '1px solid black', padding: '12px', textAlign: 'right', paddingRight: '16px' }}>
-                                            {measurement.description_of_items || ''}
-                                          </td>
-                                          <td className="border border-black p-3 text-center text-sm font-medium" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: '500' }}>
-                                            {measurement.no_of_units || 1}
-                                          </td>
-                                          <td className="border border-black p-3 text-center text-sm font-medium" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: '500' }}>
-                                            {(measurement.length || 0).toFixed(2)}
-                                          </td>
-                                          <td className="border border-black p-3 text-center text-sm font-medium" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: '500' }}>
-                                            {(measurement.width_breadth || 0).toFixed(2)}
-                                          </td>
-                                          <td className="border border-black p-3 text-center text-sm font-medium" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: '500' }}>
-                                            {(measurement.height_depth || 0).toFixed(2)}
-                                          </td>
-                                          <td className="border border-black p-3 text-center text-sm font-bold text-blue-600" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold', color: '#2563eb' }}>
-                                            {(measurement.calculated_quantity || 0).toFixed(2)}
-                                          </td>
-                                        </tr>
-                                      ))}
-
-                                      {/* Total Row for Item */}
-                                      <tr className="bg-gray-100">
-                                        <td className="border border-black p-3 text-right font-bold text-sm pr-4" style={{ border: '1px solid black', padding: '12px', textAlign: 'right', fontWeight: 'bold', paddingRight: '16px' }}>
-                                          Total
-                                        </td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3" style={{ border: '1px solid black', padding: '12px' }}></td>
-                                        <td className="border border-black p-3 text-center font-bold text-lg text-green-600" style={{ border: '1px solid black', padding: '12px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: '#16a34a' }}>
-                                          {itemTotal.toFixed(2)}
-                                        </td>
-                                      </tr>
-
-                                      {/* Spacing row between items */}
-                                      {itemIndex < items.filter(i => (estimateData.measurements[i.sr_no] || []).length > 0).length - 1 && (
-                                        <tr>
-                                          <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }} colSpan={6}></td>
-                                        </tr>
-                                      )}
-                                    </React.Fragment>
+                                  rows.push(
+                                    <tr key={`item-header-${item.id}`}>
+                                      <td className="border border-black p-2 font-bold" style={{ border: '1px solid black', padding: '8px', fontWeight: 'bold' }}>Item No.{itemIndex + 1} :-</td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                    </tr>
                                   );
+
+                                  rows.push(
+                                    <tr key={`item-desc-${item.id}`}>
+                                      <td className="border border-black p-2 text-justify leading-tight" style={{ border: '1px solid black', padding: '8px', textAlign: 'justify', lineHeight: '1.3' }}>{item.description_of_item}</td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                    </tr>
+                                  );
+
+                                  itemMeasurements.forEach((measurement, measurementIndex) => {
+                                    rows.push(
+                                      <tr key={`measurement-${measurement.sr_no || measurementIndex}`}>
+                                        <td className="border border-black p-2 text-right pr-4" style={{ border: '1px solid black', padding: '8px', textAlign: 'right', paddingRight: '16px' }}>{measurement.description_of_items || ''}</td>
+                                        <td className="border border-black p-2 text-center" style={{ border: '1px solid black', padding: '8px', textAlign: 'center' }}>{measurement.no_of_units || 1}</td>
+                                        <td className="border border-black p-2 text-center" style={{ border: '1px solid black', padding: '8px', textAlign: 'center' }}>{(measurement.length || 0).toFixed(2)}</td>
+                                        <td className="border border-black p-2 text-center" style={{ border: '1px solid black', padding: '8px', textAlign: 'center' }}>{(measurement.width_breadth || 0).toFixed(2)}</td>
+                                        <td className="border border-black p-2 text-center" style={{ border: '1px solid black', padding: '8px', textAlign: 'center' }}>{(measurement.height_depth || 0).toFixed(2)}</td>
+                                        <td className="border border-black p-2 text-center" style={{ border: '1px solid black', padding: '8px', textAlign: 'center' }}>{(measurement.calculated_quantity || 0).toFixed(2)}</td>
+                                      </tr>
+                                    );
+                                  });
+
+                                  const totalQuantity = itemMeasurements.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
+                                  rows.push(
+                                    <tr key={`total-${item.id}`}>
+                                      <td className="border border-black p-2 text-right font-bold pr-4" style={{ border: '1px solid black', padding: '8px', textAlign: 'right', fontWeight: 'bold', paddingRight: '16px' }}>Total</td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                      <td className="border border-black p-2 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>{totalQuantity.toFixed(2)}</td>
+                                    </tr>
+                                  );
+
+                                  const itemsWithMeasurements = items.filter(i => (estimateData.measurements[i.id] || []).length > 0);
+                                  if (itemIndex < itemsWithMeasurements.length - 1) {
+                                    rows.push(<tr key={`spacing-${item.id}`}><td className="border border-black p-1" colSpan={6} style={{ border: '1px solid black', padding: '4px' }}></td></tr>);
+                                  }
+
+                                  return rows;
                                 })}
+
+                                {Array.from({ length: 8 }, (_, index) => (
+                                  <tr key={`empty-${index}`}>
+                                    <td className="border border-black p-2 h-8" style={{ border: '1px solid black', padding: '8px', height: '32px' }}></td>
+                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
+                                  </tr>
+                                ))}
                               </tbody>
                             </table>
                           </div>
+                          <PageFooter pageNumber={pageNumber} />
+                        </div>
+                      );
+
+                      pageNumber++;
+                    }
+                  }
+
+                  // Photo page for this subwork
+                  const photoPage = (
+                    <div key={`photos-${subwork.subworks_id}`} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
+                      <PageHeader pageNumber={pageNumber} />
+                      <div className="flex-1">
+                        <div className="text-center mb-6">
+                          <h3 className="text-lg font-bold">Design Photos</h3>
+                          <h4 className="text-base font-medium">Sub-Work: {subwork.subworks_name}</h4>
                         </div>
 
-                        <PageFooter pageNumber={pageNumber} />
-                      </div>
-                    );
-                    pageNumber++;
-                  }
-                });
-
-                return measurementPages;
-              })()}
-
-              {/* Sub-work Detail Pages */}
-              {estimateData.subworks.map((subwork, subworkIndex) => {
-                const items = estimateData.subworkItems[subwork.subworks_id] || [];
-                if (items.length === 0) return null;
-
-                return (
-                  <div key={subwork.subworks_id} className="pdf-page bg-white p-8 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
-                    <PageHeader pageNumber={(() => {
-                      // Calculate page number after measurement pages
-                      let pageNum = 4;
-                      estimateData.subworks.forEach((sw, idx) => {
-                        if (idx <= subworkIndex) {
-                          const swItems = estimateData.subworkItems[sw.subworks_id] || [];
-                          const hasAnyMeasurements = swItems.some(item => {
-                            const itemMeasurements = estimateData.measurements[item.sr_no] || [];
-                            return itemMeasurements.length > 0;
-                          });
-                          if (hasAnyMeasurements && idx < subworkIndex) pageNum++;
-                        }
-                      });
-                      return pageNum + subworkIndex;
-                    })()} />
-
-                    <div className="flex-1">
-                      <div className="text-center mb-6">
-                        <p className="text-sm">Fund Head :- {estimateData.work.fund_head || '-'}</p>
-                        <p className="text-sm">Village :- {estimateData.work.village || 'N/A'}, GP :- {estimateData.work.grampanchayat || 'N/A'}, Tah :- {estimateData.work.taluka || 'N/A'}</p>
-                        <h3 className="text-lg font-bold mt-4">Sub-work: {subwork.subworks_name}</h3>
-                        <h4 className="text-lg font-bold underline">ABSTRACT</h4>
-                      </div>
-
-                      {/* ✅ Debug: Check what data items contains */}
-                      {(() => {
-                        console.log("📊 Subwork Items data:", items);
-                      })()}
-
-                      <table className="w-full border-collapse border border-black text-xs mb-6">
-                        <thead>
-                          <tr className="bg-gray-100">
-                            <th className="border border-black p-2">Sr. No</th>
-                            <th className="border border-black p-2">Description of Sub Work</th>
-                            <th className="border border-black p-2">Category</th>
-                            <th className="border border-black p-2">Quantity</th>
-                            <th className="border border-black p-2">Unit</th>
-                            <th className="border border-black p-2">Rate (Rs.)</th>
-                            <th className="border border-black p-2">Total Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {items && items.length > 0 ? (
-                            items.map((item, index) => {
-                              const rates = item.rates || [];
-                              const showMultiRates = rates.length > 0;
-
-                              return (
-                                <tr key={item.sr_no || index}>
-                                  <td className="border border-black p-2 text-center align-top">
-                                    {item.item_number || index + 1}
-                                  </td>
-                                  <td className="border border-black p-2 align-top">
-                                    <div>{item.description_of_item}</div>
-                                    {showMultiRates && (
-                                      <div className="mt-1 space-y-1">
-                                        {rates.map((rate, i) => (
-                                          <div key={i} className="text-xs bg-gray-50 p-2 rounded border-l-2 border-blue-200 mt-1">
-                                            <div className="font-medium text-gray-700">{rate.description}</div>
-                                            <div className="flex items-center justify-between mt-1">
-                                              <span className="text-gray-600">
-                                                ₹{rate.rate !== undefined && rate.rate !== null
-                                                  ? Number(rate.rate).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
-                                                  : 0}
-                                              </span>
-                                              {rate.ssr_unit && (
-                                                <span className="text-gray-500">per {rate.ssr_unit}</span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="border border-black p-2 align-top text-center">
-                                    {item.category || '-'}
-                                  </td>
-                                  <td className="border border-black p-2 align-top text-center">
-                                    {showMultiRates ? (
-                                      <div className="space-y-1">
-                                        {rates.map((rate, i) => (
-                                          <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
-                                            {rate.ssr_quantity !== null && rate.ssr_quantity !== undefined
-                                              ? Number(rate.ssr_quantity).toLocaleString("hi-IN", { maximumFractionDigits: 3 })
-                                              : 0}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      item.ssr_quantity !== null && item.ssr_quantity !== undefined
-                                        ? Number(item.ssr_quantity).toLocaleString("hi-IN", { maximumFractionDigits: 3 })
-                                        : 0
-                                    )}
-                                  </td>
-                                  <td className="border border-black p-2 align-top text-center">
-                                    {showMultiRates ? (
-                                      <div className="space-y-1">
-                                        {rates.map((rate, i) => (
-                                          <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
-                                            {rate.ssr_unit || item.ssr_unit || "-"}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      item.ssr_unit || "-"
-                                    )}
-                                  </td>
-                                  <td className="border border-black p-2 align-top text-right">
-                                    {showMultiRates ? (
-                                      <div className="space-y-1">
-                                        {rates.map((rate, i) => (
-                                          <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
-                                            {rate.rate !== null && rate.rate !== undefined
-                                              ? Number(rate.rate).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
-                                              : 0}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      item.ssr_rate !== null && item.ssr_rate !== undefined
-                                        ? Number(item.ssr_rate).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
-                                        : 0
-                                    )}
-                                  </td>
-                                  <td className="border border-black p-2 align-top text-right">
-                                    {showMultiRates ? (
-                                      <div className="space-y-1">
-                                        {rates.map((rate, i) => (
-                                          <div key={i} className="bg-gray-50 px-2 py-1 rounded text-xs">
-                                            {(rate.ssr_quantity && rate.rate
-                                              ? (Number(rate.ssr_quantity) * Number(rate.rate))
-                                              : 0
-                                            ).toLocaleString("hi-IN", { maximumFractionDigits: 2 })}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      item.total_item_amount !== null && item.total_item_amount !== undefined
-                                        ? Number(item.total_item_amount).toLocaleString("hi-IN", { maximumFractionDigits: 2 })
-                                        : 0
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })
-                          ) : (
-                            <tr>
-                              <td colSpan={7} className="border border-black p-2 text-center text-gray-500 italic">
-                                No subwork items available
-                              </td>
-                            </tr>
-                          )}
-                          {items && items.length > 0 && (
-                            <tr className="font-bold bg-gray-100">
-                              <td colSpan={6} className="border border-black p-2 text-center">
-                                Total Rs
-                              </td>
-                              <td className="border border-black p-2 text-right">
-                                {items
-                                  .reduce((sum, item) => {
-                                    const rates = item.rates || [];
-                                    const itemTotal = rates.length > 0
-                                      ? rates.reduce(
-                                        (rSum, rate) =>
-                                          rSum +
-                                          ((rate.ssr_quantity && rate.rate)
-                                            ? Number(rate.ssr_quantity) * Number(rate.rate)
-                                            : 0
-                                          ),
-                                        0
-                                      )
-                                      : (item.total_item_amount !== null && item.total_item_amount !== undefined
-                                        ? Number(item.total_item_amount)
-                                        : 0);
-                                    return sum + itemTotal;
-                                  }, 0)
-                                  .toLocaleString("hi-IN", { maximumFractionDigits: 2 })}
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-
-                    </div>
-
-                    <PageFooter pageNumber={(() => {
-                      // Calculate page number after measurement pages
-                      let pageNum = 4;
-                      estimateData.subworks.forEach((sw, idx) => {
-                        if (idx <= subworkIndex) {
-                          const swItems = estimateData.subworkItems[sw.subworks_id] || [];
-                          const hasAnyMeasurements = swItems.some(item => {
-                            const itemMeasurements = estimateData.measurements[item.sr_no] || [];
-                            return itemMeasurements.length > 0;
-                          });
-                          if (hasAnyMeasurements && idx < subworkIndex) pageNum++;
-                        }
-                      });
-                      return pageNum + subworkIndex;
-                    })()} />
-                  </div>
-                );
-              })}
-
-              {/* Measurement Pages - Traditional Format */}
-              {(() => {
-                let pageNumber = 4;
-                const measurementPages = [];
-
-                estimateData.subworks.forEach((subwork) => {
-                  const items = estimateData.subworkItems[subwork.subworks_id] || [];
-
-                  // Check if this subwork has any measurements
-                  const hasAnyMeasurements = items.some(item => {
-                    const itemMeasurements = estimateData.measurements[item.id] || [];
-                    return itemMeasurements.length > 0;
-                  });
-
-                  // Only create measurement page if subwork has measurements
-                  if (hasAnyMeasurements) {
-                    measurementPages.push(
-                      <div key={`measurement-${subwork.subworks_id}`} className="pdf-page bg-white p-6 min-h-[297mm] flex flex-col" style={{ fontFamily: 'Arial, sans-serif', pageBreakAfter: 'always' }}>
-                        <PageHeader pageNumber={pageNumber} />
-
-                        <div className="flex-1">
-                          {/* Traditional Measurement Header */}
-                          <div className="text-center mb-6" style={{ fontSize: '14px', fontWeight: 'bold' }}>
-                            <h2 className="text-base font-bold text-black mb-4">
-                              NAME OF WORK: {estimateData.work.work_name}
-                            </h2>
-
-                            {/* Location Information */}
-                            <div className="text-sm text-black mb-4">
-                              <span>Village :- {estimateData.work.village || 'N/A'}, </span>
-                              <span>GP :- {estimateData.work.grampanchayat || 'N/A'}, </span>
-                              <span>Tah :- {estimateData.work.taluka || 'Chandrapur'}</span>
-                            </div>
-
-                            <h3 className="text-base font-bold text-black mb-4">
-                              Sub-Work :- {subwork.subworks_name}
-                            </h3>
-
-                            <h2 className="text-lg font-bold text-black underline mb-6">
-                              MEASUREMENT
-                            </h2>
+                        {loadingPhotos ? (
+                          <div className="flex justify-center items-center h-64">
+                            <p>Loading photos...</p>
                           </div>
-
-                          {/* Traditional Measurement Table */}
-                          <table className="w-full border-collapse border-2 border-black text-sm" style={{ borderCollapse: 'collapse' }}>
-                            <thead>
-                              <tr>
-                                <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '40%' }}>
-                                  Items
-                                </th>
-                                <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '10%' }}>
-                                  Nos.
-                                </th>
-                                <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '12%' }}>
-                                  Length
-                                </th>
-                                <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '12%' }}>
-                                  Breadth
-                                </th>
-                                <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '13%' }}>
-                                  Height/<br />Depth
-                                </th>
-                                <th className="border border-black p-3 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '13%' }}>
-                                  Qty.
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {items.map((item, itemIndex) => {
-                                const itemMeasurements = estimateData.measurements[item.id] || [];
-
-                                // Only show items that have measurements
-                                if (itemMeasurements.length === 0) return null;
-
-                                const rows = [];
-
-                                // Item header row
-                                rows.push(
-                                  <tr key={`item-header-${item.id}`}>
-                                    <td className="border border-black p-2 font-bold" style={{ border: '1px solid black', padding: '8px', fontWeight: 'bold' }}>
-                                      Item No.{itemIndex + 1} :-
-                                    </td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                  </tr>
-                                );
-
-                                // Item description row
-                                rows.push(
-                                  <tr key={`item-desc-${item.id}`}>
-                                    <td className="border border-black p-2 text-justify leading-tight" style={{ border: '1px solid black', padding: '8px', textAlign: 'justify', lineHeight: '1.3' }}>
-                                      {item.description_of_item}
-                                    </td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                  </tr>
-                                );
-
-                                // Measurement data rows
-                                itemMeasurements.forEach((measurement, measurementIndex) => {
-                                  rows.push(
-                                    <tr key={`measurement-${measurement.sr_no || measurementIndex}`}>
-                                      <td className="border border-black p-2 text-right pr-4" style={{ border: '1px solid black', padding: '8px', textAlign: 'right', paddingRight: '16px' }}>
-                                        {measurement.description_of_items || ''}
-                                      </td>
-                                      <td className="border border-black p-2 text-center" style={{ border: '1px solid black', padding: '8px', textAlign: 'center' }}>
-                                        {measurement.no_of_units || 1}
-                                      </td>
-                                      <td className="border border-black p-2 text-center" style={{ border: '1px solid black', padding: '8px', textAlign: 'center' }}>
-                                        {(measurement.length || 0).toFixed(2)}
-                                      </td>
-                                      <td className="border border-black p-2 text-center" style={{ border: '1px solid black', padding: '8px', textAlign: 'center' }}>
-                                        {(measurement.width_breadth || 0).toFixed(2)}
-                                      </td>
-                                      <td className="border border-black p-2 text-center" style={{ border: '1px solid black', padding: '8px', textAlign: 'center' }}>
-                                        {(measurement.height_depth || 0).toFixed(2)}
-                                      </td>
-                                      <td className="border border-black p-2 text-center" style={{ border: '1px solid black', padding: '8px', textAlign: 'center' }}>
-                                        {(measurement.calculated_quantity || 0).toFixed(2)}
-                                      </td>
-                                    </tr>
-                                  );
-                                });
-
-                                // Total row for this item
-                                const totalQuantity = itemMeasurements.reduce((sum, m) => sum + (m.calculated_quantity || 0), 0);
-                                rows.push(
-                                  <tr key={`total-${item.id}`}>
-                                    <td className="border border-black p-2 text-right font-bold pr-4" style={{ border: '1px solid black', padding: '8px', textAlign: 'right', fontWeight: 'bold', paddingRight: '16px' }}>
-                                      Total
-                                    </td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                    <td className="border border-black p-2 text-center font-bold" style={{ border: '1px solid black', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>
-                                      {totalQuantity.toFixed(2)}
-                                    </td>
-                                  </tr>
-                                );
-
-                                // Add spacing row between items (except for last item)
-                                const itemsWithMeasurements = items.filter(i => (estimateData.measurements[i.id] || []).length > 0);
-                                if (itemIndex < itemsWithMeasurements.length - 1) {
-                                  rows.push(
-                                    <tr key={`spacing-${item.id}`}>
-                                      <td className="border border-black p-1" colSpan={6} style={{ border: '1px solid black', padding: '4px' }}></td>
-                                    </tr>
-                                  );
-                                }
-
-                                return rows;
-                              })}
-
-                              {/* Add some empty rows for manual entries */}
-                              {Array.from({ length: 8 }, (_, index) => (
-                                <tr key={`empty-${index}`}>
-                                  <td className="border border-black p-2 h-8" style={{ border: '1px solid black', padding: '8px', height: '32px' }}></td>
-                                  <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                  <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                  <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                  <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                  <td className="border border-black p-2" style={{ border: '1px solid black', padding: '8px' }}></td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        <PageFooter pageNumber={pageNumber} />
+                        ) : photosMap[subwork.subworks_id]?.length ? (
+                          <div className="grid grid-cols-1 gap-6">
+                            {photosMap[subwork.subworks_id].map((photo) => (
+                              <div key={photo.id} className="flex flex-col items-center">
+                                <img
+                                  src={photo.photo_url || photo.designphoto}
+                                  alt={`Design Photo ${photo.id}`}
+                                  className="max-h-[200mm] object-contain border border-gray-300 rounded shadow-sm"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex justify-center items-center h-64">
+                            <p className="text-gray-500 italic">No photos available for this sub-work.</p>
+                          </div>
+                        )}
                       </div>
-                    );
-                    pageNumber++;
-                  }
-                });
+                      <PageFooter pageNumber={pageNumber} />
+                    </div>
+                  );
 
-                return measurementPages;
+                  // increment pageNumber for photo after adding measurement pages
+                  pageNumber++;
+
+                  // Compose and return: abstract -> measurement(s) -> traditional measurement -> photos
+                  return (
+                    <React.Fragment key={`group-${subwork.subworks_id}`}>
+                      {abstractPage}
+                      {measurementPagesForThis}
+                      {traditionalMeasurementForThis}
+                      {photoPage}
+                    </React.Fragment>
+                  );
+                });
               })()}
             </div>
           </div>
@@ -1221,7 +1238,7 @@ export const EstimatePDFGenerator: React.FC<EstimatePDFGeneratorProps> = ({
         )}
       </div>
 
-      <style jsx>{`
+      <style >{`
         @media print {
           .pdf-page {
             page-break-after: always;
